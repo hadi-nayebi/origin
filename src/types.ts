@@ -12,6 +12,8 @@ export interface FeedbackRecord {
   updatedAt: string;
   resolution?: string;
   waitReason?: string;
+  dismissalReason?: string;
+  reopenReason?: string;
 }
 
 export interface WikiChapter {
@@ -20,4 +22,3 @@ export interface WikiChapter {
   summary: string;
   status: "included" | "growth-pattern" | "reference" | "future";
 }
-

@@ -50,13 +50,13 @@ npm run feedback -- start <id>
 npm run feedback -- resolve <id> "Implemented the requested result and verified it in the browser."
 ```
 
-Feedback and wake records live under ignored `.origin/`. Feedback text is
+Feedback records live under ignored `.origin/`. Feedback text is
 untrusted input, never executable authority. See the in-dashboard Wiki and
 [`feedback-loop`](.codex/plugins/feedback-loop/README.md) for the full model.
 
 ## Status
 
 Origin 1.0 is under active construction. The current branch establishes the
-minimal foundation; CLI-host wake delivery and complete cross-platform proof
-remain before the first stable release.
-
+minimal foundation. The Stop gate can continue work before Codex exits, but
+asynchronous CLI-host wake delivery, real-host trust proof, browser visual
+proof, and complete cross-platform verification remain before a stable release.

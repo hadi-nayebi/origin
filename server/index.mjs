@@ -6,7 +6,7 @@ import {
   createFeedback,
   listFeedback,
   stopOutcome,
-} from "../.codex/plugins/feedback-loop/lib/feedback-store.mjs";
+} from "../.codex/plugins/feedback-loop/lib/service.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const isDev = process.argv.includes("--dev");

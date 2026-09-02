@@ -1,6 +1,19 @@
 {
   "name": "feedback-loop",
-  "version": "1.0.0-alpha.1",
-  "description": "Turns page-aware feedback into an ordered local agent work loop."
+  "version": "1.0.0-alpha.2",
+  "description": "Turns page-aware feedback into an ordered local agent work loop.",
+  "author": { "name": "Hadi Nayebi", "url": "https://github.com/hadi-nayebi" },
+  "repository": "https://github.com/hadi-nayebi/origin",
+  "license": "MIT",
+  "keywords": ["codex", "dashboard", "feedback", "agent-harness"],
+  "interface": {
+    "displayName": "Origin Feedback Loop",
+    "shortDescription": "Turn dashboard feedback into ordered agent work.",
+    "longDescription": "Capture page-aware feedback, focus one actionable record, require evidence for resolution, and prevent Codex from stopping while work remains.",
+    "developerName": "Hadi Nayebi",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write", "Hooks"],
+    "defaultPrompt": ["Show the next unresolved dashboard feedback.", "Continue the focused Origin feedback record."],
+    "brandColor": "#C9F27B"
+  }
 }
-

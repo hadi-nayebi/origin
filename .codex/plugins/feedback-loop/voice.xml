@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<catalog version="1" plugin="feedback-loop">
+  <voice id="stop.active">
+    <body>[ORIGIN FEEDBACK — ACTIVE]
+Stopping is blocked because actionable dashboard feedback remains.
+Continue record {{reference}}. Retrieve it with `npm run feedback -- next`, perform the bounded work, verify the result, and resolve it with evidence. If a genuine external dependency prevents progress, record a waiting reason instead of clearing the gate.</body>
+  </voice>
+  <voice id="stop.waiting">
+    <body>[ORIGIN FEEDBACK — WAITING]
+Feedback record {{reference}} remains unresolved but is waiting on a recorded external dependency. Stopping is allowed; do not invent the missing answer or mark the record resolved.</body>
+  </voice>
+</catalog>
+

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Origin Feedback Loop Event",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "record"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "type": { "const": "feedback.created" },
+        "record": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "kind", "body", "pagePath", "pageLabel", "status", "createdAt", "updatedAt"],
+          "properties": {
+            "id": { "type": "string", "minLength": 10, "maxLength": 128 },
+            "kind": { "enum": ["update", "feature", "bug"] },
+            "body": { "type": "string", "minLength": 3, "maxLength": 2000 },
+            "pagePath": { "type": "string", "minLength": 1, "maxLength": 240 },
+            "pageLabel": { "type": "string", "minLength": 1, "maxLength": 120 },
+            "status": { "const": "open" },
+            "createdAt": { "type": "string", "format": "date-time" },
+            "updatedAt": { "type": "string", "format": "date-time" }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "id", "status", "at"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "type": { "const": "feedback.status-changed" },
+        "id": { "type": "string", "minLength": 10, "maxLength": 128 },
+        "status": { "enum": ["open", "in_progress", "waiting", "resolved", "dismissed"] },
+        "at": { "type": "string", "format": "date-time" },
+        "resolution": { "type": "string", "minLength": 20, "maxLength": 2000 },
+        "waitReason": { "type": "string", "minLength": 5, "maxLength": 1000 },
+        "dismissalReason": { "type": "string", "minLength": 5, "maxLength": 1000 },
+        "reopenReason": { "type": "string", "minLength": 3, "maxLength": 1000 }
+      }
+    }
+  ]
+}

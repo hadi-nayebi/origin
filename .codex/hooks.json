@@ -1,0 +1,18 @@
+{
+  "description": "Origin host registration for the Feedback Loop Stop gate.",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/plugins/feedback-loop/hooks/stop.mjs\"",
+            "commandWindows": "powershell.exe -NoProfile -Command \"$root = git rev-parse --show-toplevel; node (Join-Path $root '.codex/plugins/feedback-loop/hooks/stop.mjs')\"",
+            "timeout": 5,
+            "statusMessage": "Checking dashboard feedback"
+          }
+        ]
+      }
+    ]
+  }
+}

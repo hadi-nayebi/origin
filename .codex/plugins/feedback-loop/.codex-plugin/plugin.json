@@ -1,0 +1,6 @@
+{
+  "name": "feedback-loop",
+  "version": "1.0.0-alpha.1",
+  "description": "Turns page-aware feedback into an ordered local agent work loop."
+}
+

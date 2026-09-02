@@ -1,0 +1,32 @@
+{
+  "name": "origin-dashboard",
+  "version": "1.0.0-alpha.1",
+  "private": false,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node server/index.mjs --dev",
+    "build": "tsc --noEmit && vite build",
+    "start": "node server/index.mjs",
+    "origin": "npm run build && npm start",
+    "test": "node --test .codex/plugins/feedback-loop/tests/*.test.mjs",
+    "check": "npm run test && npm run build",
+    "feedback": "node .codex/plugins/feedback-loop/scripts/feedback.mjs"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "6.1.1",
+    "express": "5.2.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "vite": "8.2.2"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "@types/node": "26.4.1",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5",
+    "typescript": "7.0.2"
+  }
+}

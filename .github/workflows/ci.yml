@@ -26,7 +26,6 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm run setup
-        env:
-          ORIGIN_AGENT_COMMAND: node
+      - run: npm ci
+      - run: npm run check
       - run: npm audit --omit=dev --audit-level=high

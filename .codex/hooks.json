@@ -1,15 +1,14 @@
 {
-  "description": "Origin host registration for the Feedback Loop Stop gate.",
+  "description": "Origin host registration for the clone-local Agent Stop State gate.",
   "hooks": {
     "Stop": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.codex/plugins/feedback-loop/hooks/stop.mjs\"",
-            "commandWindows": "for /f \"delims=\" %i in ('git rev-parse --show-toplevel') do @node \"%i\\.codex\\plugins\\feedback-loop\\hooks\\stop.mjs\"",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/plugins/agent-stop-state/hooks/stop.mjs\"",
             "timeout": 5,
-            "statusMessage": "Checking dashboard feedback"
+            "statusMessage": "Checking Origin agent state"
           }
         ]
       }

@@ -31,10 +31,12 @@ Generic dashboard and server code may transport, validate, and render plugin rec
 acquire a second lifecycle policy. When cognition is distributed across unrelated helpers, future
 agents cannot identify its owner or safely modify it.
 
-Origin 1.0 demonstrates the complete applicable anatomy through `feedback-loop`: manifest, contract,
-policy, integrity, store, public service, delivery adapter, voice, hook, commands, documentation,
-schema, and tests. Host registration remains at the harness root because the host owns registration;
-the plugin owns the hook behavior.
+Origin 1.0 demonstrates two distinct plugin anatomies. `contextual-feedback` owns thread contracts,
+policy, integrity, persistence, service operations, event voice, commands, documentation, schema,
+and tests. `agent-stop-state` owns its clone-local `data.json`, mutation contract, Stop voice, Stop
+hook, commands, documentation, schema, and tests. `_dashboard-runtime` is explicitly infrastructure:
+it owns tmux session and delivery mechanics but no cognition. Host registration remains at the
+harness root because the host owns registration.
 
 More mature, multi-user systems may add role masks and activation review. Those are deliberately
 absent from this one-user foundation rather than being half-implemented inside the plugin.

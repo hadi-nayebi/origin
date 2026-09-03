@@ -1,101 +1,86 @@
 # Origin 1.0 evidence scorecard
 
-This scorecard prevents impression-based quality scores. Each dimension contains exactly ten binary
-criteria. One passed criterion equals one point; partial credit is forbidden. A criterion passes
-only when its named evidence was executed or inspected in the current revision. An unavailable or
-unexecuted check scores zero.
+Each dimension has ten binary criteria. A criterion receives one point only when its named evidence
+has been executed or inspected on the current revision. No partial credit or extrapolation is used.
 
-## Plugin anatomy
+## Architecture and plugin anatomy
 
-1. One explicit cognitive objective.
-2. Canonically valid `.codex-plugin/plugin.json`.
-3. Plugin-local `AGENTS.md` boundary.
-4. Validated public data schema and contracts.
-5. Separate lifecycle and ordering policy.
-6. Separate persistence and integrity compartments.
-7. One public service gateway for state operations.
-8. Separate shell-free delivery adapter.
-9. Every stable agent injection is rendered from `voice.xml`, with a registered Stop hook.
-10. Operator scripts, plugin documentation, and invariant tests are present.
+1. Academy/Base Dashboard role is explicit.
+2. Web-to-CLI handoff continuation is explicit.
+3. One persistent interactive Codex session is the default.
+4. tmux transport is required rather than silently bypassed.
+5. `contextual-feedback` has objective, boundary, manifest, schema, service, voice, docs, and tests.
+6. `agent-stop-state` has objective, state schema, service, voice, hook, docs, and tests.
+7. Runtime transport is marked infrastructure and owns no cognitive policy.
+8. Server and UI use public service boundaries rather than raw files.
+9. Clone-local runtime state remains under ignored `.origin/`.
+10. Included and future capabilities are distinguished in the Wiki.
 
-## Compartmentalization
+## Interactive delivery
 
-1. The plugin alone owns feedback lifecycle policy.
-2. The server delegates feedback operations to the public plugin service.
-3. The interface uses the HTTP boundary rather than raw plugin state.
-4. The Stop hook derives its decision from the public plugin service.
-5. Delivery receives a stable record ID rather than a feedback body.
-6. Feedback text cannot become a shell command or authority override.
-7. Host hook registration remains outside plugin-owned logic.
-8. Clone-local state, locks, delivery events, and logs remain under ignored `.origin/`.
-9. Dashboard Wiki content remains tracked Markdown rather than embedded interface copy.
-10. Included and excluded responsibilities are explicit in nested instructions and docs.
+1. Combined launch checks Git, Node, tmux, Codex, and authentication.
+2. Combined launch starts or reuses the live dashboard.
+3. Combined launch opens the browser.
+4. A repository-scoped tmux session is created or reused.
+5. An idle shell receives Codex; an existing Codex process is reused.
+6. A different process is never overwritten.
+7. Exactly one repository-owned Codex pane is required for injection.
+8. Idle prompts are submitted and busy prompts queue without interruption.
+9. Paste and submission are verified.
+10. Wake claims, missing mutation-to-wake records, retries, and interrupted delivery recover
+    durably.
 
-## Delivery and Stopgate
+## Feedback, authority, and stopping
 
-1. Dashboard submission durably creates an actionable record.
-2. Submission and server startup wake the local runner.
-3. At most one runner owns delivery.
-4. One in-progress record remains focused; otherwise the oldest open record is selected.
-5. Feedback arriving during work joins the same queue.
-6. Successful processes that make no progress retry with bounded backoff.
-7. Unsuccessful processes retry with bounded backoff while the runner lease stays live.
-8. Actionable feedback blocks Stop; corrupt state fails closed.
-9. Genuine waiting permits Stop without pretending the record is resolved.
-10. Evidence-backed completion drains the queue and returns the outcome to idle.
+1. Raw feedback and page context are preserved.
+2. Agent interpretation is separate from raw input.
+3. Thread questions and user answers are durable.
+4. Linked work and progress remain inspectable.
+5. Only one thread is in progress.
+6. Other runnable work prevents a single blocked thread from making the agent globally waiting.
+7. Agent verification is required before review.
+8. User acceptance is required for resolution.
+9. Rejection and reopening preserve history and wake Codex.
+10. Active blocks Stop; waiting, paused, idle, and corrupt-state behavior are tested.
 
-## Interface
+## Interface and security
 
 1. The shipped canvas contains no domain page or workflow.
-2. Wiki and Feedback controls remain available across routes.
+2. Wiki and Feedback remain available across routes.
 3. Feedback captures kind, body, page path, and page label.
-4. The ledger displays current records and lifecycle state.
-5. Legal lifecycle actions are operable from the interface.
-6. Headless delivery status, current record, and log path are visible.
-7. Interrupted actionable delivery exposes a Wake action.
-8. Keyboard focus is trapped and restored correctly in the modal.
-9. Serious and critical automated accessibility violations are absent.
-10. Repository Markdown renders with GFM support and unsafe links remain inert.
+4. Threads show raw messages, interpretation, verification, and lifecycle.
+5. Waiting questions and review requests display an attention indicator.
+6. User answer, acceptance, dismissal, and reopening operate through bounded APIs.
+7. Server binds only to loopback and rejects cross-origin requests.
+8. Payload, path, and content-type boundaries are enforced.
+9. Wake prompts contain identifiers/routes rather than raw bodies.
+10. Modal keyboard behavior and serious/critical accessibility checks pass.
 
-## Verification and integrity
+## Verification and release
 
 1. Lint passes.
-2. Formatting verification passes.
-3. Type checking and production build pass.
-4. Runtime and integration tests pass.
-5. Interface and accessibility tests pass.
-6. Enforced coverage thresholds pass.
-7. Corruption, tampering, migration, backup, and recovery tests pass.
-8. Concurrent writers, focus claims, and runner ownership tests pass.
-9. The canonical plugin validator passes.
-10. The production dependency audit reports no vulnerability at the configured severity.
+2. Formatting passes.
+3. Type checking passes.
+4. Production build passes.
+5. Node unit/integration tests pass.
+6. UI/API/accessibility tests pass.
+7. Coverage thresholds pass.
+8. Production smoke test passes.
+9. Production dependency audit passes at high severity.
+10. Required GitHub Actions matrix jobs pass.
 
-## Installation and portability
+## Live authenticated operation
 
-1. Node and npm requirements are explicit and doctor-checked.
-2. Git is explicit and doctor-checked.
-3. One Node installer owns setup behavior.
-4. Unix and PowerShell launchers delegate to that installer.
-5. Repository line endings are deterministic across operating systems.
-6. The server binds only to loopback addresses.
-7. The foundation has no cloud, account, or synchronization requirement.
-8. Diagnostics validate hooks, required files, ledger integrity, and agent configuration.
-9. Linux, macOS, and Windows CI jobs all pass the same release contract.
-10. A fresh clone completes documented setup, build, test, and startup checks.
+1. The target machine passes `npm run doctor`.
+2. The combined command starts dashboard and interactive Codex.
+3. The user inspects and trusts the Stop hook.
+4. `npm run acceptance:codex` reaches the correct pane.
+5. Idle feedback wakes the same session.
+6. Feedback during active work queues without interruption.
+7. Agent question appears in the dashboard and permits legitimate waiting.
+8. User answer wakes the same session and work resumes.
+9. Verification, user acceptance, rejection, and reopening complete successfully.
+10. Restart recovers pending feedback and wake delivery.
 
-## Authenticated Codex operation
-
-1. The target machine finds the `codex` executable.
-2. Codex authentication is accepted by a non-interactive execution.
-3. `npm run acceptance:codex` reaches the production delivery adapter.
-4. Codex retrieves the record through the public feedback command.
-5. Codex performs the requested repository verification.
-6. Codex resolves the record with concrete evidence.
-7. The isolated queue returns to idle.
-8. The isolated tracked worktree remains unchanged.
-9. The user explicitly trusts the project Stop hook and observes it block actionable work.
-10. A running dashboard drains multiple records, accepts a record during work, and resumes one after
-    restart.
-
-The first eight Codex criteria are checked by the isolated command where applicable. Criteria nine
-and ten require the manual host-boundary sequence in [`CODEX-ACCEPTANCE.md`](CODEX-ACCEPTANCE.md).
+The live dimension remains incomplete until performed on an authenticated target machine. CI is not
+a substitute for that evidence.

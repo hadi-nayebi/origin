@@ -1,29 +1,29 @@
 import type {
+  AgentState,
   DeliveryStatus,
   FeedbackKind,
   FeedbackRecord,
   FeedbackStatus,
-  StopOutcome,
   WikiChapter,
 } from "./types";
 
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
   if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
-  const response = await fetch(path, {
-    ...init,
-    headers,
-  });
+  const response = await fetch(path, { ...init, headers });
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.error || "Origin request failed.");
   return payload as T;
 }
 
+export type FeedbackView = {
+  records: FeedbackRecord[];
+  outcome: AgentState;
+  delivery: DeliveryStatus;
+};
+
 export const api = {
-  feedback: () =>
-    request<{ records: FeedbackRecord[]; outcome: StopOutcome; delivery: DeliveryStatus }>(
-      "/api/feedback",
-    ),
+  feedback: () => request<FeedbackView>("/api/feedback"),
   submitFeedback: (input: {
     kind: FeedbackKind;
     body: string;
@@ -34,9 +34,18 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  addFeedbackMessage: (id: string, body: string) =>
+    request<{ record: FeedbackRecord; delivery: DeliveryStatus }>(
+      `/api/feedback/${encodeURIComponent(id)}/messages`,
+      { method: "POST", body: JSON.stringify({ body }) },
+    ),
   transitionFeedback: (
     id: string,
-    input: { status: FeedbackStatus; reason?: string; evidence?: string },
+    input: {
+      status: Extract<FeedbackStatus, "resolved" | "open" | "dismissed">;
+      reason?: string;
+      acceptance?: string;
+    },
   ) =>
     request<{ record: FeedbackRecord; delivery: DeliveryStatus }>(
       `/api/feedback/${encodeURIComponent(id)}`,

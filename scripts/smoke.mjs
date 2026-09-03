@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const child = spawn(process.execPath, ["server/index.mjs"], {
   cwd: root,
-  env: { ...process.env, ORIGIN_AGENT_AUTOSTART: "0", ORIGIN_PORT: "0" },
+  env: { ...process.env, ORIGIN_PORT: "0" },
   stdio: ["ignore", "pipe", "pipe"],
 });
 let output = "";

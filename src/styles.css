@@ -158,6 +158,17 @@ summary:focus-visible {
   background: var(--green);
   border-color: var(--green);
 }
+.attention-dot {
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  color: white;
+  background: #b83924;
+  font-size: 0.68rem;
+}
 .wiki-surface {
   min-height: 100vh;
   display: grid;
@@ -456,15 +467,11 @@ summary:focus-visible {
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
-.delivery-state.running,
-.delivery-state.starting,
+.delivery-state.connected,
+.delivery-state.pending,
 .delivery-state.retrying {
   color: var(--green);
   border-color: #63813f;
-}
-.delivery-state.unavailable {
-  color: #ffbf83;
-  border-color: #8b5e37;
 }
 .primary {
   margin-top: 14px;
@@ -493,6 +500,13 @@ summary:focus-visible {
   border-top: 1px solid #2d322c;
   padding: 14px 0;
 }
+.feedback-record.needs-attention {
+  margin-inline: -10px;
+  padding-inline: 10px;
+  border: 1px solid #7a5736;
+  border-radius: 10px;
+  background: #211b16;
+}
 .record-meta {
   display: flex;
   justify-content: space-between;
@@ -519,6 +533,28 @@ summary:focus-visible {
 }
 .feedback-record details textarea {
   min-height: 72px;
+}
+.thread {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.thread-message {
+  padding: 9px 10px;
+  border: 1px solid #353b34;
+  border-radius: 9px;
+  background: #121512;
+}
+.thread-message.agent {
+  border-color: #586a3e;
+  background: #192016;
+}
+.thread-message p {
+  margin-bottom: 0;
+}
+.interpretation,
+.verification {
+  color: #c5cebf;
 }
 .record-actions {
   display: flex;

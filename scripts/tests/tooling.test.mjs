@@ -2,83 +2,107 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import {
+  ensureTmuxCodex,
+  sessionName,
+} from "../../.codex/plugins/_dashboard-runtime/scripts/start-harness.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
-test("doctor validates repository wiring with an available command", () => {
-  const result = spawnSync(process.execPath, ["scripts/doctor.mjs"], {
-    cwd: root,
-    encoding: "utf8",
-    env: { ...process.env, ORIGIN_AGENT_COMMAND: process.execPath },
-  });
-  assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /PASS  Codex Stop registration/);
-  assert.match(result.stdout, /Origin is ready/);
+test("combined launcher and scripts expose the required interactive contract", () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+  assert.match(manifest.scripts.origin, /start-harness\.mjs/);
+  assert.doesNotMatch(JSON.stringify(manifest.scripts), /codex exec|ephemeral|headless/);
+  assert.match(manifest.scripts.feedback, /contextual-feedback/);
+  assert.match(manifest.scripts["agent-state"], /agent-stop-state/);
 });
 
-test("doctor distinguishes an optional missing agent from a required failure", () => {
-  const environment = {
-    ...process.env,
-    ORIGIN_AGENT_COMMAND: "origin-agent-command-that-does-not-exist",
+test("Stop hook is owned by Agent Stop State", () => {
+  const hooks = JSON.parse(fs.readFileSync(path.join(root, ".codex", "hooks.json"), "utf8"));
+  const hook = hooks.hooks.Stop[0].hooks[0];
+  assert.match(hook.command, /agent-stop-state\/hooks\/stop\.mjs/);
+  assert.doesNotMatch(hook.command, /contextual-feedback|feedback-loop/);
+});
+
+test("repository-scoped tmux session names are stable and separated", () => {
+  assert.equal(sessionName(root), sessionName(root));
+  assert.notEqual(sessionName(root), sessionName(`${root}-other`));
+  assert.match(sessionName(root), /^origin-origin-[a-f0-9]{8}$/);
+});
+
+test("existing tmux sessions reuse Codex or launch it only from an idle shell", () => {
+  const calls = [];
+  const shellRun = (_command, args) => {
+    calls.push(args);
+    return { status: 0, stdout: args[0] === "list-panes" ? "bash\n" : "", stderr: "" };
   };
-  const optional = spawnSync(process.execPath, ["scripts/doctor.mjs"], {
-    cwd: root,
-    encoding: "utf8",
-    env: environment,
+  assert.equal(ensureTmuxCodex(shellRun, "origin-test", ["codex", "resume", "--last"]), "started");
+  assert.deepEqual(calls.at(-1), ["send-keys", "-t", "origin-test", "codex resume --last", "C-m"]);
+  const codexRun = (_command, args) => ({
+    status: 0,
+    stdout: args[0] === "list-panes" ? "codex\n" : "",
+    stderr: "",
   });
-  assert.equal(optional.status, 0, optional.stderr);
-  assert.match(optional.stdout, /WARN  Agent command/);
-  assert.doesNotMatch(optional.stdout, /PASS  Agent command/);
-  const required = spawnSync(process.execPath, ["scripts/doctor.mjs", "--require-agent"], {
-    cwd: root,
-    encoding: "utf8",
-    env: environment,
-  });
-  assert.equal(required.status, 1);
-  assert.match(required.stdout, /FAIL  Agent command/);
-});
-
-test("the acceptance command runs an isolated configured-agent fixture", () => {
-  const fakeAgent = path.join(
-    root,
-    ".codex",
-    "plugins",
-    "feedback-loop",
-    "tests",
-    "fake-agent.mjs",
+  assert.equal(ensureTmuxCodex(codexRun, "origin-test", ["codex"]), "running");
+  assert.throws(
+    () =>
+      ensureTmuxCodex(
+        (_command, args) => ({
+          status: 0,
+          stdout: args[0] === "list-panes" ? "python\n" : "",
+          stderr: "",
+        }),
+        "origin-test",
+        ["codex"],
+      ),
+    /does not contain exactly one Codex pane or one idle shell/,
   );
-  const result = spawnSync(process.execPath, ["scripts/acceptance-codex.mjs"], {
-    cwd: root,
-    encoding: "utf8",
-    env: {
-      ...process.env,
-      ORIGIN_AGENT_COMMAND: process.execPath,
-      ORIGIN_AGENT_ARGS_JSON: JSON.stringify([fakeAgent]),
-    },
-  });
-  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-  assert.match(result.stdout, /PASS  Production delivery adapter/);
-  assert.match(result.stdout, /PASS  Fixture isolation/);
-  assert.match(result.stdout, /not evidence of authenticated Codex execution/);
-});
-
-test("platform installers delegate to one tested Node installer", () => {
-  assert.match(
-    fs.readFileSync(path.join(root, "scripts", "install.sh"), "utf8"),
-    /node scripts\/install\.mjs/,
+  assert.throws(
+    () =>
+      ensureTmuxCodex(
+        (_command, args) => ({
+          status: 0,
+          stdout: args[0] === "list-panes" ? "bash\nzsh\n" : "",
+          stderr: "",
+        }),
+        "origin-test",
+        ["codex"],
+      ),
+    /does not contain exactly one Codex pane or one idle shell/,
   );
-  assert.match(
-    fs.readFileSync(path.join(root, "scripts", "install.ps1"), "utf8"),
-    /node scripts\/install\.mjs/,
+  assert.throws(
+    () =>
+      ensureTmuxCodex(
+        (_command, args) => ({
+          status: 0,
+          stdout: args[0] === "list-panes" ? "codex\ncodex\n" : "",
+          stderr: "",
+        }),
+        "origin-test",
+        ["codex"],
+      ),
+    /more than one Codex pane/,
   );
 });
 
-test("repository text uses a deterministic cross-platform line ending", () => {
-  const attributes = fs.readFileSync(path.join(root, ".gitattributes"), "utf8");
-  assert.match(attributes, /^\* text=auto eol=lf$/m);
-  assert.match(attributes, /^\*\.png binary$/m);
+test("installers require consent and Windows routes to WSL2", () => {
+  const unix = fs.readFileSync(path.join(root, "scripts", "install.sh"), "utf8");
+  const windows = fs.readFileSync(path.join(root, "scripts", "install.ps1"), "utf8");
+  assert.match(unix, /Continue\? \[y\/N\]/);
+  assert.match(unix, /npm install --global @openai\/codex/);
+  assert.match(unix, /tmux/);
+  assert.match(windows, /wsl --install/);
+  assert.match(windows, /does not run.*native PowerShell/i);
+});
+
+test("README is agent-first and contains no headless fallback", () => {
+  const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
+  assert.match(readme, /Visiting agent: begin here/);
+  assert.match(readme, /ONBOARDING_HANDOFF\.md/);
+  assert.match(readme, /Hadosh Academy Base Dashboard/);
+  assert.match(readme, /same interactive Codex session/i);
+  assert.doesNotMatch(readme, /headless worker|dashboard still works without/i);
 });
 
 test("lockfile and package versions match", () => {

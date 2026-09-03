@@ -1,42 +1,46 @@
 # Live Codex acceptance contract
 
-Automated tests prove Origin's state machine, process boundary, retry supervision, HTTP path, and
-Stop-hook protocol with deterministic local processes. They cannot prove a user's Codex
-authentication or silently trust a project hook. Those are host-owned security boundaries.
+Repository tests prove deterministic state, tmux command construction, pane scoping, queueing,
+delivery claims, retry, API, UI, hooks, and recovery. They cannot prove a particular user's Codex
+authentication, terminal behavior, hook trust, browser opening, or operating-system integration.
 
-## Isolated real-CLI check
+## Machine and transport check
 
-Run these commands with Codex installed and authenticated:
+With Origin running through `npm run origin`, open a second terminal in the same repository and run:
 
 ```bash
-npm run doctor -- --require-agent
+npm run doctor
 npm run acceptance:codex
 ```
 
-The acceptance command copies only tracked files into a temporary Git repository, creates one
-non-mutating feedback request, launches the configured CLI through Origin's production delivery
-adapter, and requires the agent to retrieve and resolve that record with evidence. It also requires
-an idle final Stop outcome and a clean fixture worktree. The fixture is deleted only after success
-and retained for diagnosis after failure.
+The acceptance command requires the complete authenticated kit, resolves exactly one interactive
+Codex pane for the repository, delivers a bounded non-mutating message through tmux, and reports
+whether Codex accepted it immediately or queued it behind active work.
 
-This command consumes real agent usage. It is intentionally excluded from CI because CI has no user
-authentication and must not replace a real-agent check with a fake claim.
+## Complete lifecycle check
 
-## Trusted-hook and dashboard check
+1. Run `npm run origin`; confirm the browser opens and the terminal attaches to interactive Codex.
+2. In Codex, use `/hooks`, inspect `.codex/hooks.json`, and trust the Agent Stop State hook.
+3. Leave one dashboard comment while Codex is idle. Confirm it appears in that same terminal
+   session.
+4. Start the feedback and perform a deliberately bounded change.
+5. While Codex is working, leave a second unrelated comment. Confirm it queues without interrupting
+   the current tool call and remains visible as separate responsibility.
+6. From Codex, run `npm run feedback -- ask <id> "..."`. Confirm the question appears in the thread
+   with the red attention indicator.
+7. If another runnable thread exists, confirm global state remains active. After runnable work is
+   exhausted, confirm it may become waiting.
+8. Answer in the dashboard. Confirm the answer enters the same Codex session and state becomes
+   active.
+9. Have Codex mark the work ready for review with verification evidence. Confirm Codex may wait but
+   the thread is not resolved.
+10. Reject/reopen once, confirm Codex wakes and prior history remains, then accept the corrected
+    work.
+11. Confirm the next runnable thread becomes active; after all accepted work closes, confirm state
+    is idle and Stop is allowed.
+12. Create another comment, stop the dashboard before delivery, restart `npm run origin`, and
+    confirm the saved thread and wake outbox recover.
 
-1. Start `npm run origin` and leave the dashboard server running.
-2. In an interactive Codex session for this repository, open `/hooks`, inspect the exact Stop hook,
-   and trust it.
-3. Submit two dashboard feedback records. While the first is active, submit a third.
-4. Confirm the Feedback panel reports the headless worker's current record and that
-   `.origin/agent.log` receives output.
-5. Confirm the focused record completes first, the remaining open records complete in creation
-   order, and every resolution includes verification evidence.
-6. Confirm the Stop hook blocks an attempted stop while an actionable record remains.
-7. Put one record into `waiting` with a genuine external dependency and confirm stopping is allowed
-   without resolving it.
-8. Reopen that record, complete it, and confirm the queue and Stop outcome return to idle.
-9. Stop the server with an open record, restart it, and confirm startup resumes delivery.
-
-Origin is not live-host accepted until both sections pass on the target machine. Repository tests
-and structural review must never be reported as substitutes for this evidence.
+Record operating system, WSL/macOS/Linux details, Node/tmux/Codex versions, commit SHA, timestamps,
+feedback IDs, outbox results, and any deviation. Origin is not live-accepted until this sequence has
+actually passed on the target machine.

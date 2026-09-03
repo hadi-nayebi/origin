@@ -1,49 +1,58 @@
 # Install Origin
 
-Origin needs Node.js 22 or newer and Git. Git clones the repository and lets the Codex Stop hook
-resolve its stable path from nested working directories. Docker, a database, GitHub CLI, Python, and
-a cloud account are not required.
-
-For automatic feedback delivery, install and authenticate Codex CLI so `codex` is available on
-`PATH`. The dashboard and durable queue remain usable without it.
-
-The first time Codex opens this repository, use `/hooks` to review and trust the project Stop hook.
-This is an intentional Codex security boundary; Origin cannot and should not bypass it silently.
+Origin 1.0 requires one interactive Codex session connected to the dashboard through tmux. The
+required machine kit is Git, Node.js 22 or newer, npm, tmux, Codex CLI, and Codex authentication.
 
 ## macOS, Linux, and WSL2
 
 ```bash
 ./scripts/install.sh
-npm run origin
 ```
 
-## Native Windows PowerShell
+The installer asks before installing system software. On supported package managers it installs
+missing Git, tmux, Node/npm, and the official `@openai/codex` package, then installs repository
+dependencies and runs the complete test/build/doctor contract. Authentication remains a user-owned
+security step.
+
+If a Linux distribution's package manager provides Node older than 22, install the current Node.js
+LTS from [nodejs.org](https://nodejs.org/) and rerun the script.
+
+## Windows
+
+The full Origin harness does not run in native PowerShell because tmux is part of the Origin 1.0
+transport contract. Install WSL2:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
-npm run origin
+powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -InstallWsl
 ```
 
-Both launchers call the same `scripts/install.mjs` implementation. It uses `npm ci`, runs the
-complete verification suite and production build, and runs the repository doctor. It never installs
-system software.
+After any required restart, open the WSL terminal, clone Origin inside the Linux filesystem, and run
+`./scripts/install.sh` there.
 
-## Diagnose
+## Authenticate and inspect
+
+Authenticate Codex using the current Codex CLI login flow, then run:
 
 ```bash
 npm run doctor
-npm run doctor -- --require-agent
+npm run origin
 ```
 
-The first command verifies the dashboard and harness and explains whether automatic delivery is
-available. The second treats a missing agent command as a blocking failure.
+The doctor treats every missing runtime component as blocking. The launcher never falls back to a
+headless worker or a dashboard-only mode.
 
-To use another locally installed CLI adapter without changing source, set `ORIGIN_AGENT_COMMAND` and
-`ORIGIN_AGENT_ARGS_JSON`. Both are operator-owned configuration. Origin never derives them from
-feedback.
+On first launch, use `/hooks` in Codex to inspect and trust the repository Stop hook. This is an
+intentional security boundary.
 
-To record feedback without launching an agent automatically:
+## Recovery
 
-```bash
-ORIGIN_AGENT_AUTOSTART=0 npm run origin
-```
+- `npm run origin` reuses the healthy dashboard and repository-scoped tmux session.
+- `npm run origin:resume` asks Codex to resume its last saved session when a new session is needed.
+- `npm run wake` retries durable pending dashboard wake events.
+- `.origin/dashboard.log` contains dashboard startup diagnostics.
+- `.origin/wake-outbox.json` records wake attempts and outcomes.
+- `.origin/feedback.jsonl` is the authoritative feedback journal.
+- `.origin/agent-stop-state/data.json` is the current global continuation state.
+
+Do not delete `.origin/` to repair a transport failure. The journal and state are user-owned local
+history; inspect and back them up first.

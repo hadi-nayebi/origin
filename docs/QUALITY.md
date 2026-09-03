@@ -1,33 +1,25 @@
 # Origin 1.0 quality contract
 
-Origin calls a dimension complete only when its claim maps to executable or inspectable evidence. A
-reported `10/10` means every stated criterion for that dimension passed in the cited run. Missing,
-unavailable, or unexecuted evidence is a failure, not an inferred pass. Scores are never substitutes
-for the underlying results.
+Origin calls a criterion complete only when it maps to executed or directly inspected evidence. A
+reported `10/10` means all ten published criteria for that dimension passed on the cited revision.
+Unavailable live evidence is recorded as unavailable, never inferred from CI.
 
-The exact ten-check definitions and no-partial-credit calculation are in the
-[`QUALITY-SCORECARD.md`](QUALITY-SCORECARD.md).
+| Dimension           | Release claim                                                                                                  | Evidence                                                        |
+| ------------------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Academy alignment   | Origin is the Hadosh Base Dashboard substrate for Phases 6–7 and continues an approved web-to-CLI handoff      | README, handoff template, Wiki, agent instructions              |
+| Session model       | Dashboard and terminal address one persistent interactive Codex tmux session                                   | Launcher, pane resolver, local live acceptance                  |
+| Plugin anatomy      | Feedback cognition, global Stop state, and runtime transport have separate ownership                           | Two plugin trees, runtime boundary, schemas, voice, docs, tests |
+| Feedback lifecycle  | Raw input survives interpretation, work, questions, answers, verification, acceptance, and reopening           | Ledger/schema tests, API and UI tests                           |
+| Stop and waiting    | Runnable work blocks Stop; waiting is legitimate only when no other runnable work exists                       | State/plugin/hook tests                                         |
+| Delivery durability | Events persist before wake; process-safe claims, busy queueing, verification, retry, and recovery prevent loss | Runtime and outbox tests                                        |
+| Security            | Loopback/same-origin server, bounded pointers, no feedback shell interpolation, no approval bypass             | API tests, adapter tests, `SECURITY.md`                         |
+| Interface           | Empty canvas, Wiki, feedback threads, red attention state, answer, acceptance, and reopening                   | UI and accessibility tests                                      |
+| Installation        | macOS/Linux/WSL2 prerequisites are strict; missing Codex, auth, or tmux blocks launch                          | Machine inspection, doctor, installer tests                     |
+| Recovery            | Durable ledger, backups, global state, runtime record, and wake outbox are inspectable                         | Corruption, backup/restore, stale work, retry tests             |
 
-| Dimension                 | Release claim                                                                                             | Evidence                                                                 |
-| ------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Product boundary          | One user, empty canvas, Wiki, Feedback                                                                    | UI tests and canonical README                                            |
-| Topic agnosticism         | No domain pages or workflows ship                                                                         | Tracked dashboard and wiki review                                        |
-| Plugin anatomy            | One objective with manifest, contracts, policy, state, actions, voice, hooks, docs, and tests             | Canonical plugin validator and plugin tree                               |
-| Compartmentalization      | Server transports; plugin owns feedback cognition; adapter owns delivery                                  | Imports, nested `AGENTS.md`, integration tests                           |
-| State integrity           | Atomic hash-chained ledger with validation and one focused record                                         | Tamper, chronology, transition, and concurrent-writer tests              |
-| Deterministic enforcement | Actionable feedback blocks Stop; waiting and idle are explicit                                            | Exact Stop-event tests                                                   |
-| Security                  | Loopback/same-origin boundary; no raw feedback in process arguments; no shell                             | API security and invocation tests; `SECURITY.md`                         |
-| Test quality              | Unit, corruption, migration, rollback, concurrency, subprocess, API, DOM, and accessibility coverage      | Enforced line, branch, and function thresholds in `npm run check`        |
-| Documentation             | Human and agent surfaces describe the same current system                                                 | README, plugin docs, Wiki, quality contract                              |
-| Interface quality         | Responsive empty canvas, GFM Wiki, accessible feedback management                                         | DOM interaction and automated accessibility tests                        |
-| Installation portability  | One Node installer, thin Unix and PowerShell launchers, and explicit cross-platform line endings          | Installer tests, `.gitattributes`, and three-OS CI matrix                |
-| Continuous delivery       | New feedback starts one supervised runner; failures retry with bounded backoff while its lease stays live | Runner, retry, lease, subprocess, and recovery tests                     |
-| Stable readiness          | Reproducible install, verification, diagnostics, production startup, recovery, and explicit boundaries    | Lockfile, three-OS smoke-tested CI, doctor, backup/restore, threat model |
-| Real Codex acceptance     | Authenticated Codex retrieves and resolves isolated feedback without tracked changes                      | Opt-in `npm run acceptance:codex`; never inferred from CI                |
+`npm run check` is the reproducible deterministic evidence suite. GitHub Actions runs it on Linux,
+macOS, and Windows; Windows CI tests portable code but does not claim the full tmux runtime, which
+runs inside WSL2.
 
-The GitHub Actions matrix is the authoritative native evidence for Linux, macOS, and Windows. A
-release is not green while any matrix job fails.
-
-The authenticated Codex dimension is not `10/10` until the opt-in command has actually passed on a
-configured machine. Trusted project-hook behavior additionally requires the manual host-boundary
-steps in [`CODEX-ACCEPTANCE.md`](CODEX-ACCEPTANCE.md).
+`npm run acceptance:codex` is the real machine transport check. The complete human/agent lifecycle
+is documented in [`CODEX-ACCEPTANCE.md`](CODEX-ACCEPTANCE.md).

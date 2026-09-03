@@ -1,59 +1,36 @@
 ---
-title: The Feedback Loop
-summary: How comments become ordered work without becoming unsafe commands.
+title: The Contextual Feedback Loop
+summary: How a dashboard comment becomes durable conversation, work, verification, and user review.
 status: included
 ---
 
-# The Feedback Loop
+# The Contextual Feedback Loop
 
-Origin's one shipped plugin turns page-aware feedback into a durable local work loop. The floating
-control records the feedback kind, body, current route, visible page label, and creation time.
+Origin saves a comment before trying to wake Codex. The saved thread is authoritative; tmux is only
+the transport into the same interactive session the user sees in the terminal.
 
-## Record lifecycle
+## Lifecycle
 
-- `open` — recorded and actionable, but not yet claimed.
-- `in_progress` — the one record the agent is currently addressing.
-- `waiting` — blocked by a genuine user decision or external dependency.
-- `resolved` — implemented and closed with verification evidence.
-- `dismissed` — intentionally declined with a visible reason or policy.
+- `open` — actionable and ordered.
+- `in_progress` — the one current focus.
+- `waiting` — blocked on recorded input while no other runnable work remains.
+- `ready_for_review` — implemented and verified by the agent, awaiting the user.
+- `resolved` — accepted by the user.
+- `dismissed` — explicitly withdrawn, not silently erased.
 
-A resolved or dismissed record can be reopened. A focused record emits heartbeats during long work;
-if its owner disappears, bounded stale recovery returns it to `open` without claiming it was
-completed. History remains append-only; the system records a new transition rather than rewriting an
-earlier event.
+Every state transition remains in the journal. User answers, agent questions, interpretations,
+progress, and review comments stay in the thread. Raw user language is never replaced by the agent's
+summary.
 
-## Ordering
+## Same-session delivery
 
-Continue an in-progress record first. Otherwise select the oldest actionable open record. A verified
-security or privacy problem may preempt ordinary order. Feedback arriving during active work joins
-the queue and does not replace the focused request.
+The runtime finds exactly one Codex pane for this repository. It pastes a bounded voice message
+containing a feedback ID and route. If Codex is busy, the message enters Codex's deferred input
+queue without interrupting the current tool call. Delivery is serialized, verified, and recorded in
+a durable outbox so terminal interruption does not erase responsibility.
 
-## Wake and continuation
+## Stop and waiting
 
-Submitting actionable feedback starts one repository-local headless delivery runner. The runner
-invokes the configured CLI without a shell and gives it only the validated record ID. The full
-request remains in plugin-owned state. The runner continues through the queue, retains its
-single-runner lease during bounded retry backoff, and writes output to `.origin/agent.log`.
-
-Inside an active Codex session, the Stop hook independently blocks exit while actionable work
-remains. If the agent command is unavailable, feedback stays durable and the dashboard reports the
-delivery problem as retrying or unavailable instead of losing work. After the command is configured,
-`npm run feedback -- wake` resumes delivery.
-
-## Input is not authority
-
-Feedback expresses a desired result. It is never automatically a shell command, permission grant,
-architectural ruling, or instruction to bypass repository rules. Wake and Stop messages carry only a
-stable record ID. The agent retrieves the validated body through the plugin's public command,
-reconciles it with the repository, and chooses safe implementation steps.
-
-## Resolution evidence
-
-Resolution states what changed and how it was checked. “Done,” “fixed,” or a status transition used
-only to clear the Stop gate is insufficient.
-
-## Integrity and recovery
-
-Events form a sequence-numbered SHA-256 chain. Every replay verifies the chain, event shapes,
-chronology, legal transitions, and the single-focus invariant. Writes are atomic and keep bounded
-backups. The public CLI can verify, migrate, list backups, and restore a selected valid snapshot.
+Contextual Feedback reconciles its complete queue into `agent-stop-state`. Runnable work means
+`active`. Review or a genuine missing input means `waiting` only when no other runnable item exists.
+No responsibility means `idle`. A user pause is distinct from completion.

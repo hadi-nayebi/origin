@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Origin Contextual Feedback Event v3",
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "id": { "type": "string", "minLength": 10, "maxLength": 128, "pattern": "^[A-Za-z0-9-]+$" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "envelope": {
+      "type": "object",
+      "required": ["schemaVersion", "sequence", "previousHash", "hash"],
+      "properties": {
+        "schemaVersion": { "const": 3 },
+        "sequence": { "type": "integer", "minimum": 1 },
+        "previousHash": { "anyOf": [{ "const": "GENESIS" }, { "$ref": "#/$defs/hash" }] },
+        "hash": { "$ref": "#/$defs/hash" }
+      }
+    },
+    "message": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "role", "type", "body", "at"],
+      "properties": {
+        "id": { "type": "string", "minLength": 3, "maxLength": 128, "pattern": "^[A-Za-z0-9-]+$" },
+        "role": { "enum": ["user", "agent"] },
+        "type": {
+          "enum": [
+            "comment",
+            "question",
+            "answer",
+            "interpretation",
+            "progress",
+            "verification",
+            "review"
+          ]
+        },
+        "body": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "at": { "$ref": "#/$defs/timestamp" }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "allOf": [
+        { "$ref": "#/$defs/envelope" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "sequence", "previousHash", "hash", "type", "record"],
+          "properties": {
+            "schemaVersion": { "const": 3 },
+            "sequence": { "type": "integer", "minimum": 1 },
+            "previousHash": { "anyOf": [{ "const": "GENESIS" }, { "$ref": "#/$defs/hash" }] },
+            "hash": { "$ref": "#/$defs/hash" },
+            "type": { "const": "feedback.created" },
+            "record": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "kind",
+                "body",
+                "pagePath",
+                "pageLabel",
+                "status",
+                "createdAt",
+                "updatedAt",
+                "messages",
+                "classification",
+                "interpretation",
+                "linkedWork",
+                "verification",
+                "acceptance"
+              ],
+              "properties": {
+                "id": { "$ref": "#/$defs/id" },
+                "kind": { "enum": ["update", "feature", "bug"] },
+                "body": { "type": "string", "minLength": 3, "maxLength": 2000 },
+                "pagePath": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^/" },
+                "pageLabel": { "type": "string", "minLength": 1, "maxLength": 120 },
+                "status": { "const": "open" },
+                "createdAt": { "$ref": "#/$defs/timestamp" },
+                "updatedAt": { "$ref": "#/$defs/timestamp" },
+                "messages": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 1,
+                  "items": { "$ref": "#/$defs/message" }
+                },
+                "classification": { "type": "null" },
+                "interpretation": { "type": "null" },
+                "linkedWork": { "type": "array", "maxItems": 0 },
+                "verification": { "type": "null" },
+                "acceptance": { "type": "null" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "allOf": [
+        { "$ref": "#/$defs/envelope" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "sequence",
+            "previousHash",
+            "hash",
+            "type",
+            "id",
+            "at",
+            "message"
+          ],
+          "properties": {
+            "schemaVersion": { "const": 3 },
+            "sequence": { "type": "integer", "minimum": 1 },
+            "previousHash": { "anyOf": [{ "const": "GENESIS" }, { "$ref": "#/$defs/hash" }] },
+            "hash": { "$ref": "#/$defs/hash" },
+            "type": { "const": "feedback.message-added" },
+            "id": { "$ref": "#/$defs/id" },
+            "at": { "$ref": "#/$defs/timestamp" },
+            "message": { "$ref": "#/$defs/message" }
+          }
+        }
+      ]
+    },
+    {
+      "allOf": [
+        { "$ref": "#/$defs/envelope" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "sequence",
+            "previousHash",
+            "hash",
+            "type",
+            "id",
+            "at",
+            "classification",
+            "interpretation"
+          ],
+          "properties": {
+            "schemaVersion": { "const": 3 },
+            "sequence": { "type": "integer", "minimum": 1 },
+            "previousHash": { "anyOf": [{ "const": "GENESIS" }, { "$ref": "#/$defs/hash" }] },
+            "hash": { "$ref": "#/$defs/hash" },
+            "type": { "const": "feedback.interpreted" },
+            "id": { "$ref": "#/$defs/id" },
+            "at": { "$ref": "#/$defs/timestamp" },
+            "classification": { "type": "string", "minLength": 3, "maxLength": 80 },
+            "interpretation": { "type": "string", "minLength": 3, "maxLength": 2000 }
+          }
+        }
+      ]
+    },
+    {
+      "allOf": [
+        { "$ref": "#/$defs/envelope" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "sequence",
+            "previousHash",
+            "hash",
+            "type",
+            "id",
+            "at",
+            "workReference"
+          ],
+          "properties": {
+            "schemaVersion": { "const": 3 },
+            "sequence": { "type": "integer", "minimum": 1 },
+            "previousHash": { "anyOf": [{ "const": "GENESIS" }, { "$ref": "#/$defs/hash" }] },
+            "hash": { "$ref": "#/$defs/hash" },
+            "type": { "const": "feedback.work-linked" },
+            "id": { "$ref": "#/$defs/id" },
+            "at": { "$ref": "#/$defs/timestamp" },
+            "workReference": { "type": "string", "minLength": 3, "maxLength": 240 }
+          }
+        }
+      ]
+    },
+    {
+      "allOf": [
+        { "$ref": "#/$defs/envelope" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "sequence", "previousHash", "hash", "type", "id", "at"],
+          "properties": {
+            "schemaVersion": { "const": 3 },
+            "sequence": { "type": "integer", "minimum": 1 },
+            "previousHash": { "anyOf": [{ "const": "GENESIS" }, { "$ref": "#/$defs/hash" }] },
+            "hash": { "$ref": "#/$defs/hash" },
+            "type": { "const": "feedback.heartbeat" },
+            "id": { "$ref": "#/$defs/id" },
+            "at": { "$ref": "#/$defs/timestamp" }
+          }
+        }
+      ]
+    },
+    {
+      "allOf": [
+        { "$ref": "#/$defs/envelope" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "sequence",
+            "previousHash",
+            "hash",
+            "type",
+            "id",
+            "at",
+            "status"
+          ],
+          "properties": {
+            "schemaVersion": { "const": 3 },
+            "sequence": { "type": "integer", "minimum": 1 },
+            "previousHash": { "anyOf": [{ "const": "GENESIS" }, { "$ref": "#/$defs/hash" }] },
+            "hash": { "$ref": "#/$defs/hash" },
+            "type": { "const": "feedback.status-changed" },
+            "id": { "$ref": "#/$defs/id" },
+            "at": { "$ref": "#/$defs/timestamp" },
+            "status": {
+              "enum": [
+                "open",
+                "in_progress",
+                "waiting",
+                "ready_for_review",
+                "resolved",
+                "dismissed"
+              ]
+            },
+            "reason": { "type": "string", "minLength": 3, "maxLength": 1000 },
+            "verification": { "type": "string", "minLength": 20, "maxLength": 4000 },
+            "acceptance": { "type": "string", "minLength": 3, "maxLength": 2000 }
+          }
+        }
+      ]
+    }
+  ]
+}

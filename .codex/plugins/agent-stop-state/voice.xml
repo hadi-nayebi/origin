@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<catalog version="1" plugin="agent-stop-state">
+  <voice id="stop.active">
+    <body>[ORIGIN AGENT STATE — ACTIVE]
+Stopping is blocked. {{reason}}
+Next action: {{nextAction}}
+Reference: {{reference}}
+Continue useful work. If progress genuinely requires user input, permission, or an external event, record that condition through the owning plugin so it can reconcile Origin to waiting.</body>
+  </voice>
+  <voice id="stop.waiting">
+    <body>[ORIGIN AGENT STATE — WAITING]
+Stopping is allowed because all remaining progress is blocked on a recorded condition. {{reason}}
+Next action after wake: {{nextAction}}
+Reference: {{reference}}
+Do not invent the missing answer or claim completion.</body>
+  </voice>
+  <voice id="stop.paused">
+    <body>[ORIGIN AGENT STATE — PAUSED]
+Stopping is allowed because the user explicitly paused Origin. {{reason}}
+This is interruption, not completion. Preserve the reference and resume only after explicit user direction.</body>
+  </voice>
+  <voice id="stop.idle">
+    <body>[ORIGIN AGENT STATE — IDLE]
+No runnable Origin responsibility remains. Stopping is allowed.</body>
+  </voice>
+</catalog>

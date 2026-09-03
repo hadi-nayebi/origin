@@ -3,16 +3,23 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { readFile, readdir } from "node:fs/promises";
 import {
+  addFeedbackMessage,
   createFeedback,
+  feedbackMode,
+  getFeedback,
   listFeedback,
-  stopOutcome,
+  reconcileAgentState,
   transitionFeedback,
   verifyFeedback,
-} from "../.codex/plugins/feedback-loop/lib/service.mjs";
+} from "../.codex/plugins/contextual-feedback/lib/service.mjs";
+import { ensureAgentState, stopOutcome } from "../.codex/plugins/agent-stop-state/lib/state.mjs";
 import {
-  feedbackRunnerStatus,
-  launchFeedbackRunner,
-} from "../.codex/plugins/feedback-loop/lib/delivery.mjs";
+  enqueueFeedbackWake,
+  hasFeedbackWakeForVersion,
+  scheduleWakeDelivery,
+  wakeStatus,
+} from "../.codex/plugins/_dashboard-runtime/lib/wake-outbox.mjs";
+import { runtimeInstanceId } from "../.codex/plugins/_dashboard-runtime/lib/runtime-control.mjs";
 
 const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -30,10 +37,12 @@ export async function createOriginApp(options = {}) {
   app.get("/api/health", (_request, response) => {
     response.json({
       name: "origin",
+      instanceId: runtimeInstanceId(root),
       status: "ready",
       localOnly: true,
       ledger: verifyFeedback(root),
-      delivery: feedbackRunnerStatus(root),
+      agent: stopOutcome(root),
+      delivery: wakeStatus(root),
     });
   });
 
@@ -41,8 +50,9 @@ export async function createOriginApp(options = {}) {
     try {
       response.json({
         records: listFeedback(root),
+        feedbackMode: feedbackMode(root),
         outcome: stopOutcome(root),
-        delivery: feedbackRunnerStatus(root),
+        delivery: wakeStatus(root),
       });
     } catch (error) {
       next(error);
@@ -52,10 +62,23 @@ export async function createOriginApp(options = {}) {
   app.post("/api/feedback", (request, response, next) => {
     try {
       requireJson(request);
+      let previous;
+      try {
+        previous = stopOutcome(root);
+      } catch {
+        previous = { mode: "idle", reference: null };
+      }
       const record = createFeedback(root, request.body);
-      const delivery =
-        options.launchRunner === false ? { state: "disabled" } : launchFeedbackRunner(root);
-      response.status(201).json({ record, delivery });
+      const kind = previous.mode === "active" ? "feedback.during-active" : "feedback.new";
+      const wake = enqueueFeedbackWake(root, {
+        kind,
+        reference: record.id,
+        route: record.pagePath,
+        activeReference: previous.reference?.id || record.id,
+        sourceUpdatedAt: record.updatedAt,
+      });
+      if (options.deliverWakes !== false) scheduleWakeDelivery(root, options.wakeOptions);
+      response.status(201).json({ record, wake, delivery: wakeStatus(root) });
     } catch (error) {
       next(error);
     }
@@ -64,9 +87,37 @@ export async function createOriginApp(options = {}) {
   app.post("/api/feedback/wake", (request, response, next) => {
     try {
       requireJson(request);
-      const delivery =
-        options.launchRunner === false ? { state: "disabled" } : launchFeedbackRunner(root);
-      response.json({ delivery });
+      if (options.deliverWakes !== false) scheduleWakeDelivery(root, options.wakeOptions);
+      response.json({ delivery: wakeStatus(root) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/feedback/:id/messages", (request, response, next) => {
+    try {
+      requireJson(request);
+      const before = getFeedback(root, request.params.id);
+      const record = addFeedbackMessage(
+        root,
+        request.params.id,
+        {
+          role: "user",
+          type: before.status === "waiting" ? "answer" : "comment",
+          body: request.body?.body,
+        },
+        { role: "user" },
+      );
+      const kind = before.status === "waiting" ? "feedback.answer" : "feedback.during-active";
+      const wake = enqueueFeedbackWake(root, {
+        kind,
+        reference: record.id,
+        route: record.pagePath,
+        activeReference: stopOutcome(root).reference?.id || record.id,
+        sourceUpdatedAt: record.updatedAt,
+      });
+      if (options.deliverWakes !== false) scheduleWakeDelivery(root, options.wakeOptions);
+      response.status(201).json({ record, wake, delivery: wakeStatus(root) });
     } catch (error) {
       next(error);
     }
@@ -75,19 +126,33 @@ export async function createOriginApp(options = {}) {
   app.patch("/api/feedback/:id", (request, response, next) => {
     try {
       requireJson(request);
-      const { status, reason, evidence } = request.body || {};
-      const detail =
-        status === "resolved"
-          ? { resolution: evidence }
-          : status === "waiting"
-            ? { waitReason: reason }
-            : { reason };
-      const record = transitionFeedback(root, request.params.id, status, detail);
-      const delivery =
-        options.launchRunner === false || !["open", "in_progress"].includes(status)
-          ? feedbackRunnerStatus(root)
-          : launchFeedbackRunner(root);
-      response.json({ record, delivery });
+      const { status, reason, acceptance } = request.body || {};
+      if (!["resolved", "open", "dismissed"].includes(status))
+        throw new Error("Dashboard may only accept, reopen, or dismiss feedback.");
+      const detail = status === "resolved" ? { acceptance } : { reason };
+      transitionFeedback(root, request.params.id, status, detail);
+      const record = addFeedbackMessage(
+        root,
+        request.params.id,
+        {
+          role: "user",
+          type: "review",
+          body: status === "resolved" ? acceptance || "Accepted by user." : reason,
+        },
+        { role: "user" },
+      );
+      let wake = null;
+      if (["resolved", "open"].includes(status)) {
+        wake = enqueueFeedbackWake(root, {
+          kind: status === "resolved" ? "feedback.accepted" : "feedback.reopened",
+          reference: record.id,
+          route: record.pagePath,
+          activeReference: stopOutcome(root).reference?.id || record.id,
+          sourceUpdatedAt: record.updatedAt,
+        });
+        if (options.deliverWakes !== false) scheduleWakeDelivery(root, options.wakeOptions);
+      }
+      response.json({ record, wake, delivery: wakeStatus(root) });
     } catch (error) {
       next(error);
     }
@@ -138,7 +203,7 @@ export async function createOriginApp(options = {}) {
       return response.status(400).json({ error: "Invalid JSON body." });
     const message = error instanceof Error ? error.message : "Origin request failed.";
     const expected =
-      /required|invalid|between|unknown|not found|corrupt|transition|json|focused|busy|version|integrity|sequence|hash/i.test(
+      /required|invalid|between|unknown|not found|corrupt|transition|json|focused|busy|version|integrity|sequence|hash|dashboard|acceptance|review|closed|reopened/i.test(
         message,
       );
     if (!expected) console.error(error);
@@ -158,19 +223,31 @@ export async function startOriginServer(options = {}) {
   if (!Number.isInteger(port) || port < 0 || port > 65535)
     throw new Error("ORIGIN_PORT must be a valid TCP port.");
   const root = path.resolve(options.root || sourceRoot);
+  ensureAgentState(root);
+  reconcileAgentState(root);
+  ensureRunnableWakeCoverage(root);
   const app = await createOriginApp({ ...options, root, dev: isDev });
   const server = await new Promise((resolve, reject) => {
     const listening = app.listen(port, host, () => resolve(listening));
     listening.once("error", reject);
   });
-  if (options.launchRunner !== false) {
-    try {
-      launchFeedbackRunner(root);
-    } catch (error) {
-      console.error(`Origin agent wake unavailable: ${error.message}`);
-    }
-  }
+  if (options.deliverWakes !== false) scheduleWakeDelivery(root, options.wakeOptions);
   return server;
+}
+
+function ensureRunnableWakeCoverage(root) {
+  const activeReference = feedbackMode(root).reference?.id;
+  for (const record of listFeedback(root)) {
+    if (!["open", "in_progress"].includes(record.status)) continue;
+    if (hasFeedbackWakeForVersion(root, record.id, record.updatedAt)) continue;
+    enqueueFeedbackWake(root, {
+      kind: "feedback.new",
+      reference: record.id,
+      route: record.pagePath,
+      activeReference: activeReference || record.id,
+      sourceUpdatedAt: record.updatedAt,
+    });
+  }
 }
 
 function securityHeaders(_request, response, next) {

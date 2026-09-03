@@ -3,11 +3,10 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { api } from "./api";
 import type {
+  AgentState,
   DeliveryStatus,
   FeedbackKind,
   FeedbackRecord,
-  FeedbackStatus,
-  StopOutcome,
   WikiChapter,
 } from "./types";
 
@@ -16,6 +15,13 @@ type Surface = { kind: "canvas" } | { kind: "wiki"; slug?: string };
 export default function App() {
   const [surface, setSurface] = useState<Surface>(() => surfaceFromPath(window.location.pathname));
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [attention, setAttention] = useState(0);
+  const refreshAttention = async () => {
+    const { records } = await api.feedback();
+    setAttention(
+      records.filter((record) => ["waiting", "ready_for_review"].includes(record.status)).length,
+    );
+  };
   const navigate = (next: Surface) => {
     window.history.pushState({}, "", next.kind === "wiki" ? `/wiki/${next.slug || ""}` : "/");
     setSurface(next);
@@ -23,7 +29,12 @@ export default function App() {
   useEffect(() => {
     const handlePop = () => setSurface(surfaceFromPath(window.location.pathname));
     window.addEventListener("popstate", handlePop);
-    return () => window.removeEventListener("popstate", handlePop);
+    void refreshAttention().catch(() => {});
+    const polling = window.setInterval(() => void refreshAttention().catch(() => {}), 3000);
+    return () => {
+      window.removeEventListener("popstate", handlePop);
+      window.clearInterval(polling);
+    };
   }, []);
   const pagePath = surface.kind === "wiki" ? `/wiki/${surface.slug || ""}` : "/";
   const pageLabel =
@@ -59,16 +70,24 @@ export default function App() {
       <button
         className="floating-control feedback-control"
         onClick={() => setFeedbackOpen(true)}
-        aria-label="Give feedback"
+        aria-label={
+          attention ? `Give feedback, ${attention} items need your attention` : "Give feedback"
+        }
       >
         <CommentIcon />
         <span>Feedback</span>
+        {attention > 0 && (
+          <b className="attention-dot" aria-hidden="true">
+            {attention}
+          </b>
+        )}
       </button>
       {feedbackOpen && (
         <FeedbackPanel
           pagePath={pagePath}
           pageLabel={pageLabel}
           onClose={() => setFeedbackOpen(false)}
+          onAttention={refreshAttention}
         />
       )}
     </div>
@@ -79,7 +98,7 @@ function EmptyCanvas() {
   return (
     <section className="empty-canvas" aria-labelledby="canvas-title">
       <div className="empty-message">
-        <p className="eyebrow">A local dashboard foundation</p>
+        <p className="eyebrow">A Hadosh Academy base dashboard</p>
         <h1 id="canvas-title">Ready to become yours.</h1>
         <p>Ask your agent to shape the first page, or leave feedback to begin.</p>
       </div>
@@ -128,8 +147,7 @@ function Wiki({ slug, navigate }: { slug?: string; navigate: (surface: Surface) 
           <p className="eyebrow">Growth guide</p>
           <h1>Origin Wiki</h1>
           <p className="wiki-intro">
-            Patterns for cultivating this empty foundation into a dashboard and harness that fit its
-            user.
+            Patterns for cultivating this foundation through Hadosh Academy Phases 6–7.
           </p>
         </div>
         <nav aria-label="Wiki chapters">
@@ -173,8 +191,8 @@ function WikiLanding({
       <p className="eyebrow">Start here</p>
       <h2>The dashboard is empty. Its context is not.</h2>
       <p className="lead">
-        Origin ships only the machinery shared by many dashboard-plus-harness projects. This wiki
-        preserves the patterns an agent can use when the user is ready to grow it.
+        Origin is the Codex implementation of the Hadosh Academy Base Dashboard substrate. Its wiki
+        teaches how the visible world and harness can grow together.
       </p>
       <div className="chapter-grid">
         {chapters.map((chapter) => (
@@ -193,24 +211,33 @@ function FeedbackPanel({
   pagePath,
   pageLabel,
   onClose,
+  onAttention,
 }: {
   pagePath: string;
   pageLabel: string;
   onClose: () => void;
+  onAttention: () => Promise<void>;
 }) {
   const [kind, setKind] = useState<FeedbackKind>("update");
   const [body, setBody] = useState("");
   const [records, setRecords] = useState<FeedbackRecord[]>([]);
-  const [delivery, setDelivery] = useState<DeliveryStatus>({ state: "idle" });
-  const [outcome, setOutcome] = useState<StopOutcome>({
+  const [delivery, setDelivery] = useState<DeliveryStatus>({
+    state: "idle",
+    transport: "tmux",
+    pending: 0,
+    last: null,
+  });
+  const [outcome, setOutcome] = useState<AgentState>({
     mode: "idle",
     block: false,
     reference: null,
-    voiceId: null,
+    voiceId: "stop.idle",
+    reason: "No work remains.",
+    nextAction: null,
+    revision: 0,
   });
   const [status, setStatus] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [waking, setWaking] = useState(false);
   const panelRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const previousFocus = useRef<HTMLElement | null>(document.activeElement as HTMLElement | null);
@@ -219,6 +246,7 @@ function FeedbackPanel({
     setRecords(result.records);
     setDelivery(result.delivery);
     setOutcome(result.outcome);
+    await onAttention();
   };
   useEffect(() => {
     void refresh().catch((error: Error) => setStatus(error.message));
@@ -244,13 +272,7 @@ function FeedbackPanel({
       const result = await api.submitFeedback({ kind, body, pagePath, pageLabel });
       setBody("");
       setDelivery(result.delivery);
-      setStatus(
-        result.delivery.state === "unavailable"
-          ? "Saved. The agent command is unavailable; run the wake command after installing Codex."
-          : result.delivery.state === "disabled"
-            ? "Saved to the local queue. Automatic agent delivery is disabled."
-            : "Saved to the local queue. The agent runner is active.",
-      );
+      setStatus("Saved. The interactive Codex session has been notified through tmux.");
       await refresh();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not save feedback.");
@@ -258,23 +280,14 @@ function FeedbackPanel({
       setSubmitting(false);
     }
   };
-  const wake = async () => {
-    if (waking) return;
-    setWaking(true);
-    setStatus("Waking the local agent…");
+  const retryWake = async () => {
+    setStatus("Retrying delivery…");
     try {
       const result = await api.wakeFeedback();
       setDelivery(result.delivery);
-      setStatus(
-        result.delivery.state === "disabled"
-          ? "Automatic agent delivery is disabled by the local operator."
-          : "Wake request accepted.",
-      );
-      await refresh();
+      setStatus("Wake delivery scheduled.");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Could not wake the local agent.");
-    } finally {
-      setWaking(false);
+      setStatus(error instanceof Error ? error.message : "Could not retry delivery.");
     }
   };
   return (
@@ -299,20 +312,17 @@ function FeedbackPanel({
         <section className="delivery-summary" aria-labelledby="delivery-title">
           <div>
             <p id="delivery-title" className={`delivery-state ${delivery.state}`}>
-              Agent delivery: {delivery.state.replace("-", " ")}
+              Agent state: {outcome.mode} · tmux: {delivery.state}
             </p>
             <p>
-              Origin uses a headless local worker. It starts when actionable feedback exists and
-              writes its output to <code>{delivery.logPath || ".origin/agent.log"}</code>.
+              Feedback is delivered to the same interactive Codex session open in your terminal.
             </p>
-            {delivery.reference && <small>Working record: {delivery.reference}</small>}
-            {delivery.last?.type === "delivery.unavailable" && (
-              <small>The last agent attempt did not complete. The supervisor will retry.</small>
-            )}
+            {outcome.reference && <small>Current responsibility: {outcome.reference.id}</small>}
+            {delivery.last?.error && <small>{delivery.last.error}</small>}
           </div>
-          {outcome.block && delivery.state === "unavailable" && (
-            <button type="button" onClick={wake} disabled={waking}>
-              {waking ? "Waking…" : "Wake agent"}
+          {delivery.pending > 0 && (
+            <button type="button" onClick={retryWake}>
+              Retry wake
             </button>
           )}
         </section>
@@ -357,7 +367,7 @@ function FeedbackPanel({
         </form>
         {records.length > 0 && (
           <div className="recent-feedback">
-            <h3>Feedback ledger</h3>
+            <h3>Feedback threads</h3>
             {records.map((record) => (
               <FeedbackRecordCard key={record.id} record={record} onChanged={refresh} />
             ))}
@@ -378,21 +388,14 @@ function FeedbackRecordCard({
   const [detail, setDetail] = useState("");
   const [message, setMessage] = useState("");
   const [updating, setUpdating] = useState(false);
-  const act = async (status: FeedbackStatus) => {
+  const run = async (operation: () => Promise<unknown>, success: string) => {
     if (updating) return;
     setUpdating(true);
     setMessage("Updating…");
     try {
-      await api.transitionFeedback(record.id, {
-        status,
-        ...(status === "resolved"
-          ? { evidence: detail }
-          : ["waiting", "dismissed", "open"].includes(status)
-            ? { reason: detail }
-            : {}),
-      });
+      await operation();
       setDetail("");
-      setMessage("Updated.");
+      setMessage(success);
       await onChanged();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not update feedback.");
@@ -400,39 +403,111 @@ function FeedbackRecordCard({
       setUpdating(false);
     }
   };
-  const actions: FeedbackStatus[] =
-    record.status === "open"
-      ? ["in_progress", "dismissed"]
-      : record.status === "in_progress"
-        ? ["waiting", "resolved", "dismissed"]
-        : record.status === "waiting"
-          ? ["in_progress", "dismissed"]
-          : ["open"];
-  const requiresDetail = actions.some((action) =>
-    ["waiting", "resolved", "dismissed", "open"].includes(action),
-  );
+  const submitMessage = () =>
+    run(
+      () => api.addFeedbackMessage(record.id, detail),
+      record.status === "waiting" ? "Answer sent to Codex." : "Comment sent to Codex.",
+    );
+  const accept = () =>
+    run(
+      () =>
+        api.transitionFeedback(record.id, {
+          status: "resolved",
+          acceptance: detail.trim() || "Accepted by user.",
+        }),
+      "Accepted.",
+    );
+  const reopen = () =>
+    run(
+      () => api.transitionFeedback(record.id, { status: "open", reason: detail }),
+      "Reopened and sent to Codex.",
+    );
+  const dismiss = () =>
+    run(
+      () => api.transitionFeedback(record.id, { status: "dismissed", reason: detail }),
+      "Dismissed.",
+    );
+  const needsAttention = ["waiting", "ready_for_review"].includes(record.status);
   return (
-    <article className="feedback-record">
+    <article className={`feedback-record ${needsAttention ? "needs-attention" : ""}`}>
       <div className="record-meta">
         <span>{record.kind}</span>
-        <small>{record.status.replace("_", " ")}</small>
+        <small>{record.status.replaceAll("_", " ")}</small>
       </div>
       <p>{record.body}</p>
       <small>{record.pageLabel}</small>
-      <details>
-        <summary>Manage</summary>
-        {requiresDetail && (
+      {record.interpretation && (
+        <p className="interpretation">
+          <strong>Agent interpretation:</strong> {record.interpretation}
+        </p>
+      )}
+      {record.verification && (
+        <p className="verification">
+          <strong>Verification:</strong> {record.verification}
+        </p>
+      )}
+      <details open={needsAttention || undefined}>
+        <summary>Thread and review</summary>
+        <div className="thread">
+          {record.messages.map((item) => (
+            <div className={`thread-message ${item.role}`} key={item.id}>
+              <small>
+                {item.role} · {item.type}
+              </small>
+              <p>{item.body}</p>
+            </div>
+          ))}
+        </div>
+        {record.status === "waiting" && (
           <label>
-            Reason or verification evidence
+            Your answer
+            <textarea value={detail} onChange={(event) => setDetail(event.target.value)} />
+          </label>
+        )}
+        {record.status === "ready_for_review" && (
+          <label>
+            Acceptance note or reason to reopen
+            <textarea value={detail} onChange={(event) => setDetail(event.target.value)} />
+          </label>
+        )}
+        {["open", "in_progress"].includes(record.status) && (
+          <label>
+            Add context
+            <textarea value={detail} onChange={(event) => setDetail(event.target.value)} />
+          </label>
+        )}
+        {["resolved", "dismissed"].includes(record.status) && (
+          <label>
+            Reason to reopen
             <textarea value={detail} onChange={(event) => setDetail(event.target.value)} />
           </label>
         )}
         <div className="record-actions">
-          {actions.map((action) => (
-            <button type="button" key={action} disabled={updating} onClick={() => act(action)}>
-              {actionLabel(action)}
+          {["open", "in_progress", "waiting"].includes(record.status) && (
+            <button type="button" disabled={updating || !detail.trim()} onClick={submitMessage}>
+              {record.status === "waiting" ? "Send answer" : "Add comment"}
             </button>
-          ))}
+          )}
+          {record.status === "ready_for_review" && (
+            <>
+              <button type="button" disabled={updating} onClick={accept}>
+                Accept
+              </button>
+              <button type="button" disabled={updating || !detail.trim()} onClick={reopen}>
+                Reopen
+              </button>
+            </>
+          )}
+          {["resolved", "dismissed"].includes(record.status) && (
+            <button type="button" disabled={updating || !detail.trim()} onClick={reopen}>
+              Reopen
+            </button>
+          )}
+          {["open", "waiting"].includes(record.status) && (
+            <button type="button" disabled={updating || !detail.trim()} onClick={dismiss}>
+              Withdraw
+            </button>
+          )}
         </div>
         {message && <p role="status">{message}</p>}
       </details>
@@ -463,9 +538,8 @@ function trapFocus(event: KeyboardEvent, container: HTMLElement | null) {
   }
 }
 function isVisibleFocusable(item: HTMLElement) {
-  if (item.matches(':disabled, input[type="hidden"], [hidden], [inert], [aria-hidden="true"]')) {
+  if (item.matches(':disabled, input[type="hidden"], [hidden], [inert], [aria-hidden="true"]'))
     return false;
-  }
   if (item.closest('[hidden], [inert], [aria-hidden="true"]')) return false;
   const closedDetails = item.closest("details:not([open])");
   if (closedDetails && item !== closedDetails.querySelector(":scope > summary")) return false;
@@ -481,17 +555,6 @@ function titleFromSlug(slug: string) {
     .split("-")
     .map((word) => word[0]?.toUpperCase() + word.slice(1))
     .join(" ");
-}
-function actionLabel(status: FeedbackStatus) {
-  return (
-    {
-      open: "Reopen",
-      in_progress: "Start",
-      waiting: "Wait",
-      resolved: "Resolve",
-      dismissed: "Dismiss",
-    } as const
-  )[status];
 }
 function labelStatus(status: WikiChapter["status"]) {
   return (

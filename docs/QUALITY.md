@@ -15,7 +15,7 @@ Scores are not substitutes for evidence.
 | Test quality              | Unit, corruption, migration, rollback, concurrency, subprocess, API, DOM, and accessibility coverage | Enforced line, branch, and function thresholds in `npm run check` |
 | Documentation             | Human and agent surfaces describe the same current system                                            | README, plugin docs, Wiki, quality contract                       |
 | Interface quality         | Responsive empty canvas, GFM Wiki, accessible feedback management                                    | DOM interaction and automated accessibility tests                 |
-| Installation portability  | One Node installer behind thin Unix and PowerShell launchers                                         | Installer tests and three-OS CI matrix                            |
+| Installation portability  | One Node installer, thin Unix and PowerShell launchers, and explicit cross-platform line endings     | Installer tests, `.gitattributes`, and three-OS CI matrix         |
 | Continuous delivery       | New feedback starts one durable runner; active work remains gated; stale focus recovers              | Runner, lease, subprocess, and recovery tests                     |
 | Stable readiness          | Reproducible install, verification, diagnostics, recovery, and explicit boundaries                   | Lockfile, CI, doctor, backup/restore, threat model                |
 

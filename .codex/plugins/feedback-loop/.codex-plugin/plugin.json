@@ -1,6 +1,6 @@
 {
   "name": "feedback-loop",
-  "version": "1.0.0-alpha.2",
+  "version": "1.0.0",
   "description": "Turns page-aware feedback into an ordered local agent work loop.",
   "author": { "name": "Hadi Nayebi", "url": "https://github.com/hadi-nayebi" },
   "repository": "https://github.com/hadi-nayebi/origin",
@@ -13,7 +13,10 @@
     "developerName": "Hadi Nayebi",
     "category": "Productivity",
     "capabilities": ["Read", "Write", "Hooks"],
-    "defaultPrompt": ["Show the next unresolved dashboard feedback.", "Continue the focused Origin feedback record."],
+    "defaultPrompt": [
+      "Show the next unresolved dashboard feedback.",
+      "Continue the focused Origin feedback record."
+    ],
     "brandColor": "#C9F27B"
   }
 }

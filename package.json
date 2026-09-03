@@ -1,7 +1,19 @@
 {
   "name": "origin-dashboard",
-  "version": "1.0.0-alpha.1",
-  "private": false,
+  "version": "1.0.0",
+  "private": true,
+  "description": "A topic-agnostic local dashboard and Codex feedback-loop foundation.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hadi-nayebi/origin.git"
+  },
+  "keywords": [
+    "codex",
+    "dashboard",
+    "agent-harness",
+    "feedback"
+  ],
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -11,22 +23,41 @@
     "build": "tsc --noEmit && vite build",
     "start": "node server/index.mjs",
     "origin": "npm run build && npm start",
-    "test": "node --test .codex/plugins/feedback-loop/tests/*.test.mjs",
-    "check": "npm run test && npm run build",
-    "feedback": "node .codex/plugins/feedback-loop/scripts/feedback.mjs"
+    "test": "node --test .codex/plugins/feedback-loop/tests/*.test.mjs server/tests/*.test.mjs scripts/tests/*.test.mjs",
+    "test:coverage": "node --experimental-test-coverage --test-coverage-lines=90 --test-coverage-branches=70 --test-coverage-functions=85 --test-coverage-include=.codex/plugins/feedback-loop/lib/**/*.mjs --test-coverage-include=.codex/plugins/feedback-loop/hooks/**/*.mjs --test-coverage-include=.codex/plugins/feedback-loop/scripts/runner.mjs --test-coverage-include=server/**/*.mjs --test .codex/plugins/feedback-loop/tests/*.test.mjs server/tests/*.test.mjs scripts/tests/*.test.mjs",
+    "test:ui": "vitest run",
+    "lint": "eslint \"**/*.{js,mjs}\"",
+    "format:check": "prettier --check .",
+    "check": "npm run lint && npm run format:check && npm run test:coverage && npm run test:ui && npm run build",
+    "feedback": "node .codex/plugins/feedback-loop/scripts/feedback.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "setup": "node scripts/install.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "6.1.1",
     "express": "5.2.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "react-markdown": "10.1.0",
+    "remark-gfm": "4.0.1",
     "vite": "8.2.2"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.7",
     "@types/express": "5.0.6",
     "@types/node": "26.4.1",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
-    "typescript": "7.0.2"
+    "ajv": "8.17.1",
+    "ajv-formats": "3.0.1",
+    "axe-core": "4.13.0",
+    "eslint": "10.9.1",
+    "globals": "17.12.0",
+    "jsdom": "30.0.1",
+    "prettier": "3.9.6",
+    "typescript": "7.0.2",
+    "vitest": "4.1.11"
   }
 }

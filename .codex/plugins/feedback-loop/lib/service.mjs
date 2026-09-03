@@ -1,9 +1,108 @@
 import crypto from "node:crypto";
-import { bounded, normalizeCreateInput } from "./contracts.mjs";
+import { bounded, normalizeCreateInput, normalizeId } from "./contracts.mjs";
+import { CURRENT_SCHEMA_VERSION } from "./integrity.mjs";
 import { assertTransition, deriveStopOutcome, orderedRecords, selectNext } from "./policy.mjs";
-import { appendFeedbackEvent, readFeedbackState } from "./store.mjs";
-export function listFeedback(root) { return orderedRecords(readFeedbackState(root)); }
-export function nextFeedback(root) { return selectNext(readFeedbackState(root)); }
-export function stopOutcome(root) { return deriveStopOutcome(readFeedbackState(root)); }
-export function createFeedback(root, input, now = new Date()) { const clean = normalizeCreateInput(input); const at = now.toISOString(); const record = Object.freeze({ id: `${now.getTime()}-${crypto.randomUUID()}`, ...clean, status: "open", createdAt: at, updatedAt: at }); appendFeedbackEvent(root, (records) => { if (records.has(record.id)) throw new Error("Feedback ID collision."); return { schemaVersion: 1, type: "feedback.created", record }; }); return record; }
-export function transitionFeedback(root, id, status, detail = {}, now = new Date()) { const safeId = bounded(id, "Feedback ID", 10, 128); const result = appendFeedbackEvent(root, (records) => { const current = records.get(safeId); if (!current) throw new Error("Feedback record not found."); assertTransition(current.status, status); const event = { schemaVersion: 1, type: "feedback.status-changed", id: safeId, status, at: now.toISOString() }; if (status === "resolved") event.resolution = bounded(detail.resolution, "Resolution evidence", 20, 2000); if (status === "waiting") event.waitReason = bounded(detail.waitReason, "Waiting reason", 5, 1000); if (status === "dismissed") event.dismissalReason = bounded(detail.reason, "Dismissal reason", 5, 1000); if (status === "open") event.reopenReason = bounded(detail.reason, "Reopen reason", 3, 1000); return event; }); return result.records.get(safeId); }
+import {
+  appendFeedbackEvent,
+  inspectFeedbackLedger,
+  listFeedbackBackups,
+  migrateFeedbackLedger,
+  readFeedbackState,
+  restoreFeedbackBackup,
+} from "./store.mjs";
+export function listFeedback(root) {
+  return orderedRecords(readFeedbackState(root));
+}
+export function nextFeedback(root) {
+  return selectNext(readFeedbackState(root));
+}
+export function stopOutcome(root) {
+  return deriveStopOutcome(readFeedbackState(root));
+}
+export function createFeedback(root, input, now = new Date()) {
+  const clean = normalizeCreateInput(input);
+  const at = now.toISOString();
+  const record = Object.freeze({
+    id: `${now.getTime()}-${crypto.randomUUID()}`,
+    ...clean,
+    status: "open",
+    createdAt: at,
+    updatedAt: at,
+  });
+  appendFeedbackEvent(root, (records) => {
+    if (records.has(record.id)) throw new Error("Feedback ID collision.");
+    return { schemaVersion: CURRENT_SCHEMA_VERSION, type: "feedback.created", record };
+  });
+  return record;
+}
+export function transitionFeedback(root, id, status, detail = {}, now = new Date()) {
+  const safeId = normalizeId(id);
+  const result = appendFeedbackEvent(root, (records) => {
+    const current = records.get(safeId);
+    if (!current) throw new Error("Feedback record not found.");
+    assertTransition(current.status, status);
+    const event = {
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      type: "feedback.status-changed",
+      id: safeId,
+      status,
+      at: now.toISOString(),
+    };
+    if (status === "resolved")
+      event.resolution = bounded(detail.resolution, "Resolution evidence", 20, 2000);
+    if (status === "waiting")
+      event.waitReason = bounded(detail.waitReason, "Waiting reason", 5, 1000);
+    if (status === "dismissed")
+      event.dismissalReason = bounded(detail.reason, "Dismissal reason", 5, 1000);
+    if (status === "open") event.reopenReason = bounded(detail.reason, "Reopen reason", 3, 1000);
+    return event;
+  });
+  return result.records.get(safeId);
+}
+export function heartbeatFeedback(root, id, now = new Date()) {
+  const safeId = normalizeId(id);
+  const result = appendFeedbackEvent(root, (records) => {
+    const current = records.get(safeId);
+    if (!current || current.status !== "in_progress")
+      throw new Error("Only focused feedback may receive a heartbeat.");
+    return {
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      type: "feedback.heartbeat",
+      id: safeId,
+      at: now.toISOString(),
+    };
+  });
+  return result.records.get(safeId);
+}
+export function recoverStaleFeedback(root, options = {}, now = new Date()) {
+  const maximumAgeMs = Number(options.maximumAgeMs ?? 14_400_000);
+  if (!Number.isFinite(maximumAgeMs) || maximumAgeMs < 60_000)
+    throw new Error("Recovery age must be at least one minute.");
+  let recoveredId = null;
+  const result = appendFeedbackEvent(root, (records) => {
+    const focused = [...records.values()].find((record) => record.status === "in_progress");
+    if (!focused || now.getTime() - Date.parse(focused.updatedAt) < maximumAgeMs) return null;
+    recoveredId = focused.id;
+    return {
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      type: "feedback.status-changed",
+      id: focused.id,
+      status: "open",
+      at: now.toISOString(),
+      recoveryReason: `Recovered after ${maximumAgeMs} ms without a heartbeat.`,
+    };
+  });
+  return recoveredId ? result.records.get(recoveredId) : null;
+}
+export function verifyFeedback(root) {
+  return inspectFeedbackLedger(root);
+}
+export function migrateFeedback(root) {
+  return migrateFeedbackLedger(root);
+}
+export function feedbackBackups(root) {
+  return listFeedbackBackups(root);
+}
+export function restoreFeedback(root, name) {
+  return restoreFeedbackBackup(root, name);
+}

@@ -1,0 +1,4 @@
+dist
+node_modules
+.origin
+package-lock.json

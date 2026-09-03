@@ -14,6 +14,20 @@ export interface FeedbackRecord {
   waitReason?: string;
   dismissalReason?: string;
   reopenReason?: string;
+  recoveryReason?: string;
+}
+
+export interface StopOutcome {
+  mode: "active" | "waiting" | "idle";
+  block: boolean;
+  reference: string | null;
+  voiceId: string | null;
+}
+export interface DeliveryStatus {
+  state: "disabled" | "idle" | "starting" | "running" | "unavailable";
+  pid?: number;
+  startedAt?: string;
+  reference?: string | null;
 }
 
 export interface WikiChapter {

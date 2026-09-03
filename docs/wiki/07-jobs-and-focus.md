@@ -6,12 +6,11 @@ status: future
 
 # From Feedback to Jobs
 
-Origin 1.0 uses individual feedback records as its work queue. A general job
-system is not included.
+Origin 1.0 uses individual feedback records as its work queue. A general job system is not included.
 
-A job becomes useful when one outcome requires several dependent activities,
-working memory across sessions, explicit deliverables, or structured human
-review. Do not create a job merely to rename one comment.
+A job becomes useful when one outcome requires several dependent activities, working memory across
+sessions, explicit deliverables, or structured human review. Do not create a job merely to rename
+one comment.
 
 ## A durable job normally needs
 
@@ -24,10 +23,8 @@ review. Do not create a job merely to rename one comment.
 - Completion and reopening evidence.
 - A queue that does not silently replace focused work.
 
-Only one job should own focus in a clone. New independent work remains pending
-until the focused job completes or an explicit preemption rule applies.
+Only one job should own focus in a clone. New independent work remains pending until the focused job
+completes or an explicit preemption rule applies.
 
-Feedback may create or enrich a job, but the original feedback record remains
-traceable. Closing the job does not automatically prove that every linked
-comment was satisfied.
-
+Feedback may create or enrich a job, but the original feedback record remains traceable. Closing the
+job does not automatically prove that every linked comment was satisfied.

@@ -6,17 +6,16 @@ status: growth-pattern
 
 # Grow the Dashboard
 
-A dashboard is the human-facing surface over project state and harness
-capabilities. It is not automatically the canonical database, the agent, or the
-authority that decides what work means.
+A dashboard is the human-facing surface over project state and harness capabilities. It is not
+automatically the canonical database, the agent, or the authority that decides what work means.
 
 ## Add structure only when it earns a role
 
 - Add a page when it answers a recurring question or supports a repeated action.
 - Add navigation when at least two durable destinations exist.
 - Add filtering when the real collection has grown beyond direct scanning.
-- Add a database only when file-backed state no longer supports the necessary
-  queries, scale, or concurrency.
+- Add a database only when file-backed state no longer supports the necessary queries, scale, or
+  concurrency.
 - Add synchronization only when more than one clone must share state.
 
 ## Keep three layers distinguishable
@@ -27,10 +26,9 @@ authority that decides what work means.
 
 ## Progressive disclosure
 
-Show the most relevant current information first while keeping supporting
-detail searchable and accessible. Collapsed presentation must never hide
-safety-critical, privacy, or blocking state from the agent or user.
+Show the most relevant current information first while keeping supporting detail searchable and
+accessible. Collapsed presentation must never hide safety-critical, privacy, or blocking state from
+the agent or user.
 
-Origin's distributed empty canvas is the first layer. The user's agent owns the
-initial proposal, and the user owns consequential choices about what it becomes.
-
+Origin's distributed empty canvas is the first layer. The user's agent owns the initial proposal,
+and the user owns consequential choices about what it becomes.

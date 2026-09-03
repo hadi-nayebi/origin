@@ -1,46 +1,207 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Origin Feedback Loop Event",
-  "oneOf": [
-    {
+  "title": "Origin Feedback Loop Event v2",
+  "$defs": {
+    "envelope": {
       "type": "object",
-      "additionalProperties": false,
-      "required": ["schemaVersion", "type", "record"],
+      "required": ["schemaVersion", "sequence", "previousHash", "hash"],
       "properties": {
-        "schemaVersion": { "const": 1 },
-        "type": { "const": "feedback.created" },
-        "record": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["id", "kind", "body", "pagePath", "pageLabel", "status", "createdAt", "updatedAt"],
-          "properties": {
-            "id": { "type": "string", "minLength": 10, "maxLength": 128 },
-            "kind": { "enum": ["update", "feature", "bug"] },
-            "body": { "type": "string", "minLength": 3, "maxLength": 2000 },
-            "pagePath": { "type": "string", "minLength": 1, "maxLength": 240 },
-            "pageLabel": { "type": "string", "minLength": 1, "maxLength": 120 },
-            "status": { "const": "open" },
-            "createdAt": { "type": "string", "format": "date-time" },
-            "updatedAt": { "type": "string", "format": "date-time" }
-          }
-        }
+        "schemaVersion": { "const": 2 },
+        "sequence": { "type": "integer", "minimum": 1 },
+        "previousHash": { "anyOf": [{ "const": "GENESIS" }, { "$ref": "#/$defs/hash" }] },
+        "hash": { "$ref": "#/$defs/hash" }
       }
     },
+    "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "id": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9-]+$"
+    },
+    "timestamp": { "type": "string", "format": "date-time" }
+  },
+  "oneOf": [
     {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["schemaVersion", "type", "id", "status", "at"],
-      "properties": {
-        "schemaVersion": { "const": 1 },
-        "type": { "const": "feedback.status-changed" },
-        "id": { "type": "string", "minLength": 10, "maxLength": 128 },
-        "status": { "enum": ["open", "in_progress", "waiting", "resolved", "dismissed"] },
-        "at": { "type": "string", "format": "date-time" },
-        "resolution": { "type": "string", "minLength": 20, "maxLength": 2000 },
-        "waitReason": { "type": "string", "minLength": 5, "maxLength": 1000 },
-        "dismissalReason": { "type": "string", "minLength": 5, "maxLength": 1000 },
-        "reopenReason": { "type": "string", "minLength": 3, "maxLength": 1000 }
-      }
+      "allOf": [
+        { "$ref": "#/$defs/envelope" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "sequence", "previousHash", "hash", "type", "record"],
+          "properties": {
+            "schemaVersion": { "const": 2 },
+            "sequence": { "type": "integer", "minimum": 1 },
+            "previousHash": { "anyOf": [{ "const": "GENESIS" }, { "$ref": "#/$defs/hash" }] },
+            "hash": { "$ref": "#/$defs/hash" },
+            "type": { "const": "feedback.created" },
+            "record": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "kind",
+                "body",
+                "pagePath",
+                "pageLabel",
+                "status",
+                "createdAt",
+                "updatedAt"
+              ],
+              "properties": {
+                "id": { "$ref": "#/$defs/id" },
+                "kind": { "enum": ["update", "feature", "bug"] },
+                "body": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 2000,
+                  "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f]*$"
+                },
+                "pagePath": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 240,
+                  "pattern": "^/(?!.*(?:\\.\\.|\\\\|[\\u0000-\\u001f\\u007f])).*$"
+                },
+                "pageLabel": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120,
+                  "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+                },
+                "status": { "const": "open" },
+                "createdAt": { "$ref": "#/$defs/timestamp" },
+                "updatedAt": { "$ref": "#/$defs/timestamp" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "allOf": [
+        { "$ref": "#/$defs/envelope" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "sequence",
+            "previousHash",
+            "hash",
+            "type",
+            "id",
+            "status",
+            "at"
+          ],
+          "properties": {
+            "schemaVersion": { "const": 2 },
+            "sequence": { "type": "integer", "minimum": 1 },
+            "previousHash": { "anyOf": [{ "const": "GENESIS" }, { "$ref": "#/$defs/hash" }] },
+            "hash": { "$ref": "#/$defs/hash" },
+            "type": { "const": "feedback.status-changed" },
+            "id": { "$ref": "#/$defs/id" },
+            "status": { "enum": ["open", "in_progress", "waiting", "resolved", "dismissed"] },
+            "at": { "$ref": "#/$defs/timestamp" },
+            "resolution": { "type": "string", "minLength": 20, "maxLength": 2000 },
+            "waitReason": { "type": "string", "minLength": 5, "maxLength": 1000 },
+            "dismissalReason": { "type": "string", "minLength": 5, "maxLength": 1000 },
+            "reopenReason": { "type": "string", "minLength": 3, "maxLength": 1000 },
+            "recoveryReason": { "type": "string", "minLength": 10, "maxLength": 1000 }
+          }
+        },
+        {
+          "type": "object",
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": { "status": { "const": "resolved" } },
+              "required": ["resolution"],
+              "not": {
+                "anyOf": [
+                  { "type": "object", "required": ["waitReason"] },
+                  { "type": "object", "required": ["dismissalReason"] },
+                  { "type": "object", "required": ["reopenReason"] },
+                  { "type": "object", "required": ["recoveryReason"] }
+                ]
+              }
+            },
+            {
+              "type": "object",
+              "properties": { "status": { "const": "waiting" } },
+              "required": ["waitReason"],
+              "not": {
+                "anyOf": [
+                  { "type": "object", "required": ["resolution"] },
+                  { "type": "object", "required": ["dismissalReason"] },
+                  { "type": "object", "required": ["reopenReason"] },
+                  { "type": "object", "required": ["recoveryReason"] }
+                ]
+              }
+            },
+            {
+              "type": "object",
+              "properties": { "status": { "const": "dismissed" } },
+              "required": ["dismissalReason"],
+              "not": {
+                "anyOf": [
+                  { "type": "object", "required": ["resolution"] },
+                  { "type": "object", "required": ["waitReason"] },
+                  { "type": "object", "required": ["reopenReason"] },
+                  { "type": "object", "required": ["recoveryReason"] }
+                ]
+              }
+            },
+            {
+              "type": "object",
+              "properties": { "status": { "const": "open" } },
+              "oneOf": [
+                { "type": "object", "required": ["reopenReason"] },
+                { "type": "object", "required": ["recoveryReason"] }
+              ],
+              "not": {
+                "anyOf": [
+                  { "type": "object", "required": ["resolution"] },
+                  { "type": "object", "required": ["waitReason"] },
+                  { "type": "object", "required": ["dismissalReason"] }
+                ]
+              }
+            },
+            {
+              "type": "object",
+              "properties": { "status": { "const": "in_progress" } },
+              "not": {
+                "anyOf": [
+                  { "type": "object", "required": ["resolution"] },
+                  { "type": "object", "required": ["waitReason"] },
+                  { "type": "object", "required": ["dismissalReason"] },
+                  { "type": "object", "required": ["reopenReason"] },
+                  { "type": "object", "required": ["recoveryReason"] }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "allOf": [
+        { "$ref": "#/$defs/envelope" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "sequence", "previousHash", "hash", "type", "id", "at"],
+          "properties": {
+            "schemaVersion": { "const": 2 },
+            "sequence": { "type": "integer", "minimum": 1 },
+            "previousHash": { "anyOf": [{ "const": "GENESIS" }, { "$ref": "#/$defs/hash" }] },
+            "hash": { "$ref": "#/$defs/hash" },
+            "type": { "const": "feedback.heartbeat" },
+            "id": { "$ref": "#/$defs/id" },
+            "at": { "$ref": "#/$defs/timestamp" }
+          }
+        }
+      ]
     }
   ]
 }

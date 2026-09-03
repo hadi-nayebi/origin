@@ -88,14 +88,15 @@ enters the Stop and process-launch surfaces. See [`SECURITY.md`](SECURITY.md), t
 
 ```bash
 npm run check
+npm run smoke
 npm audit --omit=dev --audit-level=high
 ```
 
 The test suite covers lifecycle policy, corruption, hash tampering, migration, rollback, recovery,
 multiprocess contention, supervised subprocess delivery, retry ownership, exact Stop behavior, HTTP
-boundaries, DOM interactions, Markdown, and accessibility. CI runs the same contract on Linux,
-macOS, and Windows. CI does not claim authenticated Codex execution; that proof comes only from the
-opt-in acceptance command above.
+boundaries, DOM interactions, Markdown, accessibility, and a production-server health smoke check.
+CI runs the same contract on Linux, macOS, and Windows. CI does not claim authenticated Codex
+execution; that proof comes only from the opt-in acceptance command above.
 
 ## Contribute
 

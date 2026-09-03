@@ -9,7 +9,10 @@ run(process.execPath, ["scripts/doctor.mjs"]);
 console.log("Origin is ready. Run: npm run origin");
 
 function run(command, args) {
-  const result = spawnSync(command, args, { stdio: "inherit", shell: false });
+  const result = spawnSync(command, args, {
+    stdio: "inherit",
+    shell: process.platform === "win32" && command === "npm.cmd",
+  });
   if (result.error) fail(result.error.message);
   if (result.status !== 0) process.exit(result.status ?? 1);
 }

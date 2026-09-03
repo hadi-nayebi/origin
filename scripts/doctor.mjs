@@ -17,9 +17,9 @@ const stopCommandWindows =
 check("Node.js 22+", Number(process.versions.node.split(".")[0]) >= 22, process.version);
 const npm = spawnSync(process.platform === "win32" ? "npm.cmd" : "npm", ["--version"], {
   encoding: "utf8",
-  shell: false,
+  shell: process.platform === "win32",
 });
-check("npm", npm.status === 0, npm.stdout.trim() || npm.error?.message);
+check("npm", npm.status === 0, npm.stdout?.trim() || npm.error?.message);
 const git = spawnSync("git", ["--version"], { encoding: "utf8", shell: false });
 check("Git", git.status === 0, git.stdout.trim() || git.error?.message);
 

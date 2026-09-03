@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import { buildAgentInvocation, feedbackRunnerStatus, runFeedbackLoop } from "../lib/delivery.mjs";
@@ -22,6 +23,8 @@ import {
   verifyFeedback,
 } from "../lib/service.mjs";
 import { renderVoice } from "../lib/voice.mjs";
+
+const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 
 function fixture() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "origin-feedback-"));
@@ -283,10 +286,7 @@ test("published ledger events and lifecycle details match the public JSON Schema
     resolution: "Validated generated events against the tracked JSON Schema.",
   });
   const schema = JSON.parse(
-    fs.readFileSync(
-      path.resolve(path.dirname(new URL(import.meta.url).pathname), "../data.schema.json"),
-      "utf8",
-    ),
+    fs.readFileSync(path.resolve(testDirectory, "../data.schema.json"), "utf8"),
   );
   const ajv = new Ajv2020({ allErrors: true });
   addFormats(ajv);
@@ -494,7 +494,7 @@ test("delivery invokes a real shell-free child process and records its log", asy
     pagePath: "/",
     pageLabel: "Canvas",
   });
-  const fakeAgent = path.resolve(path.dirname(new URL(import.meta.url).pathname), "fake-agent.mjs");
+  const fakeAgent = path.resolve(testDirectory, "fake-agent.mjs");
   const result = await runFeedbackLoop(root, {
     maximumCycles: 1,
     environment: {
@@ -510,7 +510,7 @@ test("delivery invokes a real shell-free child process and records its log", asy
 
 test("concurrent writers preserve every record and a valid chain", async () => {
   const root = fixture();
-  const worker = path.resolve(path.dirname(new URL(import.meta.url).pathname), "worker.mjs");
+  const worker = path.resolve(testDirectory, "worker.mjs");
   const statuses = await Promise.all(
     Array.from({ length: 12 }, (_, index) =>
       waitForExit(spawn(process.execPath, [worker, root, String(index)], { stdio: "ignore" })),
@@ -537,7 +537,7 @@ test("concurrent focus claims deterministically admit only one record", async ()
       pageLabel: "Canvas",
     }),
   ];
-  const worker = path.resolve(path.dirname(new URL(import.meta.url).pathname), "focus-worker.mjs");
+  const worker = path.resolve(testDirectory, "focus-worker.mjs");
   const statuses = await Promise.all(
     records.map((record) =>
       waitForExit(spawn(process.execPath, [worker, root, record.id], { stdio: "ignore" })),
@@ -578,17 +578,14 @@ test("runner lease prevents two agent loops from owning delivery", async () => {
 });
 
 test("voice catalog renders bounded Stop guidance", () => {
-  const voicePath = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../voice.xml");
+  const voicePath = path.resolve(testDirectory, "../voice.xml");
   const output = renderVoice(voicePath, "stop.active", { reference: "123-record" });
   assert.match(output, /123-record/);
   assert.match(output, /Stopping is blocked/);
 });
 
 test("Stop hook ignores unrelated events without reading feedback state", () => {
-  const repositoryRoot = path.resolve(
-    path.dirname(new URL(import.meta.url).pathname),
-    "../../../..",
-  );
+  const repositoryRoot = path.resolve(testDirectory, "../../../..");
   const unrelated = spawnSync(
     process.execPath,
     [path.join(repositoryRoot, ".codex/plugins/feedback-loop/hooks/stop.mjs")],
@@ -600,10 +597,7 @@ test("Stop hook ignores unrelated events without reading feedback state", () => 
 });
 
 test("Stop hook blocks actionable feedback with the focused reference", () => {
-  const repositoryRoot = path.resolve(
-    path.dirname(new URL(import.meta.url).pathname),
-    "../../../..",
-  );
+  const repositoryRoot = path.resolve(testDirectory, "../../../..");
   const temporaryRoot = fixture();
   const record = createFeedback(temporaryRoot, {
     kind: "bug",
@@ -626,10 +620,7 @@ test("Stop hook blocks actionable feedback with the focused reference", () => {
 });
 
 test("configured Stop hook resolves from a nested working directory", () => {
-  const repositoryRoot = path.resolve(
-    path.dirname(new URL(import.meta.url).pathname),
-    "../../../..",
-  );
+  const repositoryRoot = path.resolve(testDirectory, "../../../..");
   const temporaryRoot = fixture();
   const record = createFeedback(temporaryRoot, {
     kind: "bug",
@@ -654,10 +645,7 @@ test("configured Stop hook resolves from a nested working directory", () => {
 });
 
 test("Stop hook emits the documented waiting continuation envelope", () => {
-  const repositoryRoot = path.resolve(
-    path.dirname(new URL(import.meta.url).pathname),
-    "../../../..",
-  );
+  const repositoryRoot = path.resolve(testDirectory, "../../../..");
   const temporaryRoot = fixture();
   const record = createFeedback(temporaryRoot, {
     kind: "update",

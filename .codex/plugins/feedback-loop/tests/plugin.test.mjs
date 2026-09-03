@@ -512,4 +512,182 @@ test("concurrent writers preserve every record and a valid chain", async () => {
   const root = fixture();
   const worker = path.resolve(path.dirname(new URL(import.meta.url).pathname), "worker.mjs");
   const statuses = await Promise.all(
-   
+    Array.from({ length: 12 }, (_, index) =>
+      waitForExit(spawn(process.execPath, [worker, root, String(index)], { stdio: "ignore" })),
+    ),
+  );
+  assert.deepEqual(statuses, Array(12).fill(0));
+  assert.equal(listFeedback(root).length, 12);
+  assert.equal(verifyFeedback(root).events, 12);
+});
+
+test("concurrent focus claims deterministically admit only one record", async () => {
+  const root = fixture();
+  const records = [
+    createFeedback(root, {
+      kind: "update",
+      body: "First focus candidate",
+      pagePath: "/",
+      pageLabel: "Canvas",
+    }),
+    createFeedback(root, {
+      kind: "update",
+      body: "Second focus candidate",
+      pagePath: "/",
+      pageLabel: "Canvas",
+    }),
+  ];
+  const worker = path.resolve(path.dirname(new URL(import.meta.url).pathname), "focus-worker.mjs");
+  const statuses = await Promise.all(
+    records.map((record) =>
+      waitForExit(spawn(process.execPath, [worker, root, record.id], { stdio: "ignore" })),
+    ),
+  );
+  assert.deepEqual(statuses.sort(), [0, 1]);
+  assert.equal(listFeedback(root).filter((record) => record.status === "in_progress").length, 1);
+});
+
+test("runner lease prevents two agent loops from owning delivery", async () => {
+  const root = fixture();
+  createFeedback(root, {
+    kind: "feature",
+    body: "Keep one delivery owner",
+    pagePath: "/",
+    pageLabel: "Canvas",
+  });
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  const first = runFeedbackLoop(root, {
+    maximumCycles: 1,
+    wait: async () => {},
+    invokeAgent: async () => {
+      await gate;
+      return { code: 0 };
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const second = await runFeedbackLoop(root, {
+    maximumCycles: 1,
+    invokeAgent: async () => ({ code: 0 }),
+  });
+  assert.equal(second.state, "already-running");
+  release();
+  await first;
+});
+
+test("voice catalog renders bounded Stop guidance", () => {
+  const voicePath = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../voice.xml");
+  const output = renderVoice(voicePath, "stop.active", { reference: "123-record" });
+  assert.match(output, /123-record/);
+  assert.match(output, /Stopping is blocked/);
+});
+
+test("Stop hook ignores unrelated events without reading feedback state", () => {
+  const repositoryRoot = path.resolve(
+    path.dirname(new URL(import.meta.url).pathname),
+    "../../../..",
+  );
+  const unrelated = spawnSync(
+    process.execPath,
+    [path.join(repositoryRoot, ".codex/plugins/feedback-loop/hooks/stop.mjs")],
+    { input: JSON.stringify({ hook_event_name: "PostToolUse" }), encoding: "utf8" },
+  );
+  assert.equal(unrelated.status, 0);
+  assert.equal(unrelated.stdout, "");
+  assert.equal(unrelated.stderr, "");
+});
+
+test("Stop hook blocks actionable feedback with the focused reference", () => {
+  const repositoryRoot = path.resolve(
+    path.dirname(new URL(import.meta.url).pathname),
+    "../../../..",
+  );
+  const temporaryRoot = fixture();
+  const record = createFeedback(temporaryRoot, {
+    kind: "bug",
+    body: "Block early stopping",
+    pagePath: "/",
+    pageLabel: "Canvas",
+  });
+  const result = spawnSync(
+    process.execPath,
+    [path.join(repositoryRoot, ".codex/plugins/feedback-loop/hooks/stop.mjs")],
+    {
+      input: JSON.stringify({ hook_event_name: "Stop" }),
+      encoding: "utf8",
+      env: { ...process.env, ORIGIN_REPOSITORY_ROOT: temporaryRoot },
+    },
+  );
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, new RegExp(record.id));
+  assert.equal(result.stdout, "");
+});
+
+test("configured Stop hook resolves from a nested working directory", () => {
+  const repositoryRoot = path.resolve(
+    path.dirname(new URL(import.meta.url).pathname),
+    "../../../..",
+  );
+  const temporaryRoot = fixture();
+  const record = createFeedback(temporaryRoot, {
+    kind: "bug",
+    body: "Resolve the hook from a nested directory",
+    pagePath: "/",
+    pageLabel: "Canvas",
+  });
+  const hooks = JSON.parse(fs.readFileSync(path.join(repositoryRoot, ".codex", "hooks.json")));
+  const handler = hooks.hooks.Stop[0].hooks[0];
+  const result = spawnSync(
+    process.platform === "win32" ? handler.commandWindows : handler.command,
+    {
+      cwd: path.join(repositoryRoot, "src"),
+      shell: true,
+      input: JSON.stringify({ hook_event_name: "Stop" }),
+      encoding: "utf8",
+      env: { ...process.env, ORIGIN_REPOSITORY_ROOT: temporaryRoot },
+    },
+  );
+  assert.equal(result.status, 2, result.stderr);
+  assert.match(result.stderr, new RegExp(record.id));
+});
+
+test("Stop hook emits the documented waiting continuation envelope", () => {
+  const repositoryRoot = path.resolve(
+    path.dirname(new URL(import.meta.url).pathname),
+    "../../../..",
+  );
+  const temporaryRoot = fixture();
+  const record = createFeedback(temporaryRoot, {
+    kind: "update",
+    body: "Wait for a user decision",
+    pagePath: "/",
+    pageLabel: "Canvas",
+  });
+  transitionFeedback(temporaryRoot, record.id, "waiting", {
+    waitReason: "The user must select the intended direction.",
+  });
+  const result = spawnSync(
+    process.execPath,
+    [path.join(repositoryRoot, ".codex/plugins/feedback-loop/hooks/stop.mjs")],
+    {
+      input: JSON.stringify({ hook_event_name: "Stop" }),
+      encoding: "utf8",
+      env: { ...process.env, ORIGIN_REPOSITORY_ROOT: temporaryRoot },
+    },
+  );
+  assert.equal(result.status, 0);
+  const envelope = JSON.parse(result.stdout);
+  assert.equal(envelope.continue, true);
+  assert.match(envelope.systemMessage, /WAITING/);
+});
+
+function appendSealed(file, payload) {
+  const events = fs.readFileSync(file, "utf8").split("\n").filter(Boolean).map(JSON.parse);
+  const event = sealEvent(payload, events.length + 1, events.at(-1).hash);
+  fs.appendFileSync(file, `${JSON.stringify(event)}\n`);
+}
+function waitForExit(child) {
+  return new Promise((resolve) => child.once("exit", (code) => resolve(code)));
+}

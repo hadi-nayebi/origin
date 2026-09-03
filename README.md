@@ -121,4 +121,12 @@ CI never claims credentials or a real user session it does not possess.
 See [installation](INSTALL.md), [security](SECURITY.md), [quality evidence](docs/QUALITY.md), and
 the [live acceptance contract](docs/CODEX-ACCEPTANCE.md).
 
+## Contributing
+
+Questions and generalized field reports can begin on the
+[Origin project discussion](https://hadi-nayebi.github.io/projects/origin.html#participate).
+Reproducible defects and candidate implementation changes belong in this repository. Read
+[CONTRIBUTING.md](CONTRIBUTING.md) before opening an issue or pull request; it preserves the
+empty-canvas boundary, user approval, privacy, untrusted-input treatment, and acceptance evidence.
+
 Origin is MIT licensed.

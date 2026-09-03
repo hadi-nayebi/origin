@@ -28,7 +28,6 @@ or predefined collection of pages.
 > Origin supplies the capacity to cultivate a dashboard, not assumptions about what that dashboard
 > should become.
 
-Origin is the public, topic-agnostic foundation. Ourogen is a private team implementation whose
-experiments provide evidence for some patterns described here. Seed Agent and Q-Seed are
+Origin is the public, topic-agnostic dashboard-plus-harness foundation. Seed Agent and Q-Seed are
 harness-centered projects for other CLI-agent runtimes. Similar concepts do not make their
 implementations interchangeable.

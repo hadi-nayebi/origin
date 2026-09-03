@@ -1,7 +1,7 @@
 # Origin
 
 Origin is the Codex implementation of the
-[Hadosh Academy Base Dashboard](https://hadi-nayebi.github.io/projects/base-dashboard.html): the
+[Hadosh Academy Origin project](https://hadi-nayebi.github.io/projects/origin.html): the
 smallest local dashboard-and-harness substrate through which a user and their agent can grow a
 distinct operational world.
 
@@ -25,7 +25,7 @@ The primary reader of this repository is often an agent already helping a user t
 6. Record which Hadosh patterns were consulted, their maturity, how they were adapted, and how the
    user can inspect, stop, recover, and continue the resulting asset.
 
-Origin is a starting substrate, not a prefabricated agent and not a copy of private Ourogen.
+Origin is a starting substrate, not a prefabricated agent or a finished domain system.
 
 ## What Origin 1.0 includes
 

@@ -2,7 +2,7 @@
   "name": "origin-dashboard",
   "version": "1.0.0",
   "private": true,
-  "description": "The Hadosh Academy Base Dashboard with a persistent interactive Codex harness.",
+  "description": "Hadosh Academy Origin with a persistent interactive Codex harness.",
   "license": "MIT",
   "repository": {
     "type": "git",

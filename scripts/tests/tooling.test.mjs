@@ -29,6 +29,12 @@ test("platform installers delegate to one tested Node installer", () => {
   );
 });
 
+test("repository text uses a deterministic cross-platform line ending", () => {
+  const attributes = fs.readFileSync(path.join(root, ".gitattributes"), "utf8");
+  assert.match(attributes, /^\* text=auto eol=lf$/m);
+  assert.match(attributes, /^\*\.png binary$/m);
+});
+
 test("lockfile and package versions match", () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
   const lock = JSON.parse(fs.readFileSync(path.join(root, "package-lock.json"), "utf8"));

@@ -23,9 +23,9 @@ possible. Waiting is valid only when no other runnable responsibility remains. T
 ready for review with concrete evidence; only the user accepts final resolution or reopens it.
 Continue an in-progress record first; otherwise take the oldest actionable open record.
 
-Origin is the Codex implementation of the Hadosh Academy Base Dashboard substrate for onboarding
-Phases 6 and 7. If `ONBOARDING_HANDOFF.md` exists, verify it with the user and record a receipt
-before implementation. Do not restart discovery or silently inherit another project's domain.
+Origin is the public Hadosh Academy dashboard-plus-harness substrate for onboarding Phases 6 and 7.
+If `ONBOARDING_HANDOFF.md` exists, verify it with the user and record a receipt before
+implementation. Do not restart discovery or silently inherit another project's domain.
 
 The Markdown files under `docs/wiki/` are the canonical Origin growth guide. The dashboard renders
 them, and agents read them directly. Each capability must distinguish what Origin includes now from

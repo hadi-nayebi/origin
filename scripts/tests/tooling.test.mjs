@@ -28,7 +28,11 @@ test("Stop hook is owned by Agent Stop State", () => {
 test("repository-scoped tmux session names are stable and separated", () => {
   assert.equal(sessionName(root), sessionName(root));
   assert.notEqual(sessionName(root), sessionName(`${root}-other`));
-  assert.match(sessionName(root), /^origin-origin-[a-f0-9]{8}$/);
+  const repositorySlug = path
+    .basename(root)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-");
+  assert.match(sessionName(root), new RegExp(`^origin-${repositorySlug}-[a-f0-9]{8}$`));
 });
 
 test("existing tmux sessions reuse Codex or launch it only from an idle shell", () => {
@@ -100,7 +104,7 @@ test("README is agent-first and contains no headless fallback", () => {
   const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
   assert.match(readme, /Visiting agent: begin here/);
   assert.match(readme, /ONBOARDING_HANDOFF\.md/);
-  assert.match(readme, /Hadosh Academy Base Dashboard/);
+  assert.match(readme, /Hadosh Academy Origin project/);
   assert.match(readme, /same interactive Codex session/i);
   assert.doesNotMatch(readme, /headless worker|dashboard still works without/i);
 });

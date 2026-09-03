@@ -5,7 +5,7 @@ has been executed or inspected on the current revision. No partial credit or ext
 
 ## Architecture and plugin anatomy
 
-1. Academy/Base Dashboard role is explicit.
+1. Origin's role in the Academy is explicit.
 2. Web-to-CLI handoff continuation is explicit.
 3. One persistent interactive Codex session is the default.
 4. tmux transport is required rather than silently bypassed.

@@ -26,9 +26,7 @@ try {
     process.stderr.write(`${message}\n`);
     process.exitCode = 2;
   } else {
-    process.stdout.write(
-      `${JSON.stringify({ continue: true, systemMessage: message, suppressOutput: false })}\n`,
-    );
+    process.stdout.write(`${JSON.stringify({ continue: true, systemMessage: message })}\n`);
   }
 } catch (error) {
   process.stderr.write(`Origin feedback state cannot be trusted: ${error.message}\n`);

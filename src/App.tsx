@@ -7,6 +7,7 @@ import type {
   FeedbackKind,
   FeedbackRecord,
   FeedbackStatus,
+  StopOutcome,
   WikiChapter,
 } from "./types";
 
@@ -201,8 +202,15 @@ function FeedbackPanel({
   const [body, setBody] = useState("");
   const [records, setRecords] = useState<FeedbackRecord[]>([]);
   const [delivery, setDelivery] = useState<DeliveryStatus>({ state: "idle" });
+  const [outcome, setOutcome] = useState<StopOutcome>({
+    mode: "idle",
+    block: false,
+    reference: null,
+    voiceId: null,
+  });
   const [status, setStatus] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [waking, setWaking] = useState(false);
   const panelRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const previousFocus = useRef<HTMLElement | null>(document.activeElement as HTMLElement | null);
@@ -210,6 +218,7 @@ function FeedbackPanel({
     const result = await api.feedback();
     setRecords(result.records);
     setDelivery(result.delivery);
+    setOutcome(result.outcome);
   };
   useEffect(() => {
     void refresh().catch((error: Error) => setStatus(error.message));
@@ -249,6 +258,25 @@ function FeedbackPanel({
       setSubmitting(false);
     }
   };
+  const wake = async () => {
+    if (waking) return;
+    setWaking(true);
+    setStatus("Waking the local agent…");
+    try {
+      const result = await api.wakeFeedback();
+      setDelivery(result.delivery);
+      setStatus(
+        result.delivery.state === "disabled"
+          ? "Automatic agent delivery is disabled by the local operator."
+          : "Wake request accepted.",
+      );
+      await refresh();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not wake the local agent.");
+    } finally {
+      setWaking(false);
+    }
+  };
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section
@@ -268,9 +296,26 @@ function FeedbackPanel({
             ×
           </button>
         </header>
-        <p className={`delivery-state ${delivery.state}`}>
-          Agent delivery: {delivery.state.replace("-", " ")}
-        </p>
+        <section className="delivery-summary" aria-labelledby="delivery-title">
+          <div>
+            <p id="delivery-title" className={`delivery-state ${delivery.state}`}>
+              Agent delivery: {delivery.state.replace("-", " ")}
+            </p>
+            <p>
+              Origin uses a headless local worker. It starts when actionable feedback exists and
+              writes its output to <code>{delivery.logPath || ".origin/agent.log"}</code>.
+            </p>
+            {delivery.reference && <small>Working record: {delivery.reference}</small>}
+            {delivery.last?.type === "delivery.unavailable" && (
+              <small>The last agent attempt did not complete. The supervisor will retry.</small>
+            )}
+          </div>
+          {outcome.block && delivery.state === "unavailable" && (
+            <button type="button" onClick={wake} disabled={waking}>
+              {waking ? "Waking…" : "Wake agent"}
+            </button>
+          )}
+        </section>
         <form onSubmit={submit}>
           <fieldset>
             <legend>What kind of feedback is this?</legend>
@@ -405,7 +450,7 @@ function trapFocus(event: KeyboardEvent, container: HTMLElement | null) {
     ...container.querySelectorAll<HTMLElement>(
       'button, textarea, input, summary, a[href], [tabindex]:not([tabindex="-1"])',
     ),
-  ].filter((item) => !item.hasAttribute("disabled"));
+  ].filter(isVisibleFocusable);
   if (!focusable.length) return;
   const first = focusable[0];
   const last = focusable.at(-1)!;
@@ -416,6 +461,19 @@ function trapFocus(event: KeyboardEvent, container: HTMLElement | null) {
     event.preventDefault();
     first.focus();
   }
+}
+function isVisibleFocusable(item: HTMLElement) {
+  if (item.matches(':disabled, input[type="hidden"], [hidden], [inert], [aria-hidden="true"]')) {
+    return false;
+  }
+  if (item.closest('[hidden], [inert], [aria-hidden="true"]')) return false;
+  const closedDetails = item.closest("details:not([open])");
+  if (closedDetails && item !== closedDetails.querySelector(":scope > summary")) return false;
+  for (let current: HTMLElement | null = item; current; current = current.parentElement) {
+    const style = window.getComputedStyle(current);
+    if (style.display === "none" || style.visibility === "hidden") return false;
+  }
+  return true;
 }
 function titleFromSlug(slug: string) {
   return slug

@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { request as httpRequest } from "node:http";
 import { fileURLToPath } from "node:url";
+import { createFeedback } from "../../.codex/plugins/feedback-loop/lib/service.mjs";
 import { startOriginServer } from "../index.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -15,6 +16,7 @@ async function fixtureServer(options = {}) {
   fs.cpSync(path.join(repositoryRoot, "docs", "wiki"), path.join(root, "docs", "wiki"), {
     recursive: true,
   });
+  if (options.prepare) await options.prepare(root);
   const server = await startOriginServer({
     root,
     port: 0,
@@ -32,6 +34,9 @@ test("local API captures, transitions, and verifies feedback", async (context) =
   const health = await fetch(`${app.base}/api/health`);
   assert.equal(health.status, 200);
   assert.match(health.headers.get("content-security-policy"), /default-src 'self'/);
+  const healthBody = await health.json();
+  assert.equal(healthBody.delivery.state, "idle");
+  assert.equal(healthBody.delivery.transport, "headless");
   const createdResponse = await fetch(`${app.base}/api/feedback`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -63,6 +68,13 @@ test("local API captures, transitions, and verifies feedback", async (context) =
   const listing = await (await fetch(`${app.base}/api/feedback`)).json();
   assert.equal(listing.records[0].status, "resolved");
   assert.equal(listing.outcome.mode, "idle");
+  const wake = await fetch(`${app.base}/api/feedback/wake`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
+  assert.equal(wake.status, 200);
+  assert.equal((await wake.json()).delivery.state, "disabled");
 });
 
 test("API rejects cross-origin and non-JSON mutations", async (context) => {
@@ -78,6 +90,11 @@ test("API rejects cross-origin and non-JSON mutations", async (context) => {
   assert.equal(crossPort.status, 403);
   const wrongType = await fetch(`${app.base}/api/feedback`, { method: "POST", body: "{}" });
   assert.equal(wrongType.status, 400);
+  const wakeWrongType = await fetch(`${app.base}/api/feedback/wake`, {
+    method: "POST",
+    body: "{}",
+  });
+  assert.equal(wakeWrongType.status, 400);
   const malformed = await fetch(`${app.base}/api/feedback`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -132,6 +149,50 @@ test("feedback POST launches the real runner and shell-free agent adapter", asyn
   });
   assert.equal(created.status, 201);
   assert.equal((await created.json()).delivery.state, "starting");
+  const listing = await poll(async () => {
+    const value = await (await fetch(`${app.base}/api/feedback`)).json();
+    return value.records[0]?.status === "resolved" &&
+      value.delivery.last?.type === "delivery.completed"
+      ? value
+      : null;
+  });
+  assert.equal(listing.outcome.mode, "idle");
+  assert.equal(listing.delivery.last.type, "delivery.completed");
+});
+
+test("server startup resumes actionable feedback already on disk", async (context) => {
+  const previous = {
+    command: process.env.ORIGIN_AGENT_COMMAND,
+    args: process.env.ORIGIN_AGENT_ARGS_JSON,
+    autostart: process.env.ORIGIN_AGENT_AUTOSTART,
+  };
+  const fakeAgent = path.join(
+    repositoryRoot,
+    ".codex",
+    "plugins",
+    "feedback-loop",
+    "tests",
+    "fake-agent.mjs",
+  );
+  process.env.ORIGIN_AGENT_COMMAND = process.execPath;
+  process.env.ORIGIN_AGENT_ARGS_JSON = JSON.stringify([fakeAgent]);
+  delete process.env.ORIGIN_AGENT_AUTOSTART;
+  const app = await fixtureServer({
+    launchRunner: true,
+    prepare: (root) =>
+      createFeedback(root, {
+        kind: "update",
+        body: "Resume this record when the dashboard server starts",
+        pagePath: "/",
+        pageLabel: "Origin canvas",
+      }),
+  });
+  context.after(() => {
+    app.server.close();
+    restoreEnvironment("ORIGIN_AGENT_COMMAND", previous.command);
+    restoreEnvironment("ORIGIN_AGENT_ARGS_JSON", previous.args);
+    restoreEnvironment("ORIGIN_AGENT_AUTOSTART", previous.autostart);
+  });
   const listing = await poll(async () => {
     const value = await (await fetch(`${app.base}/api/feedback`)).json();
     return value.records[0]?.status === "resolved" &&

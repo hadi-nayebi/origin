@@ -362,8 +362,18 @@ test("agent delivery exposes only a stable reference and drains the queue", asyn
     pageLabel: "Wiki",
   });
   const invocation = buildAgentInvocation(first.id, {});
+  const voicePath = path.resolve(testDirectory, "../voice.xml");
   assert.equal(invocation.command, "codex");
-  assert.deepEqual(invocation.args.slice(0, 3), ["exec", "--sandbox", "workspace-write"]);
+  assert.deepEqual(invocation.args.slice(0, 4), [
+    "exec",
+    "--ephemeral",
+    "--sandbox",
+    "workspace-write",
+  ]);
+  assert.equal(
+    invocation.args.at(-1),
+    renderVoice(voicePath, "delivery.wake", { reference: first.id }),
+  );
   assert.doesNotMatch(invocation.args.join(" "), /Private feedback body/);
   const result = await runFeedbackLoop(root, {
     maximumCycles: 3,
@@ -378,6 +388,83 @@ test("agent delivery exposes only a stable reference and drains the queue", asyn
   });
   assert.equal(result.state, "idle");
   assert.equal(result.cycles, 2);
+});
+
+test("feedback created during active work joins the same runner queue", async () => {
+  const root = fixture();
+  const first = createFeedback(root, {
+    kind: "update",
+    body: "Begin the active delivery",
+    pagePath: "/",
+    pageLabel: "Canvas",
+  });
+  let announceStart;
+  let releaseFirst;
+  const started = new Promise((resolve) => {
+    announceStart = resolve;
+  });
+  const gate = new Promise((resolve) => {
+    releaseFirst = resolve;
+  });
+  const loop = runFeedbackLoop(root, {
+    maximumCycles: 3,
+    wait: async () => {},
+    invokeAgent: async (workingRoot, reference) => {
+      if (reference === first.id) {
+        announceStart();
+        await gate;
+      }
+      transitionFeedback(workingRoot, reference, "in_progress");
+      transitionFeedback(workingRoot, reference, "resolved", {
+        resolution: "Completed the queued record and verified its final state.",
+      });
+      return { code: 0 };
+    },
+  });
+  await started;
+  const second = createFeedback(root, {
+    kind: "feature",
+    body: "Join the queue while its runner is active",
+    pagePath: "/wiki",
+    pageLabel: "Wiki",
+  });
+  releaseFirst();
+  const result = await loop;
+  assert.deepEqual(result, { state: "idle", cycles: 2 });
+  assert.deepEqual(
+    listFeedback(root).map((record) => [record.id, record.status]),
+    [
+      [first.id, "resolved"],
+      [second.id, "resolved"],
+    ],
+  );
+});
+
+test("a successful agent that makes no progress is retried with bounded backoff", async () => {
+  const root = fixture();
+  createFeedback(root, {
+    kind: "bug",
+    body: "Require real progress before allowing the runner to stop",
+    pagePath: "/",
+    pageLabel: "Canvas",
+  });
+  let attempts = 0;
+  const delays = [];
+  const result = await runFeedbackLoop(root, {
+    maximumCycles: 2,
+    wait: async (milliseconds) => delays.push(milliseconds),
+    invokeAgent: async (workingRoot, reference) => {
+      attempts += 1;
+      if (attempts === 1) return { code: 0 };
+      transitionFeedback(workingRoot, reference, "in_progress");
+      transitionFeedback(workingRoot, reference, "resolved", {
+        resolution: "Made progress on retry and verified the queue reached idle.",
+      });
+      return { code: 0 };
+    },
+  });
+  assert.deepEqual(delays, [5_000]);
+  assert.deepEqual(result, { state: "idle", cycles: 2 });
 });
 
 test("agent delivery configuration is strictly bounded", () => {
@@ -420,6 +507,78 @@ test("failed agent delivery remains actionable and exposes only bounded status",
   assert.equal(status.state, "unavailable");
   assert.equal("error" in status.last, false);
   assert.equal(stopOutcome(root).block, true);
+});
+
+test("a resolved queue reports idle even when the agent process exits unsuccessfully", async () => {
+  const root = fixture();
+  const record = createFeedback(root, {
+    kind: "update",
+    body: "Resolve before an unsuccessful process exit",
+    pagePath: "/",
+    pageLabel: "Canvas",
+  });
+  const result = await runFeedbackLoop(root, {
+    maximumCycles: 1,
+    invokeAgent: async (workingRoot, reference) => {
+      transitionFeedback(workingRoot, reference, "in_progress");
+      transitionFeedback(workingRoot, reference, "resolved", {
+        resolution: "Resolved the record and verified the final idle delivery status.",
+      });
+      return { code: 7, signal: null };
+    },
+  });
+  assert.equal(record.id, listFeedback(root)[0].id);
+  assert.deepEqual(result, { state: "idle", cycles: 1 });
+  assert.equal(feedbackRunnerStatus(root).state, "idle");
+  assert.equal(feedbackRunnerStatus(root).last.type, "delivery.unavailable");
+});
+
+test("failed delivery remains supervised and retries with bounded backoff", async () => {
+  const root = fixture();
+  const record = createFeedback(root, {
+    kind: "bug",
+    body: "Retry until the actionable record is resolved",
+    pagePath: "/",
+    pageLabel: "Canvas",
+  });
+  let attempts = 0;
+  const delays = [];
+  const result = await runFeedbackLoop(root, {
+    maximumCycles: 9,
+    heartbeatMilliseconds: 5,
+    wait: async (milliseconds) => {
+      delays.push(milliseconds);
+      assert.equal(feedbackRunnerStatus(root).state, "retrying");
+      assert.equal((await runFeedbackLoop(root, { maximumCycles: 1 })).state, "already-running");
+      const before = JSON.parse(
+        fs.readFileSync(path.join(root, ".origin", "agent.lock"), "utf8"),
+      ).heartbeatAt;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      const after = JSON.parse(
+        fs.readFileSync(path.join(root, ".origin", "agent.lock"), "utf8"),
+      ).heartbeatAt;
+      assert.notEqual(after, before);
+    },
+    invokeAgent: async (workingRoot, reference) => {
+      attempts += 1;
+      if (attempts < 9) return { code: 7, signal: null };
+      transitionFeedback(workingRoot, reference, "in_progress");
+      transitionFeedback(workingRoot, reference, "resolved", {
+        resolution: "Retried the local delivery and verified the resolved lifecycle.",
+      });
+      return { code: 0 };
+    },
+  });
+  assert.equal(record.id, listFeedback(root)[0].id);
+  assert.deepEqual(delays, [5_000, 10_000, 20_000, 40_000, 80_000, 160_000, 300_000, 300_000]);
+  assert.deepEqual(result, { state: "idle", cycles: 9 });
+});
+
+test("a repository without delivery history reports idle", () => {
+  const status = feedbackRunnerStatus(fixture());
+  assert.equal(status.state, "idle");
+  assert.equal(status.transport, "headless");
+  assert.equal(status.logPath, ".origin/agent.log");
 });
 
 test("a corrupt delivery journal reports unavailable instead of silently appearing idle", () => {
@@ -488,6 +647,8 @@ test("an expired ledger lock is recoverable even after PID reuse", () => {
 
 test("delivery invokes a real shell-free child process and records its log", async () => {
   const root = fixture();
+  fs.mkdirSync(path.join(root, ".origin"));
+  fs.writeFileSync(path.join(root, ".origin", "agent.log"), "x".repeat(1_048_577));
   createFeedback(root, {
     kind: "bug",
     body: "Exercise the subprocess adapter",
@@ -506,6 +667,7 @@ test("delivery invokes a real shell-free child process and records its log", asy
   assert.equal(result.state, "idle");
   assert.equal(listFeedback(root)[0].status, "resolved");
   assert.equal(fs.existsSync(path.join(root, ".origin", "agent.log")), true);
+  assert.equal(fs.statSync(path.join(root, ".origin", "agent.log.1")).size, 1_048_577);
 });
 
 test("concurrent writers preserve every record and a valid chain", async () => {
@@ -577,9 +739,12 @@ test("runner lease prevents two agent loops from owning delivery", async () => {
   await first;
 });
 
-test("voice catalog renders bounded Stop guidance", () => {
+test("voice catalog renders bounded delivery and Stop guidance", () => {
   const voicePath = path.resolve(testDirectory, "../voice.xml");
+  const delivery = renderVoice(voicePath, "delivery.wake", { reference: "123-record" });
   const output = renderVoice(voicePath, "stop.active", { reference: "123-record" });
+  assert.match(delivery, /ORIGIN FEEDBACK — DELIVERY/);
+  assert.match(delivery, /123-record/);
   assert.match(output, /123-record/);
   assert.match(output, /Stopping is blocked/);
 });
@@ -630,6 +795,7 @@ test("configured Stop hook resolves from a nested working directory", () => {
   });
   const hooks = JSON.parse(fs.readFileSync(path.join(repositoryRoot, ".codex", "hooks.json")));
   const handler = hooks.hooks.Stop[0].hooks[0];
+  assert.equal(handler.timeout, 5);
   const result = spawnSync(
     process.platform === "win32" ? handler.commandWindows : handler.command,
     {
@@ -669,6 +835,7 @@ test("Stop hook emits the documented waiting continuation envelope", () => {
   const envelope = JSON.parse(result.stdout);
   assert.equal(envelope.continue, true);
   assert.match(envelope.systemMessage, /WAITING/);
+  assert.equal("suppressOutput" in envelope, false);
 });
 
 function appendSealed(file, payload) {

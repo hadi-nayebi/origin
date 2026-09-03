@@ -18,6 +18,52 @@ test("doctor validates repository wiring with an available command", () => {
   assert.match(result.stdout, /Origin is ready/);
 });
 
+test("doctor distinguishes an optional missing agent from a required failure", () => {
+  const environment = {
+    ...process.env,
+    ORIGIN_AGENT_COMMAND: "origin-agent-command-that-does-not-exist",
+  };
+  const optional = spawnSync(process.execPath, ["scripts/doctor.mjs"], {
+    cwd: root,
+    encoding: "utf8",
+    env: environment,
+  });
+  assert.equal(optional.status, 0, optional.stderr);
+  assert.match(optional.stdout, /WARN  Agent command/);
+  assert.doesNotMatch(optional.stdout, /PASS  Agent command/);
+  const required = spawnSync(process.execPath, ["scripts/doctor.mjs", "--require-agent"], {
+    cwd: root,
+    encoding: "utf8",
+    env: environment,
+  });
+  assert.equal(required.status, 1);
+  assert.match(required.stdout, /FAIL  Agent command/);
+});
+
+test("the acceptance command runs an isolated configured-agent fixture", () => {
+  const fakeAgent = path.join(
+    root,
+    ".codex",
+    "plugins",
+    "feedback-loop",
+    "tests",
+    "fake-agent.mjs",
+  );
+  const result = spawnSync(process.execPath, ["scripts/acceptance-codex.mjs"], {
+    cwd: root,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      ORIGIN_AGENT_COMMAND: process.execPath,
+      ORIGIN_AGENT_ARGS_JSON: JSON.stringify([fakeAgent]),
+    },
+  });
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stdout, /PASS  Production delivery adapter/);
+  assert.match(result.stdout, /PASS  Fixture isolation/);
+  assert.match(result.stdout, /not evidence of authenticated Codex execution/);
+});
+
 test("platform installers delegate to one tested Node installer", () => {
   assert.match(
     fs.readFileSync(path.join(root, "scripts", "install.sh"), "utf8"),

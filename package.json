@@ -30,6 +30,7 @@
     "format:check": "prettier --check .",
     "check": "npm run lint && npm run format:check && npm run test:coverage && npm run test:ui && npm run build",
     "feedback": "node .codex/plugins/feedback-loop/scripts/feedback.mjs",
+    "acceptance:codex": "node scripts/acceptance-codex.mjs",
     "doctor": "node scripts/doctor.mjs",
     "setup": "node scripts/install.mjs"
   },

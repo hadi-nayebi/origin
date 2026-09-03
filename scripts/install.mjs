@@ -6,7 +6,7 @@ if (Number(process.versions.node.split(".")[0]) < 22)
 run(process.platform === "win32" ? "npm.cmd" : "npm", ["ci"]);
 run(process.platform === "win32" ? "npm.cmd" : "npm", ["run", "check"]);
 run(process.execPath, ["scripts/doctor.mjs"]);
-console.log("Origin is ready. Run: npm run origin");
+console.log("Origin setup is complete. Run: npm run origin");
 
 function run(command, args) {
   const result = spawnSync(command, args, {

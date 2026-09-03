@@ -116,6 +116,54 @@ describe("Origin dashboard", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
+  test("explains headless delivery and can wake an interrupted actionable queue", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url === "/api/feedback/wake" && init?.method === "POST")
+          return response({
+            delivery: {
+              state: "starting",
+              transport: "headless",
+              logPath: ".origin/agent.log",
+            },
+          });
+        if (url === "/api/feedback")
+          return response({
+            records: [],
+            outcome: {
+              mode: "active",
+              block: true,
+              reference: "interrupted-record-0001",
+              voiceId: "stop.active",
+            },
+            delivery: {
+              state: "unavailable",
+              transport: "headless",
+              logPath: ".origin/agent.log",
+            },
+          });
+        if (url === "/api/wiki") return response({ chapters: [chapter] });
+        throw new Error(`Unexpected request: ${url}`);
+      }),
+    );
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Give feedback" }));
+    expect(await screen.findByText(/Origin uses a headless local worker/)).toBeTruthy();
+    expect(screen.getByText(".origin/agent.log")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Wake agent" }));
+    expect(await screen.findByText("Wake request accepted.")).toBeTruthy();
+    expect(
+      vi
+        .mocked(fetch)
+        .mock.calls.some(
+          ([input, init]) => String(input) === "/api/feedback/wake" && init?.method === "POST",
+        ),
+    ).toBe(true);
+  });
+
   test("traps keyboard focus inside the feedback dialog", async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -124,6 +172,36 @@ describe("Origin dashboard", () => {
     expect(document.activeElement).toBe(close);
     await user.keyboard("{Shift>}{Tab}{/Shift}");
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Save feedback" }));
+    await user.tab();
+    expect(document.activeElement).toBe(close);
+  });
+
+  test("excludes controls inside closed details from the dialog focus loop", async () => {
+    const user = userEvent.setup();
+    const now = new Date().toISOString();
+    vi.mocked(fetch).mockResolvedValueOnce(
+      response({
+        records: [
+          {
+            id: "hidden-action-record",
+            kind: "bug",
+            body: "Keep closed management controls outside the focus loop",
+            pagePath: "/",
+            pageLabel: "Origin canvas",
+            status: "open",
+            createdAt: now,
+            updatedAt: now,
+          },
+        ],
+        outcome: { mode: "active", block: true, reference: "hidden-action-record" },
+        delivery: { state: "idle", transport: "headless", logPath: ".origin/agent.log" },
+      }),
+    );
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Give feedback" }));
+    const close = screen.getByRole("button", { name: "Close feedback" });
+    const manage = await screen.findByText("Manage");
+    manage.focus();
     await user.tab();
     expect(document.activeElement).toBe(close);
   });
@@ -163,6 +241,7 @@ describe("Origin dashboard", () => {
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Give feedback" }));
     expect(await screen.findByText(record.body)).toBeTruthy();
+    expect(screen.getByText(`Working record: ${record.id}`)).toBeTruthy();
     await user.click(screen.getByText("Manage"));
     await user.click(screen.getByRole("button", { name: "Start" }));
     expect(await screen.findByText("in progress")).toBeTruthy();

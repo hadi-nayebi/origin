@@ -3,6 +3,11 @@
 Objective: turn page-aware dashboard feedback into one durable, ordered agent work loop, deliver
 actionable work locally, and determine when the agent may stop.
 
+Delivery is intentionally headless: the dashboard remains in the foreground while a detached
+repository-local runner starts only for actionable work. The runner retries failed attempts with
+bounded backoff, keeps one live lease through work and backoff, and writes agent output to
+`.origin/agent.log`. The log rotates to `.origin/agent.log.1` after 1 MiB.
+
 ```bash
 npm run feedback -- list
 npm run feedback -- next

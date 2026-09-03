@@ -44,6 +44,7 @@ for (const relative of [
   ".codex/plugins/feedback-loop/scripts/runner.mjs",
   ".codex/plugins/feedback-loop/voice.xml",
   ".codex/plugins/feedback-loop/data.schema.json",
+  "scripts/acceptance-codex.mjs",
 ])
   check(`Required file: ${relative}`, fs.existsSync(path.join(root, relative)), "present");
 try {
@@ -67,28 +68,32 @@ const agent = spawnSync(agentCommand, ["--version"], {
 const agentReady = agent.status === 0;
 check(
   "Agent command",
-  agentReady || !requireAgent,
+  agentReady,
   agentReady
     ? agent.stdout.trim() || agentCommand
     : `${agentCommand} unavailable; dashboard works, automatic delivery requires it`,
+  { required: requireAgent },
 );
 
 for (const result of checks)
-  console.log(
-    `${result.ok ? "PASS" : "FAIL"}  ${result.name}${result.detail ? ` — ${result.detail}` : ""}`,
-  );
-const failed = checks.filter((result) => !result.ok);
+  console.log(`${result.level}  ${result.name}${result.detail ? ` — ${result.detail}` : ""}`);
+const failed = checks.filter((result) => result.level === "FAIL");
+const warnings = checks.filter((result) => result.level === "WARN");
 if (failed.length) {
   console.error(
     `Origin doctor found ${failed.length} blocking problem${failed.length === 1 ? "" : "s"}.`,
   );
   process.exitCode = 1;
-} else console.log("Origin is ready.");
+} else if (warnings.length)
+  console.log(
+    `Origin dashboard is ready with ${warnings.length} nonblocking warning${warnings.length === 1 ? "" : "s"}.`,
+  );
+else console.log("Origin is ready.");
 
-function check(name, ok, detail = "") {
+function check(name, ok, detail = "", options = {}) {
   checks.push({
     name,
-    ok: Boolean(ok),
+    level: ok ? "PASS" : options.required === false ? "WARN" : "FAIL",
     detail: String(detail || "")
       .replace(/\s+/g, " ")
       .slice(0, 300),

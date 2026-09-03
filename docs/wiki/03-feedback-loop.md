@@ -30,15 +30,15 @@ the queue and does not replace the focused request.
 
 ## Wake and continuation
 
-Submitting actionable feedback starts one repository-local delivery runner. The runner invokes the
-configured CLI without a shell and gives it only the validated record ID. The full request remains
-in plugin-owned state. The runner continues through the queue; a single-runner lease prevents
-duplicate agents.
+Submitting actionable feedback starts one repository-local headless delivery runner. The runner
+invokes the configured CLI without a shell and gives it only the validated record ID. The full
+request remains in plugin-owned state. The runner continues through the queue, retains its
+single-runner lease during bounded retry backoff, and writes output to `.origin/agent.log`.
 
 Inside an active Codex session, the Stop hook independently blocks exit while actionable work
 remains. If the agent command is unavailable, feedback stays durable and the dashboard reports the
-delivery problem instead of losing work. After the command is configured, `npm run feedback -- wake`
-resumes delivery.
+delivery problem as retrying or unavailable instead of losing work. After the command is configured,
+`npm run feedback -- wake` resumes delivery.
 
 ## Input is not authority
 

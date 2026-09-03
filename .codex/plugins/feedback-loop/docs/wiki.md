@@ -60,11 +60,14 @@ explicit validated restoration. Invalid state is preserved and fails closed.
 
 ## Delivery and trust
 
-New actionable feedback starts one detached repository-local runner. The runner invokes
-`codex exec --sandbox workspace-write` without a shell and supplies only the validated record ID
-plus static operating guidance. It keeps draining the queue and backs off when a completed agent
-process makes no progress. The Stop hook is a second deterministic barrier inside an active Codex
-run.
+New actionable feedback starts one detached, headless repository-local runner. The runner invokes
+`codex exec --ephemeral --sandbox workspace-write` without a shell and renders its stable operating
+guidance from `voice.xml`, supplying only the validated record ID. Ephemeral execution prevents
+automatic retries from filling the user's saved session history. The runner keeps draining the
+queue, retains its single-runner lease during backoff, and retries both unsuccessful attempts and
+successful processes that make no progress. Output is written to `.origin/agent.log`; bounded status
+is exposed through the dashboard, and the previous log rotates after 1 MiB. The Stop hook is a
+second deterministic barrier inside an active Codex run.
 
 Codex requires explicit trust for project hooks. Review this hook with `/hooks` in the first Codex
 session; Origin does not bypass that host security boundary. The host registration resolves from the
@@ -73,6 +76,10 @@ Git root and is tested from a nested working directory on every supported operat
 The operator may disable automatic launch with `ORIGIN_AGENT_AUTOSTART=0` or configure another local
 command with `ORIGIN_AGENT_COMMAND` and the bounded JSON string array `ORIGIN_AGENT_ARGS_JSON`.
 These values are local operator authority, never feedback-derived input.
+
+Automated tests use deterministic local processes. `npm run acceptance:codex` is the distinct,
+opt-in proof that a real authenticated Codex process can retrieve and resolve a record in an
+isolated temporary repository. Project-hook trust remains an explicit manual host decision.
 
 ## Verification
 

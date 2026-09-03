@@ -24,10 +24,18 @@ export interface StopOutcome {
   voiceId: string | null;
 }
 export interface DeliveryStatus {
-  state: "disabled" | "idle" | "starting" | "running" | "unavailable";
+  state: "disabled" | "idle" | "starting" | "running" | "retrying" | "unavailable";
+  transport?: "headless";
+  logPath?: string;
   pid?: number;
   startedAt?: string;
   reference?: string | null;
+  last?: {
+    type: "delivery.started" | "delivery.completed" | "delivery.unavailable";
+    reference: string;
+    at: string;
+    code?: number;
+  };
 }
 
 export interface WikiChapter {

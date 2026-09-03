@@ -61,6 +61,17 @@ export async function createOriginApp(options = {}) {
     }
   });
 
+  app.post("/api/feedback/wake", (request, response, next) => {
+    try {
+      requireJson(request);
+      const delivery =
+        options.launchRunner === false ? { state: "disabled" } : launchFeedbackRunner(root);
+      response.json({ delivery });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.patch("/api/feedback/:id", (request, response, next) => {
     try {
       requireJson(request);

@@ -10,13 +10,15 @@ boundary.
 
 ## Choose the right surface
 
-- Use the [Origin project discussion](https://hadi-nayebi.github.io/projects/origin.html#participate)
-  for architecture questions, onboarding observations, use cases, and generalized field reports.
+- Use the
+  [Origin project discussion](https://hadi-nayebi.github.io/projects/origin.html#participate) for
+  architecture questions, onboarding observations, use cases, and generalized field reports.
 - Open a repository issue for a reproducible implementation defect, an accepted investigation, or a
   behavior proposal that needs design alignment.
 - Open a focused pull request for a candidate solution with tests and verification.
-- Use GitHub's private security-reporting path for vulnerabilities. Do not disclose sensitive
-  security details in a public comment or issue.
+- Follow `SECURITY.md` for vulnerability reporting. Use GitHub's private vulnerability-reporting
+  feature when it is enabled for the repository; never disclose sensitive security details in a
+  public comment or issue.
 
 A discussion is evidence, not implementation authority. An issue does not authorize a patch, and a
 pull request does not change canonical behavior until maintainer review and merge.
@@ -44,10 +46,10 @@ compatible port.
 
 ## Agent-assisted contributions and privacy
 
-An agent may draft a contribution only within the user's authority. It must remove personal,
-client, employer, confidential, proprietary, credential, regulated, and unrelated information;
-separate direct observation from interpretation; show the user the exact public content and
-destination; and submit only after explicit approval for that action.
+An agent may draft a contribution only within the user's authority. It must remove personal, client,
+employer, confidential, proprietary, credential, regulated, and unrelated information; separate
+direct observation from interpretation; show the user the exact public content and destination; and
+submit only after explicit approval for that action.
 
 Implementation evidence may include the minimum code, test output, environment detail, or
 reproduction steps needed to evaluate the claim. Never publish a user's dashboard records,

@@ -28,7 +28,10 @@ test("Stop hook is owned by Agent Stop State", () => {
 test("repository-scoped tmux session names are stable and separated", () => {
   assert.equal(sessionName(root), sessionName(root));
   assert.notEqual(sessionName(root), sessionName(`${root}-other`));
-  const repositorySlug = path.basename(root).toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const repositorySlug = path
+    .basename(root)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-");
   assert.match(sessionName(root), new RegExp(`^origin-${repositorySlug}-[a-f0-9]{8}$`));
 });
 

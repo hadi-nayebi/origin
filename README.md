@@ -1,9 +1,9 @@
 # Origin
 
 Origin is the Codex implementation of the
-[Hadosh Academy Origin project](https://hadi-nayebi.github.io/projects/origin.html): the
-smallest local dashboard-and-harness substrate through which a user and their agent can grow a
-distinct operational world.
+[Hadosh Academy Origin project](https://hadi-nayebi.github.io/projects/origin.html): the smallest
+local dashboard-and-harness substrate through which a user and their agent can grow a distinct
+operational world.
 
 The shipped dashboard is intentionally empty. It contains a repository-native Wiki, a page-aware
 feedback control, one persistent interactive Codex session, and the minimum plugin anatomy needed to

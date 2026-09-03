@@ -75,7 +75,9 @@ describe("Origin dashboard", () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Open Origin wiki" }));
-    expect(await screen.findByText(/Codex implementation of the Hadosh Academy/)).toBeTruthy();
+    expect(
+      await screen.findByText(/public Hadosh Academy dashboard-plus-harness substrate/),
+    ).toBeTruthy();
     await user.click((await screen.findAllByRole("button", { name: /Welcome to Origin/ }))[0]);
     expect(await screen.findByRole("table")).toBeTruthy();
     expect(window.location.pathname).toBe("/wiki/01-welcome");

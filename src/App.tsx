@@ -194,8 +194,8 @@ function WikiLanding({
       <p className="eyebrow">Start here</p>
       <h2>The dashboard is empty. Its context is not.</h2>
       <p className="lead">
-        Origin is the public Hadosh Academy dashboard-plus-harness substrate. Its wiki
-        teaches how the visible world and harness can grow together.
+        Origin is the public Hadosh Academy dashboard-plus-harness substrate. Its wiki teaches how
+        the visible world and harness can grow together.
       </p>
       <div className="chapter-grid">
         {chapters.map((chapter) => (

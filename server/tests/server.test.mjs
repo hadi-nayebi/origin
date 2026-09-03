@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import {
   askFeedbackQuestion,
   createFeedback,
+  reviewFeedbackMutation,
   transitionFeedback,
 } from "../../.codex/plugins/contextual-feedback/lib/service.mjs";
 import { startOriginServer } from "../index.mjs";
@@ -55,7 +56,8 @@ test("local API captures feedback, persists a wake, and exposes global state", a
   const created = await createdResponse.json();
   assert.equal(created.delivery.state, "pending");
   assert.equal(created.wake.kind, "feedback.new");
-  assert.equal(created.wake.sourceUpdatedAt, created.record.updatedAt);
+  assert.match(created.wake.sourceEventHash, /^[a-f0-9]{64}$/);
+  assert.equal(created.wake.sourceSequence, 1);
   const listing = await (await fetch(`${app.base}/api/feedback`)).json();
   assert.equal(listing.records[0].status, "open");
   assert.equal(listing.outcome.mode, "active");
@@ -87,7 +89,46 @@ test("server startup repairs a feedback-to-wake crash window", async (context) =
   );
   assert.equal(events.length, 1);
   assert.equal(events[0].reference, record.id);
-  assert.equal(events[0].sourceUpdatedAt, record.updatedAt);
+  const source = JSON.parse(
+    fs.readFileSync(path.join(root, ".origin", "feedback.jsonl"), "utf8").trim(),
+  );
+  assert.equal(events[0].sourceEventHash, source.hash);
+  assert.equal(events[0].sourceSequence, source.sequence);
+});
+
+test("server startup repairs an accepted-review-to-wake crash window", async (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "origin-server-accepted-recovery-"));
+  fs.mkdirSync(path.join(root, "docs"));
+  fs.cpSync(path.join(repositoryRoot, "docs", "wiki"), path.join(root, "docs", "wiki"), {
+    recursive: true,
+  });
+  const record = createFeedback(root, {
+    kind: "feature",
+    body: "Complete and accept this request",
+    pagePath: "/projects",
+    pageLabel: "Projects",
+  });
+  transitionFeedback(root, record.id, "in_progress");
+  transitionFeedback(root, record.id, "ready_for_review", {
+    verification: "Verified the projects route and the complete browser interaction contract.",
+  });
+  const accepted = reviewFeedbackMutation(root, record.id, "resolved", {
+    acceptance: "The dashboard user accepted this verified result.",
+  });
+  const server = await startOriginServer({
+    root,
+    port: 0,
+    host: "127.0.0.1",
+    serveUi: false,
+    deliverWakes: false,
+  });
+  context.after(() => server.close());
+  const events = JSON.parse(
+    fs.readFileSync(path.join(root, ".origin", "wake-outbox.json"), "utf8"),
+  );
+  assert.equal(events.length, 1);
+  assert.equal(events[0].kind, "feedback.accepted");
+  assert.equal(events[0].sourceEventHash, accepted.event.hash);
 });
 
 test("agent question and user answer form one thread and reactivate work", async (context) => {
@@ -159,6 +200,30 @@ test("dashboard accepts verified work or reopens it but cannot impersonate agent
     body: JSON.stringify({ body: "Change it again without reopening." }),
   });
   assert.equal(closedComment.status, 400);
+});
+
+test("a fresh interactive session receives a resume voice only when no wake is pending", async (context) => {
+  const app = await fixtureServer();
+  context.after(() => app.server.close());
+  createFeedback(app.root, {
+    kind: "feature",
+    body: "Resume this durable responsibility",
+    pagePath: "/projects",
+    pageLabel: "Projects",
+  });
+  const first = await fetch(`${app.base}/api/session/wake`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
+  const firstPayload = await first.json();
+  assert.equal(firstPayload.wake.kind, "feedback.resume");
+  const second = await fetch(`${app.base}/api/session/wake`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
+  assert.equal((await second.json()).wake, null);
 });
 
 test("API rejects cross-origin, non-JSON, malformed, and oversized mutations", async (context) => {

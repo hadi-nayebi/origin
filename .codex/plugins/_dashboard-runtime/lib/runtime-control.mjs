@@ -7,10 +7,12 @@ export async function ensureDashboardRuntime(root, options = {}) {
   const instanceId = runtimeInstanceId(root);
   const port = Number(options.port || process.env.ORIGIN_PORT || 5173);
   const url = `http://127.0.0.1:${port}`;
-  if (await healthy(url, instanceId, options.fetch || fetch)) {
+  const initial = await inspectRuntime(url, instanceId, options.fetch || fetch);
+  if (initial === "matching") {
     if (options.openBrowser !== false) openBrowser(url, options);
     return Object.freeze({ state: "reused", url });
   }
+  if (initial === "occupied") throw portConflict(port);
   const directory = path.join(path.resolve(root), ".origin");
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   const logPath = path.join(directory, "dashboard.log");
@@ -34,7 +36,8 @@ export async function ensureDashboardRuntime(root, options = {}) {
   const wait =
     options.wait || ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
   for (let attempt = 0; attempt < 80; attempt += 1) {
-    if (await healthy(url, instanceId, options.fetch || fetch)) {
+    const state = await inspectRuntime(url, instanceId, options.fetch || fetch);
+    if (state === "matching") {
       if (options.openBrowser !== false) openBrowser(url, options);
       return Object.freeze({
         state: "started",
@@ -43,6 +46,7 @@ export async function ensureDashboardRuntime(root, options = {}) {
         logPath: ".origin/dashboard.log",
       });
     }
+    if (state === "occupied") throw portConflict(port);
     await wait(125);
   }
   throw new Error("Origin dashboard did not become healthy. Inspect .origin/dashboard.log.");
@@ -58,14 +62,27 @@ export function runtimeInstanceId(root) {
   return crypto.createHash("sha256").update(canonical).digest("hex").slice(0, 16);
 }
 
-async function healthy(url, expectedInstanceId, fetcher) {
+async function inspectRuntime(url, expectedInstanceId, fetcher) {
+  let response;
   try {
-    const response = await fetcher(`${url}/api/health`, { signal: AbortSignal.timeout(700) });
-    const body = await response.json();
-    return response.ok && body.name === "origin" && body.instanceId === expectedInstanceId;
+    response = await fetcher(`${url}/api/health`, { signal: AbortSignal.timeout(700) });
   } catch {
-    return false;
+    return "unavailable";
   }
+  try {
+    const body = await response.json();
+    return response.ok && body.name === "origin" && body.instanceId === expectedInstanceId
+      ? "matching"
+      : "occupied";
+  } catch {
+    return "occupied";
+  }
+}
+
+function portConflict(port) {
+  return new Error(
+    `Port ${port} is already used by another service or Origin clone. Stop that service or rerun with ORIGIN_PORT set to an available port.`,
+  );
 }
 
 function openBrowser(url, options) {

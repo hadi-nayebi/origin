@@ -36,3 +36,11 @@ Origin's delivery adapter is intentionally narrow. Other CLI variants can replac
 adapter while preserving the feedback contract, lifecycle, state, and evidence requirements. A
 future `.claude`, `.qwen`, or OpenCode edition should translate host integration rather than fork
 the cognitive rules.
+
+## Internal voices mature with the behavior
+
+A young repeated behavior may begin as a coaching voice. The voice should explain the objective,
+event, authoritative context, next kind of work, and exit evidence. If the same failure persists,
+move the stable invariant into a hook, schema, service, or test. Keep the voice as orientation
+rather than claiming that prose became enforcement. Speak in the language of the work, not hidden
+counts or mechanism trivia.

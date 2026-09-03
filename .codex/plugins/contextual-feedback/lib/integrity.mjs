@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 
-export const CURRENT_SCHEMA_VERSION = 3;
+export const CURRENT_SCHEMA_VERSION = 4;
 export const GENESIS_HASH = "GENESIS";
 
 export function sealEvent(event, sequence, previousHash) {

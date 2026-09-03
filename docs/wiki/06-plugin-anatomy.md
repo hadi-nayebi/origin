@@ -18,12 +18,24 @@ anatomy should make cognition visible and reviewable.
 - **Public operations:** stable commands other components may call.
 - **Private operations:** internal mutation surfaces composed behind authority.
 - **Hooks:** narrow host adapters for relevant lifecycle events.
-- **Voice:** bounded guidance or blocking text returned to the agent.
+- **Voice:** bounded, event-specific cognitive orientation returned to the agent.
 - **Documentation:** the complete human-readable contract.
 - **Tests:** executable evidence for success, refusal, and failure behavior.
 
 Optional organs such as specialist subagents, MCP servers, or assets belong in a plugin only when
 its objective actually needs them. Empty ceremonial folders do not improve anatomy.
+
+## Voice anatomy
+
+A voice should reconnect the moment to the plugin's objective. It explains why the event fired,
+which persistent evidence to inspect, what cognitive posture is needed now, the next valid
+operation, the authority boundary, and the condition that ends or changes responsibility. “Continue
+working” is not a sufficient voice because it does not tell the agent what kind of work the plugin
+is restoring.
+
+Voice is the soft organ. Schema validation, serialized state mutation, lifecycle policy, hooks, and
+tests are hard organs. A healthy plugin lets these layers reinforce one another without confusing
+coaching with enforcement.
 
 ## Avoid scattered cognition
 

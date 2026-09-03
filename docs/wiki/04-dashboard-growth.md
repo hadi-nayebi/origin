@@ -32,3 +32,8 @@ the agent or user.
 
 Origin's distributed empty canvas is the first layer. The user's agent owns the initial proposal,
 and the user owns consequential choices about what it becomes.
+
+The floating feedback control derives context from the actual browser pathname. A future page such
+as `/projects/roadmap` is therefore recorded as that route even before a project-specific label
+provider exists. When adding a router, preserve this route-to-feedback contract and provide a
+clearer human label without returning unknown pages to `/`.

@@ -13,3 +13,9 @@ separate for later adapters and team variants.
 
 The dashboard is a human interaction surface over the repository and harness. It is not itself the
 agent, the source of authority, or a canonical database.
+
+Injected messages are Origin's internal voices. Read them as event-specific cognitive orientation:
+why the owning plugin exists, what changed, which durable source to inspect, what work belongs at
+this boundary, and what evidence permits the next transition. The voice is not enforcement. Hooks,
+services, schemas, and tests own hard invariants; voice explains those boundaries so Codex can
+recover without vague retries or prompt-memory guesswork.

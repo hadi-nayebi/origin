@@ -57,16 +57,24 @@ export function deliverCodexWake(root, input, options = {}) {
     for (let attempt = 0; attempt < pasteAttempts; attempt += 1) {
       wait(100);
       current = capture(run, pane.id);
-      if (editorPending(current, marker)) break;
+      if (editorPending(current, marker, { before, promptLength: prompt.length })) break;
     }
-    if (!editorPending(current, marker))
+    if (!editorPending(current, marker, { before, promptLength: prompt.length }))
       throw new Error("Origin could not verify that the wake prompt reached the Codex editor.");
     for (let attempt = 0; attempt < 12; attempt += 1) {
       const key = attempt % 2 === 0 ? "C-m" : "Enter";
       assertSuccess(run("tmux", ["send-keys", "-t", pane.id, key]), "tmux prompt submit");
       wait(250);
       current = capture(run, pane.id);
-      if (submissionAccepted({ value: current, marker, wasBusy }))
+      if (
+        submissionAccepted({
+          value: current,
+          marker,
+          wasBusy,
+          before,
+          promptLength: prompt.length,
+        })
+      )
         return Object.freeze({
           state: wasBusy ? "queued-without-interruption" : "submitted",
           transport: "tmux",
@@ -84,19 +92,31 @@ export function codexIsBusy(captured) {
   );
 }
 
-export function editorPending(value, marker) {
+export function editorPending(value, marker, options = {}) {
   const tail = String(value).split("\n").slice(-40).join("\n");
-  if (/\[Pasted (?:Content|text)\b/i.test(tail)) return true;
+  const previous = String(options.before || "")
+    .split("\n")
+    .slice(-40)
+    .join("\n");
+  const pasted = pastedLengths(tail);
+  const previousPasted = pastedLengths(previous);
+  if (pasted.length > previousPasted.length) return true;
   const markerIndex = tail.lastIndexOf(marker);
   if (markerIndex < 0) return false;
   return tail.indexOf("\n› ", markerIndex + marker.length) < 0;
 }
 
-export function submissionAccepted({ value, marker, wasBusy }) {
+export function submissionAccepted({ value, marker, wasBusy, before, promptLength }) {
   return (
-    !editorPending(value, marker) ||
+    !editorPending(value, marker, { before, promptLength }) ||
     (!wasBusy && codexIsBusy(value)) ||
     (wasBusy && /Messages to be submitted after next tool call/i.test(String(value)))
+  );
+}
+
+function pastedLengths(value) {
+  return [...String(value).matchAll(/\[Pasted (?:Content|text)\s+(\d+)\s+chars?\]/gi)].map(
+    (match) => Number(match[1]),
   );
 }
 

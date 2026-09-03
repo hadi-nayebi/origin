@@ -3,19 +3,20 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { readFile, readdir } from "node:fs/promises";
 import {
-  addFeedbackMessage,
-  createFeedback,
+  addFeedbackMessageMutation,
+  createFeedbackMutation,
   feedbackMode,
-  getFeedback,
+  feedbackWakeIntents,
   listFeedback,
   reconcileAgentState,
-  transitionFeedback,
+  reviewFeedbackMutation,
   verifyFeedback,
 } from "../.codex/plugins/contextual-feedback/lib/service.mjs";
 import { ensureAgentState, stopOutcome } from "../.codex/plugins/agent-stop-state/lib/state.mjs";
 import {
   enqueueFeedbackWake,
-  hasFeedbackWakeForVersion,
+  hasFeedbackWakeForEvent,
+  retryWakeDelivery,
   scheduleWakeDelivery,
   wakeStatus,
 } from "../.codex/plugins/_dashboard-runtime/lib/wake-outbox.mjs";
@@ -68,14 +69,16 @@ export async function createOriginApp(options = {}) {
       } catch {
         previous = { mode: "idle", reference: null };
       }
-      const record = createFeedback(root, request.body);
+      const mutation = createFeedbackMutation(root, request.body);
+      const { record, event } = mutation;
       const kind = previous.mode === "active" ? "feedback.during-active" : "feedback.new";
       const wake = enqueueFeedbackWake(root, {
         kind,
         reference: record.id,
         route: record.pagePath,
         activeReference: previous.reference?.id || record.id,
-        sourceUpdatedAt: record.updatedAt,
+        sourceEventHash: event.hash,
+        sourceSequence: event.sequence,
       });
       if (options.deliverWakes !== false) scheduleWakeDelivery(root, options.wakeOptions);
       response.status(201).json({ record, wake, delivery: wakeStatus(root) });
@@ -84,11 +87,39 @@ export async function createOriginApp(options = {}) {
     }
   });
 
-  app.post("/api/feedback/wake", (request, response, next) => {
+  app.post("/api/feedback/wake", async (request, response, next) => {
     try {
       requireJson(request);
-      if (options.deliverWakes !== false) scheduleWakeDelivery(root, options.wakeOptions);
-      response.json({ delivery: wakeStatus(root) });
+      const delivery =
+        options.deliverWakes === false
+          ? wakeStatus(root)
+          : await retryWakeDelivery(root, options.wakeOptions);
+      response.json({ delivery });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/session/wake", (request, response, next) => {
+    try {
+      requireJson(request);
+      let wake = null;
+      const delivery = wakeStatus(root);
+      const mode = feedbackMode(root);
+      if (delivery.pending === 0 && mode.mode === "active" && mode.reference?.id) {
+        const intent = feedbackWakeIntents(root).find(
+          (candidate) => candidate.reference === mode.reference.id,
+        );
+        if (intent) {
+          wake = enqueueFeedbackWake(root, {
+            ...intent,
+            kind: "feedback.resume",
+            activeReference: mode.reference.id,
+          });
+          if (options.deliverWakes !== false) scheduleWakeDelivery(root, options.wakeOptions);
+        }
+      }
+      response.json({ wake, delivery: wakeStatus(root) });
     } catch (error) {
       next(error);
     }
@@ -97,24 +128,24 @@ export async function createOriginApp(options = {}) {
   app.post("/api/feedback/:id/messages", (request, response, next) => {
     try {
       requireJson(request);
-      const before = getFeedback(root, request.params.id);
-      const record = addFeedbackMessage(
+      const mutation = addFeedbackMessageMutation(
         root,
         request.params.id,
         {
           role: "user",
-          type: before.status === "waiting" ? "answer" : "comment",
           body: request.body?.body,
         },
         { role: "user" },
       );
-      const kind = before.status === "waiting" ? "feedback.answer" : "feedback.during-active";
+      const { record, event } = mutation;
+      const kind = event.message.type === "answer" ? "feedback.answer" : "feedback.during-active";
       const wake = enqueueFeedbackWake(root, {
         kind,
         reference: record.id,
         route: record.pagePath,
         activeReference: stopOutcome(root).reference?.id || record.id,
-        sourceUpdatedAt: record.updatedAt,
+        sourceEventHash: event.hash,
+        sourceSequence: event.sequence,
       });
       if (options.deliverWakes !== false) scheduleWakeDelivery(root, options.wakeOptions);
       response.status(201).json({ record, wake, delivery: wakeStatus(root) });
@@ -130,25 +161,21 @@ export async function createOriginApp(options = {}) {
       if (!["resolved", "open", "dismissed"].includes(status))
         throw new Error("Dashboard may only accept, reopen, or dismiss feedback.");
       const detail = status === "resolved" ? { acceptance } : { reason };
-      transitionFeedback(root, request.params.id, status, detail);
-      const record = addFeedbackMessage(
-        root,
-        request.params.id,
-        {
-          role: "user",
-          type: "review",
-          body: status === "resolved" ? acceptance || "Accepted by user." : reason,
-        },
-        { role: "user" },
-      );
+      const { record, event } = reviewFeedbackMutation(root, request.params.id, status, detail);
       let wake = null;
-      if (["resolved", "open"].includes(status)) {
+      if (["resolved", "open", "dismissed"].includes(status)) {
         wake = enqueueFeedbackWake(root, {
-          kind: status === "resolved" ? "feedback.accepted" : "feedback.reopened",
+          kind:
+            status === "resolved"
+              ? "feedback.accepted"
+              : status === "dismissed"
+                ? "feedback.dismissed"
+                : "feedback.reopened",
           reference: record.id,
           route: record.pagePath,
           activeReference: stopOutcome(root).reference?.id || record.id,
-          sourceUpdatedAt: record.updatedAt,
+          sourceEventHash: event.hash,
+          sourceSequence: event.sequence,
         });
         if (options.deliverWakes !== false) scheduleWakeDelivery(root, options.wakeOptions);
       }
@@ -237,15 +264,11 @@ export async function startOriginServer(options = {}) {
 
 function ensureRunnableWakeCoverage(root) {
   const activeReference = feedbackMode(root).reference?.id;
-  for (const record of listFeedback(root)) {
-    if (!["open", "in_progress"].includes(record.status)) continue;
-    if (hasFeedbackWakeForVersion(root, record.id, record.updatedAt)) continue;
+  for (const intent of feedbackWakeIntents(root)) {
+    if (hasFeedbackWakeForEvent(root, intent.sourceEventHash)) continue;
     enqueueFeedbackWake(root, {
-      kind: "feedback.new",
-      reference: record.id,
-      route: record.pagePath,
-      activeReference: activeReference || record.id,
-      sourceUpdatedAt: record.updatedAt,
+      ...intent,
+      activeReference: activeReference || intent.reference,
     });
   }
 }

@@ -10,7 +10,7 @@ import type {
   WikiChapter,
 } from "./types";
 
-type Surface = { kind: "canvas" } | { kind: "wiki"; slug?: string };
+type Surface = { kind: "canvas"; path: string } | { kind: "wiki"; slug?: string };
 
 export default function App() {
   const [surface, setSurface] = useState<Surface>(() => surfaceFromPath(window.location.pathname));
@@ -23,7 +23,7 @@ export default function App() {
     );
   };
   const navigate = (next: Surface) => {
-    window.history.pushState({}, "", next.kind === "wiki" ? `/wiki/${next.slug || ""}` : "/");
+    window.history.pushState({}, "", next.kind === "wiki" ? `/wiki/${next.slug || ""}` : next.path);
     setSurface(next);
   };
   useEffect(() => {
@@ -36,11 +36,14 @@ export default function App() {
       window.clearInterval(polling);
     };
   }, []);
-  const pagePath = surface.kind === "wiki" ? `/wiki/${surface.slug || ""}` : "/";
+  const pagePath =
+    surface.kind === "wiki" ? `/wiki/${surface.slug || ""}` : normalizePagePath(surface.path);
   const pageLabel =
     surface.kind === "wiki"
       ? `Origin wiki${surface.slug ? `: ${titleFromSlug(surface.slug)}` : ""}`
-      : "Origin canvas";
+      : pagePath === "/"
+        ? "Origin canvas"
+        : labelFromPath(pagePath);
   return (
     <div className="origin-shell">
       <a className="skip-link" href="#origin-main">
@@ -140,7 +143,7 @@ function Wiki({ slug, navigate }: { slug?: string; navigate: (surface: Surface) 
   return (
     <section className="wiki-surface">
       <aside className="wiki-nav">
-        <button className="back-button" onClick={() => navigate({ kind: "canvas" })}>
+        <button className="back-button" onClick={() => navigate({ kind: "canvas", path: "/" })}>
           ← Canvas
         </button>
         <div>
@@ -272,7 +275,7 @@ function FeedbackPanel({
       const result = await api.submitFeedback({ kind, body, pagePath, pageLabel });
       setBody("");
       setDelivery(result.delivery);
-      setStatus("Saved. The interactive Codex session has been notified through tmux.");
+      setStatus(deliveryMessage("Saved", result.delivery));
       await refresh();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not save feedback.");
@@ -285,7 +288,7 @@ function FeedbackPanel({
     try {
       const result = await api.wakeFeedback();
       setDelivery(result.delivery);
-      setStatus("Wake delivery scheduled.");
+      setStatus(deliveryMessage("Retry finished", result.delivery));
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not retry delivery.");
     }
@@ -314,9 +317,7 @@ function FeedbackPanel({
             <p id="delivery-title" className={`delivery-state ${delivery.state}`}>
               Agent state: {outcome.mode} · tmux: {delivery.state}
             </p>
-            <p>
-              Feedback is delivered to the same interactive Codex session open in your terminal.
-            </p>
+            <p>Saved feedback targets the same interactive Codex session open in your terminal.</p>
             {outcome.reference && <small>Current responsibility: {outcome.reference.id}</small>}
             {delivery.last?.error && <small>{delivery.last.error}</small>}
           </div>
@@ -406,7 +407,9 @@ function FeedbackRecordCard({
   const submitMessage = () =>
     run(
       () => api.addFeedbackMessage(record.id, detail),
-      record.status === "waiting" ? "Answer sent to Codex." : "Comment sent to Codex.",
+      record.status === "waiting"
+        ? "Answer saved and wake queued."
+        : "Comment saved and wake queued.",
     );
   const accept = () =>
     run(
@@ -415,17 +418,17 @@ function FeedbackRecordCard({
           status: "resolved",
           acceptance: detail.trim() || "Accepted by user.",
         }),
-      "Accepted.",
+      "Acceptance saved and wake queued.",
     );
   const reopen = () =>
     run(
       () => api.transitionFeedback(record.id, { status: "open", reason: detail }),
-      "Reopened and sent to Codex.",
+      "Reopened and wake queued.",
     );
   const dismiss = () =>
     run(
       () => api.transitionFeedback(record.id, { status: "dismissed", reason: detail }),
-      "Dismissed.",
+      "Withdrawal saved and wake queued.",
     );
   const needsAttention = ["waiting", "ready_for_review"].includes(record.status);
   return (
@@ -516,8 +519,28 @@ function FeedbackRecordCard({
 }
 
 function surfaceFromPath(pathname: string): Surface {
-  const match = pathname.match(/^\/wiki\/?([^/]*)/);
-  return match ? { kind: "wiki", slug: match[1] || undefined } : { kind: "canvas" };
+  const match = pathname.match(/^\/wiki(?:\/([^/]*))?\/?$/);
+  return match
+    ? { kind: "wiki", slug: match[1] || undefined }
+    : { kind: "canvas", path: normalizePagePath(pathname) };
+}
+function normalizePagePath(pathname: string) {
+  const path = pathname.startsWith("/") ? pathname : `/${pathname}`;
+  return path.replace(/\/{2,}/g, "/").slice(0, 160) || "/";
+}
+function labelFromPath(pathname: string) {
+  const parts = pathname
+    .split("/")
+    .filter(Boolean)
+    .map((part) => {
+      try {
+        return decodeURIComponent(part);
+      } catch {
+        return part;
+      }
+    })
+    .map((part) => titleFromSlug(part));
+  return parts.length ? parts.join(" / ").slice(0, 120) : "Origin canvas";
 }
 function trapFocus(event: KeyboardEvent, container: HTMLElement | null) {
   if (!container) return;
@@ -565,6 +588,12 @@ function labelStatus(status: WikiChapter["status"]) {
       future: "Future",
     } as const
   )[status];
+}
+function deliveryMessage(prefix: string, delivery: DeliveryStatus) {
+  if (delivery.pending > 0)
+    return `${prefix}. ${delivery.pending} tmux wake${delivery.pending === 1 ? " is" : "s are"} pending.`;
+  if (delivery.state === "connected") return `${prefix}. The tmux wake was delivered.`;
+  return `${prefix}. No wake currently requires delivery.`;
 }
 function BookIcon() {
   return (

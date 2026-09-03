@@ -12,6 +12,12 @@ export function readFeedbackState(root) {
   return readLedger(root).records;
 }
 
+export function readFeedbackEvents(root) {
+  return Object.freeze(
+    readLedger(root).events.map((event) => Object.freeze(structuredClone(event))),
+  );
+}
+
 export function inspectFeedbackLedger(root) {
   const result = readLedger(root);
   return Object.freeze({

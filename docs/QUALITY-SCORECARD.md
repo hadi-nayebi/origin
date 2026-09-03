@@ -26,28 +26,29 @@ has been executed or inspected on the current revision. No partial credit or ext
 6. A different process is never overwritten.
 7. Exactly one repository-owned Codex pane is required for injection.
 8. Idle prompts are submitted and busy prompts queue without interruption.
-9. Paste and submission are verified.
-10. Wake claims, missing mutation-to-wake records, retries, and interrupted delivery recover
-    durably.
+9. Every wake has a unique marker and paste/submission evidence is compared with the prior pane.
+10. Nonterminal wakes are never count-evicted; claims, missing mutation-to-wake records, immediate
+    retries, and interrupted delivery recover durably.
 
 ## Feedback, authority, and stopping
 
 1. Raw feedback and page context are preserved.
 2. Agent interpretation is separate from raw input.
-3. Thread questions and user answers are durable.
+3. Questions, answers, and user review pair their message and lifecycle change in one journal event.
 4. Linked work and progress remain inspectable.
 5. Only one thread is in progress.
 6. Other runnable work prevents a single blocked thread from making the agent globally waiting.
 7. Agent verification is required before review.
-8. User acceptance is required for resolution.
+8. The agent service and CLI cannot resolve, dismiss, or perform review-based reopening; the
+   separate dashboard review operation records those actions.
 9. Rejection and reopening preserve history and wake Codex.
 10. Active blocks Stop; waiting, paused, idle, and corrupt-state behavior are tested.
 
 ## Interface and security
 
 1. The shipped canvas contains no domain page or workflow.
-2. Wiki and Feedback remain available across routes.
-3. Feedback captures kind, body, page path, and page label.
+2. Wiki and Feedback remain available across routes, including routes added after Origin ships.
+3. Feedback captures kind, body, actual browser pathname, and a derived or page-provided label.
 4. Threads show raw messages, interpretation, verification, and lifecycle.
 5. Waiting questions and review requests display an attention indicator.
 6. User answer, acceptance, dismissal, and reopening operate through bounded APIs.
@@ -55,6 +56,20 @@ has been executed or inspected on the current revision. No partial credit or ext
 8. Payload, path, and content-type boundaries are enforced.
 9. Wake prompts contain identifiers/routes rather than raw bodies.
 10. Modal keyboard behavior and serious/critical accessibility checks pass.
+
+## Internal voice quality
+
+1. Every fireable feedback event has a registered voice ID.
+2. Every wake has a unique delivery marker.
+3. Every feedback voice explains why the event fired.
+4. Every feedback voice reconnects the event to the plugin's objective.
+5. Every feedback voice points to validated durable context rather than raw files or prompt memory.
+6. Every feedback voice names the cognitive work required at the boundary.
+7. Every feedback voice names the next lifecycle boundary or completion evidence.
+8. Stop voices explain active, waiting, paused, and idle rather than emitting bare commands.
+9. Agent instructions distinguish probabilistic coaching from hard enforcement.
+10. Tests verify the voice catalog, required orientation shape, bounded inserts, and raw-body
+    exclusion.
 
 ## Verification and release
 

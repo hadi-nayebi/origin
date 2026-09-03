@@ -11,6 +11,7 @@ import { deliverCodexWake } from "./codex-wake-v1.mjs";
 const waitArray = new Int32Array(new SharedArrayBuffer(4));
 const activeDeliveries = new Set();
 const timers = new Map();
+const TERMINAL_HISTORY_LIMIT = 200;
 const voiceFile = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../contextual-feedback/voice.xml",
@@ -20,22 +21,23 @@ export function enqueueFeedbackWake(root, input, now = new Date()) {
   const reference = bounded(input?.reference, "Wake reference", 10, 128);
   const route = bounded(input?.route || "/", "Wake route", 1, 160);
   const kind = bounded(input?.kind, "Wake kind", 3, 64);
-  const marker = markerFor(kind);
-  const sourceUpdatedAt = input?.sourceUpdatedAt
-    ? canonicalTimestamp(input.sourceUpdatedAt, "Wake source timestamp")
-    : null;
+  const sourceEventHash = hash(input?.sourceEventHash, "Wake source event hash");
+  const sourceSequence = positiveInteger(input?.sourceSequence, "Wake source sequence");
+  const id = `wake-${crypto.randomUUID()}`;
+  const marker = markerFor(id);
   const prompt = renderVoice(voiceFile, kind, {
     reference,
-    sourceUpdatedAt,
     route,
     activeReference: input?.activeReference || reference,
+    wakeMarker: marker,
   });
   const event = {
-    id: `wake-${crypto.randomUUID()}`,
-    schemaVersion: 1,
+    id,
+    schemaVersion: 2,
     kind,
     reference,
-    sourceUpdatedAt,
+    sourceEventHash,
+    sourceSequence,
     route,
     marker,
     prompt,
@@ -47,18 +49,14 @@ export function enqueueFeedbackWake(root, input, now = new Date()) {
     result: null,
     error: null,
   };
-  mutateOutbox(root, (events) => [...events, event].slice(-200));
+  mutateOutbox(root, (events) => compactOutbox([...events, event]));
   return Object.freeze({ ...event });
 }
 
-export function hasFeedbackWakeForVersion(root, reference, sourceUpdatedAt) {
-  const safeReference = bounded(reference, "Wake reference", 10, 128);
-  const safeTimestamp = canonicalTimestamp(sourceUpdatedAt, "Wake source timestamp");
+export function hasFeedbackWakeForEvent(root, sourceEventHash) {
+  const safeHash = hash(sourceEventHash, "Wake source event hash");
   return readOutbox(root).some(
-    (event) =>
-      event.reference === safeReference &&
-      event.sourceUpdatedAt === safeTimestamp &&
-      event.status !== "cancelled",
+    (event) => event.sourceEventHash === safeHash && event.status !== "cancelled",
   );
 }
 
@@ -106,6 +104,16 @@ export function scheduleWakeDelivery(root, options = {}) {
   }, delay);
   timer.unref?.();
   timers.set(key, timer);
+}
+
+export async function retryWakeDelivery(root, options = {}) {
+  const key = path.resolve(root);
+  const timer = timers.get(key);
+  if (timer) clearTimeout(timer);
+  timers.delete(key);
+  const status = await deliverPendingWakes(root, options);
+  if (status.pending > 0) scheduleWakeDelivery(root, options);
+  return status;
 }
 
 export function wakeStatus(root) {
@@ -176,7 +184,7 @@ function claimNextWake(root, now) {
       claimed = { ...event };
       break;
     }
-    return events;
+    return compactOutbox(events);
   });
   return claimed;
 }
@@ -201,7 +209,7 @@ function finishWake(root, id, outcome, now) {
       event.result = outcome.result;
       event.error = null;
     }
-    return events;
+    return compactOutbox(events);
   });
 }
 
@@ -211,6 +219,8 @@ function wakeGuard(root, event) {
     const feedback = getFeedback(root, event.reference);
     if (event.kind === "feedback.accepted")
       return feedback.status === "resolved" ? "deliver" : "cancel";
+    if (event.kind === "feedback.dismissed")
+      return feedback.status === "dismissed" ? "deliver" : "cancel";
     if (event.kind === "feedback.reopened")
       return feedback.status === "open" ? "deliver" : "cancel";
     if (event.kind === "feedback.answer")
@@ -316,16 +326,8 @@ function writeOutbox(root, events) {
 function outboxPath(root) {
   return path.join(path.resolve(root), ".origin", "wake-outbox.json");
 }
-function markerFor(kind) {
-  return (
-    {
-      "feedback.new": "[ORIGIN DASHBOARD — NEW FEEDBACK]",
-      "feedback.during-active": "[ORIGIN DASHBOARD — FEEDBACK RECEIVED DURING ACTIVE WORK]",
-      "feedback.answer": "[ORIGIN DASHBOARD — ANSWER RECEIVED]",
-      "feedback.reopened": "[ORIGIN DASHBOARD — FEEDBACK REOPENED]",
-      "feedback.accepted": "[ORIGIN DASHBOARD — FEEDBACK ACCEPTED]",
-    }[kind] || `[ORIGIN DASHBOARD — ${kind.toUpperCase()}]`
-  );
+function markerFor(id) {
+  return `[ORIGIN WAKE ${id}]`;
 }
 function bounded(value, label, minimum, maximum) {
   if (
@@ -337,12 +339,20 @@ function bounded(value, label, minimum, maximum) {
     throw new Error(`${label} is invalid.`);
   return value;
 }
-function canonicalTimestamp(value, label) {
-  if (
-    typeof value !== "string" ||
-    Number.isNaN(Date.parse(value)) ||
-    new Date(value).toISOString() !== value
-  )
+function hash(value, label) {
+  if (typeof value !== "string" || !/^[a-f0-9]{64}$/.test(value))
     throw new Error(`${label} is invalid.`);
   return value;
+}
+function positiveInteger(value, label) {
+  const number = Number(value);
+  if (!Number.isInteger(number) || number < 1) throw new Error(`${label} is invalid.`);
+  return number;
+}
+function compactOutbox(events) {
+  const terminal = events.filter((event) => ["delivered", "cancelled"].includes(event.status));
+  const keepTerminal = new Set(terminal.slice(-TERMINAL_HISTORY_LIMIT).map((event) => event.id));
+  return events.filter(
+    (event) => !["delivered", "cancelled"].includes(event.status) || keepTerminal.has(event.id),
+  );
 }

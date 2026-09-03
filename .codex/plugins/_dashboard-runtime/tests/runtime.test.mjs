@@ -5,7 +5,12 @@ import os from "node:os";
 import path from "node:path";
 import { ensureAgentState } from "../../agent-stop-state/lib/state.mjs";
 import { pauseAgent } from "../../agent-stop-state/lib/state.mjs";
-import { createFeedback, transitionFeedback } from "../../contextual-feedback/lib/service.mjs";
+import {
+  createFeedback,
+  reviewFeedback,
+  transitionFeedback,
+} from "../../contextual-feedback/lib/service.mjs";
+import { readFeedbackEvents } from "../../contextual-feedback/lib/store.mjs";
 import {
   deliverCodexWake,
   editorPending,
@@ -17,7 +22,8 @@ import { ensureDashboardRuntime, runtimeInstanceId } from "../lib/runtime-contro
 import {
   deliverPendingWakes,
   enqueueFeedbackWake,
-  hasFeedbackWakeForVersion,
+  hasFeedbackWakeForEvent,
+  retryWakeDelivery,
   scheduleWakeDelivery,
   wakeStatus,
 } from "../lib/wake-outbox.mjs";
@@ -116,7 +122,7 @@ test("wake outbox persists before delivery and records success", async () => {
     pagePath: "/",
     pageLabel: "Origin canvas",
   });
-  enqueueFeedbackWake(root, { kind: "feedback.new", reference: record.id, route: "/" });
+  enqueueWake(root, { kind: "feedback.new", reference: record.id, route: "/" });
   assert.equal(wakeStatus(root).pending, 1);
   await deliverPendingWakes(root, {
     deliver: async () => ({
@@ -145,13 +151,14 @@ test("every feedback wake voice renders a bounded pointer without the raw body",
     "feedback.answer",
     "feedback.reopened",
     "feedback.accepted",
+    "feedback.dismissed",
+    "feedback.resume",
   ]) {
-    const wake = enqueueFeedbackWake(root, {
+    const wake = enqueueWake(root, {
       kind,
       reference: record.id,
       route: record.pagePath,
       activeReference: record.id,
-      sourceUpdatedAt: record.updatedAt,
     });
     assert.match(wake.prompt, new RegExp(record.id));
     assert.doesNotMatch(wake.prompt, new RegExp(rawBody));
@@ -159,7 +166,7 @@ test("every feedback wake voice renders a bounded pointer without the raw body",
   }
 });
 
-test("wake coverage is version-specific for crash recovery", () => {
+test("wake coverage is journal-event-specific for crash recovery", () => {
   const root = fixture();
   const record = createFeedback(root, {
     kind: "feature",
@@ -167,15 +174,15 @@ test("wake coverage is version-specific for crash recovery", () => {
     pagePath: "/",
     pageLabel: "Origin canvas",
   });
-  assert.equal(hasFeedbackWakeForVersion(root, record.id, record.updatedAt), false);
-  enqueueFeedbackWake(root, {
+  const source = sourceFor(root);
+  assert.equal(hasFeedbackWakeForEvent(root, source.sourceEventHash), false);
+  enqueueWake(root, {
     kind: "feedback.new",
     reference: record.id,
     route: record.pagePath,
-    sourceUpdatedAt: record.updatedAt,
   });
-  assert.equal(hasFeedbackWakeForVersion(root, record.id, record.updatedAt), true);
-  assert.equal(hasFeedbackWakeForVersion(root, record.id, new Date().toISOString()), false);
+  assert.equal(hasFeedbackWakeForEvent(root, source.sourceEventHash), true);
+  assert.equal(hasFeedbackWakeForEvent(root, "f".repeat(64)), false);
 });
 
 test("failed delivery is durable and retryable", async () => {
@@ -186,7 +193,7 @@ test("failed delivery is durable and retryable", async () => {
     pagePath: "/",
     pageLabel: "Origin canvas",
   });
-  enqueueFeedbackWake(
+  enqueueWake(
     root,
     { kind: "feedback.new", reference: record.id, route: "/" },
     new Date("2026-09-03T12:00:00Z"),
@@ -206,6 +213,101 @@ test("failed delivery is durable and retryable", async () => {
   assert.equal(wakeStatus(root).last.attempts, 2);
 });
 
+test("outbox never evicts nonterminal wakes when terminal history is bounded", () => {
+  const root = fixture();
+  const record = createFeedback(root, {
+    kind: "feature",
+    body: "Retain every pending wake",
+    pagePath: "/projects",
+    pageLabel: "Projects",
+  });
+  for (let index = 0; index < 201; index += 1)
+    enqueueWake(root, {
+      kind: "feedback.new",
+      reference: record.id,
+      route: record.pagePath,
+    });
+  assert.equal(wakeStatus(root).pending, 201);
+  const events = JSON.parse(
+    fs.readFileSync(path.join(root, ".origin", "wake-outbox.json"), "utf8"),
+  );
+  assert.equal(events.length, 201);
+  assert.equal(
+    events.every((event) => event.status === "pending"),
+    true,
+  );
+});
+
+test("outbox bounds only terminal history after successful delivery", async () => {
+  const root = fixture();
+  const record = createFeedback(root, {
+    kind: "feature",
+    body: "Bound completed delivery history without losing work",
+    pagePath: "/projects",
+    pageLabel: "Projects",
+  });
+  for (let index = 0; index < 205; index += 1)
+    enqueueWake(root, {
+      kind: "feedback.new",
+      reference: record.id,
+      route: record.pagePath,
+    });
+  await deliverPendingWakes(root, {
+    deliver: async () => ({ state: "submitted", transport: "tmux" }),
+  });
+  const events = JSON.parse(
+    fs.readFileSync(path.join(root, ".origin", "wake-outbox.json"), "utf8"),
+  );
+  assert.equal(events.length, 200);
+  assert.equal(
+    events.every((event) => event.status === "delivered"),
+    true,
+  );
+});
+
+test("manual retry cancels scheduled backoff and attempts delivery immediately", async () => {
+  const root = fixture();
+  const record = createFeedback(root, {
+    kind: "bug",
+    body: "Retry this wake now",
+    pagePath: "/",
+    pageLabel: "Origin canvas",
+  });
+  enqueueWake(root, { kind: "feedback.new", reference: record.id, route: "/" });
+  let calls = 0;
+  scheduleWakeDelivery(root, {
+    delayMs: 60_000,
+    deliver: async () => {
+      calls += 1;
+      return { state: "submitted", transport: "tmux" };
+    },
+  });
+  const result = await retryWakeDelivery(root, {
+    deliver: async () => {
+      calls += 1;
+      return { state: "submitted", transport: "tmux" };
+    },
+  });
+  assert.equal(calls, 1);
+  assert.equal(result.pending, 0);
+  assert.equal(result.last.status, "delivered");
+});
+
+test("wake markers are unique for separate delivery events", () => {
+  const root = fixture();
+  const record = createFeedback(root, {
+    kind: "update",
+    body: "Give each wake unique evidence",
+    pagePath: "/",
+    pageLabel: "Origin canvas",
+  });
+  const first = enqueueWake(root, { kind: "feedback.new", reference: record.id, route: "/" });
+  const second = enqueueWake(root, { kind: "feedback.new", reference: record.id, route: "/" });
+  assert.notEqual(first.marker, second.marker);
+  assert.match(first.prompt, new RegExp(first.id));
+  assert.match(second.prompt, new RegExp(second.id));
+});
+
 test("the startup scheduler retries a durable wake after the Codex pane appears", async () => {
   const root = fixture();
   const record = createFeedback(root, {
@@ -214,7 +316,7 @@ test("the startup scheduler retries a durable wake after the Codex pane appears"
     pagePath: "/",
     pageLabel: "Origin canvas",
   });
-  enqueueFeedbackWake(root, { kind: "feedback.new", reference: record.id, route: "/" });
+  enqueueWake(root, { kind: "feedback.new", reference: record.id, route: "/" });
   scheduleWakeDelivery(root, {
     delayMs: 0,
     deliver: async () => ({ state: "submitted", transport: "tmux" }),
@@ -231,7 +333,7 @@ test("paused state retains a pending wake without delivering it", async () => {
     pagePath: "/",
     pageLabel: "Origin canvas",
   });
-  enqueueFeedbackWake(root, { kind: "feedback.new", reference: record.id, route: "/" });
+  enqueueWake(root, { kind: "feedback.new", reference: record.id, route: "/" });
   pauseAgent(root, "User paused delivery for this test.");
   let called = false;
   await deliverPendingWakes(root, {
@@ -251,7 +353,7 @@ test("an interrupted outbox claim is recovered and delivered", async () => {
     pagePath: "/",
     pageLabel: "Origin canvas",
   });
-  enqueueFeedbackWake(root, { kind: "feedback.new", reference: record.id, route: "/" });
+  enqueueWake(root, { kind: "feedback.new", reference: record.id, route: "/" });
   const file = path.join(root, ".origin", "wake-outbox.json");
   const events = JSON.parse(fs.readFileSync(file, "utf8"));
   events[0].status = "delivering";
@@ -274,12 +376,12 @@ test("stale wake is cancelled after user acceptance", async () => {
     pagePath: "/",
     pageLabel: "Origin canvas",
   });
-  enqueueFeedbackWake(root, { kind: "feedback.new", reference: record.id, route: "/" });
+  enqueueWake(root, { kind: "feedback.new", reference: record.id, route: "/" });
   transitionFeedback(root, record.id, "in_progress");
   transitionFeedback(root, record.id, "ready_for_review", {
     verification: "Updated the title and verified the rendered heading in the UI test.",
   });
-  transitionFeedback(root, record.id, "resolved", { acceptance: "Accepted by user." });
+  reviewFeedback(root, record.id, "resolved", { acceptance: "Accepted by user." });
   let called = false;
   await deliverPendingWakes(root, {
     deliver: async () => {
@@ -395,8 +497,8 @@ test("dashboard runtime does not reuse another Origin clone on the same port", a
     },
     wait: async () => {},
   }).catch((error) => error);
-  assert.equal(spawned, true);
-  assert.match(runtime.message, /did not become healthy/);
+  assert.equal(spawned, false);
+  assert.match(runtime.message, /Port 5173 is already used/);
 });
 
 test("combined launcher validates, creates one repo session, starts Codex, and attaches", async () => {
@@ -407,7 +509,7 @@ test("combined launcher validates, creates one repo session, starts Codex, and a
     if (command === "tmux" && args[0] === "has-session")
       return { status: 1, stdout: "", stderr: "missing" };
     if (command === "tmux" && args[0] === "list-panes")
-      return { status: 0, stdout: "bash\n", stderr: "" };
+      return { status: 0, stdout: `bash\t${root}\n`, stderr: "" };
     return { status: 0, stdout: "ready", stderr: "" };
   };
   const result = await startHarness({
@@ -435,6 +537,37 @@ test("combined launcher validates, creates one repo session, starts Codex, and a
   assert.deepEqual(calls.at(-1).args, ["attach-session", "-t", session]);
 });
 
+test("combined launcher switches an existing tmux client into the repository session", async () => {
+  const root = fixture();
+  const calls = [];
+  const run = (command, args) => {
+    calls.push({ command, args });
+    if (command === "tmux" && args[0] === "has-session")
+      return { status: 0, stdout: "", stderr: "" };
+    if (command === "tmux" && args[0] === "list-panes")
+      return { status: 0, stdout: `codex\t${root}\n`, stderr: "" };
+    return { status: 0, stdout: "ready", stderr: "" };
+  };
+  const result = await startHarness({
+    root,
+    run,
+    insideTmux: true,
+    platform: "linux",
+    release: { name: "node" },
+    openBrowser: false,
+    fetch: async () => ({
+      ok: true,
+      json: async () => ({ name: "origin", instanceId: runtimeInstanceId(root) }),
+    }),
+  });
+  assert.equal(result.session, sessionName(root));
+  assert.deepEqual(calls.at(-1).args, ["switch-client", "-t", sessionName(root)]);
+  assert.equal(
+    calls.some(({ args }) => args[0] === "attach-session"),
+    false,
+  );
+});
+
 function fakeRun(root, options = {}) {
   const captures = [...(options.capture || ["idle"]), "idle"];
   const calls = [];
@@ -453,4 +586,13 @@ function fakeRun(root, options = {}) {
   };
   run.calls = calls;
   return run;
+}
+
+function sourceFor(root) {
+  const event = readFeedbackEvents(root).at(-1);
+  return { sourceEventHash: event.hash, sourceSequence: event.sequence };
+}
+
+function enqueueWake(root, input, now) {
+  return enqueueFeedbackWake(root, { ...input, ...sourceFor(root) }, now);
 }

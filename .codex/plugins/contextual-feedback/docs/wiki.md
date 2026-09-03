@@ -20,3 +20,8 @@ The anatomy is compartmentalized:
 
 The agent cannot close its own claim. It provides verification and marks a thread ready for review;
 the user accepts or reopens it.
+
+The plugin's voices are its soft cognitive surface. They do not merely announce an event: they
+remind Codex why raw input remains separate from interpretation, why current focus should survive
+unrelated feedback, why an answer reopens only the blocked decision, and why verification still
+requires user review. Lifecycle policy and atomic journal events remain the hard source of truth.

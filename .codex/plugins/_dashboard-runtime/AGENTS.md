@@ -9,3 +9,8 @@ Resolve exactly one Codex pane whose working directory is this repository. Never
 feedback body into a shell command. Delivery prompts contain stable identifiers and routes only.
 Persist an outbox before delivery, serialize tmux writes, verify paste/submission, and revalidate
 the referenced event before retrying.
+
+The runtime renders voices selected by the owning cognitive plugin. It may add a unique delivery
+marker, but it must not reduce the voice to a transport notice or author policy about what Codex
+should think. Preserve every nonterminal wake regardless of history size; only bounded terminal
+delivery history may be compacted.

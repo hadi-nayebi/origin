@@ -51,7 +51,17 @@ export function setAgentState(root, input, options = {}, now = new Date()) {
       current.revision !== Number(options.expectedRevision)
     )
       throw new Error("Agent state revision changed; reconcile again.");
-    if (current.mode === "paused" && !options.overridePause) return current;
+    if (current.mode === "paused" && !options.overridePause) {
+      const resume = validatedIntent(input);
+      const next = validateState({
+        ...current,
+        resumeState: resume,
+        revision: current.revision + 1,
+        updatedAt: now.toISOString(),
+      });
+      writeState(root, next);
+      return next;
+    }
     const next = validateState({
       schemaVersion: 1,
       mode: boundedMode(input.mode),
@@ -64,6 +74,15 @@ export function setAgentState(root, input, options = {}, now = new Date()) {
     });
     writeState(root, next);
     return next;
+  });
+}
+
+function validatedIntent(input) {
+  return Object.freeze({
+    mode: boundedMode(input.mode),
+    reason: bounded(input.reason, "State reason", 1, 500),
+    nextAction: nullableBounded(input.nextAction, "Next action", 500),
+    reference: normalizeReference(input.reference),
   });
 }
 

@@ -83,6 +83,7 @@ describe("Origin dashboard", () => {
 
   test("captures page-aware feedback for the interactive tmux session", async () => {
     const user = userEvent.setup();
+    window.history.replaceState({}, "", "/projects/roadmap");
     render(<App />);
     const trigger = screen.getByRole("button", { name: "Give feedback" });
     await user.click(trigger);
@@ -90,9 +91,13 @@ describe("Origin dashboard", () => {
     await user.click(screen.getByLabelText("Feature request"));
     await user.type(screen.getByLabelText("What should change?"), "Create the first useful page");
     await user.click(screen.getByRole("button", { name: "Save feedback" }));
-    expect(await screen.findByText(/notified through tmux/)).toBeTruthy();
+    expect(await screen.findByText(/1 tmux wake is pending/)).toBeTruthy();
     const call = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === "POST");
-    expect(JSON.parse(String(call?.[1]?.body))).toMatchObject({ kind: "feature", pagePath: "/" });
+    expect(JSON.parse(String(call?.[1]?.body))).toMatchObject({
+      kind: "feature",
+      pagePath: "/projects/roadmap",
+      pageLabel: "Projects / Roadmap",
+    });
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(document.activeElement).toBe(trigger);
@@ -138,7 +143,7 @@ describe("Origin dashboard", () => {
     await user.click(screen.getByRole("button", { name: /items need your attention/ }));
     await user.type(await screen.findByLabelText("Your answer"), "Use Projects.");
     await user.click(screen.getByRole("button", { name: "Send answer" }));
-    expect(await screen.findByText("Answer sent to Codex.")).toBeTruthy();
+    expect(await screen.findByText("Answer saved and wake queued.")).toBeTruthy();
   });
 
   test("user accepts verified work and cannot silently edit verification", async () => {
@@ -167,7 +172,7 @@ describe("Origin dashboard", () => {
     await user.click(await screen.findByRole("button", { name: /items need your attention/ }));
     expect(await screen.findByText(/Built the page and verified/)).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Accept" }));
-    expect(await screen.findByText("Accepted.")).toBeTruthy();
+    expect(await screen.findByText("Acceptance saved and wake queued.")).toBeTruthy();
   });
 });
 

@@ -22,19 +22,6 @@ export async function startHarness(options = {}) {
   const session = sessionName(repositoryRoot);
   const resume = options.resumeLast ?? process.argv.includes("--resume-last");
   const command = resume ? ["codex", "resume", "--last"] : ["codex"];
-  if (process.env.TMUX || options.insideTmux) {
-    process.stdout.write(
-      `Origin dashboard: ${runtime.url}\nStarting interactive Codex in this tmux pane.\n`,
-    );
-    const result = spawnSync(command[0], command.slice(1), {
-      cwd: repositoryRoot,
-      stdio: "inherit",
-      shell: false,
-    });
-    if (result.status !== 0)
-      throw new Error(`Interactive Codex exited with status ${result.status}.`);
-    return { runtime, session: process.env.TMUX_PANE || "current", attached: true };
-  }
   const hasSession = run("tmux", ["has-session", "-t", session]).status === 0;
   if (!hasSession) {
     assertSuccess(
@@ -42,7 +29,16 @@ export async function startHarness(options = {}) {
       "tmux session creation",
     );
   }
-  ensureTmuxCodex(run, session, command);
+  ensureTmuxCodex(run, session, command, repositoryRoot);
+  await requestSessionWake(runtime.url, options.fetch || fetch);
+  if (process.env.TMUX || options.insideTmux) {
+    process.stdout.write(
+      `Origin dashboard: ${runtime.url}\nSwitching to interactive Codex session: ${session}\n`,
+    );
+    const switched = run("tmux", ["switch-client", "-t", session], { stdio: "inherit" });
+    if (switched.status !== 0) throw new Error("Could not switch to the Origin tmux session.");
+    return { runtime, session, attached: true };
+  }
   process.stdout.write(
     `Origin dashboard: ${runtime.url}\nAttaching interactive Codex session: ${session}\n`,
   );
@@ -51,19 +47,49 @@ export async function startHarness(options = {}) {
   return { runtime, session, attached: true };
 }
 
-export function ensureTmuxCodex(run, session, command) {
-  const pane = run("tmux", ["list-panes", "-t", session, "-F", "#{pane_current_command}"]);
+async function requestSessionWake(url, fetcher) {
+  const response = await fetcher(`${url}/api/session/wake`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+    signal: AbortSignal.timeout(2000),
+  });
+  if (!response.ok)
+    throw new Error("Origin could not reconcile the feedback queue for this session.");
+}
+
+export function ensureTmuxCodex(run, session, command, repositoryRoot) {
+  const pane = run("tmux", [
+    "list-panes",
+    "-t",
+    session,
+    "-F",
+    "#{pane_current_command}\t#{pane_current_path}",
+  ]);
   assertSuccess(pane, "tmux session inspection");
-  const commands = String(pane.stdout || "")
+  const panes = String(pane.stdout || "")
     .trim()
     .split("\n")
-    .filter(Boolean);
-  const codexPanes = commands.filter((command) => /codex/i.test(command));
+    .filter(Boolean)
+    .map((line) => {
+      const [currentCommand, currentPath] = line.split("\t");
+      return { currentCommand, currentPath };
+    });
+  if (repositoryRoot) {
+    const wrongPath = panes.find(
+      (item) => canonical(item.currentPath) !== canonical(repositoryRoot),
+    );
+    if (wrongPath)
+      throw new Error(
+        `Origin tmux session ${session} contains a pane outside this repository: ${wrongPath.currentPath || "unknown path"}.`,
+      );
+  }
+  const codexPanes = panes.filter((item) => /codex/i.test(item.currentCommand));
   if (codexPanes.length === 1) return "running";
   if (codexPanes.length > 1)
     throw new Error(`Origin tmux session ${session} contains more than one Codex pane.`);
-  const current = commands[0] || "";
-  if (commands.length === 1 && /^(ba|z|fi|da|k)?sh$|^fish$/i.test(current)) {
+  const current = panes[0]?.currentCommand || "";
+  if (panes.length === 1 && /^(ba|z|fi|da|k)?sh$|^fish$/i.test(current)) {
     assertSuccess(
       run("tmux", ["send-keys", "-t", session, command.join(" "), "C-m"]),
       "Codex launch",
@@ -71,7 +97,7 @@ export function ensureTmuxCodex(run, session, command) {
     return "started";
   }
   throw new Error(
-    `Origin tmux session ${session} does not contain exactly one Codex pane or one idle shell. It reported: ${commands.join(", ") || "no panes"}. Attach and inspect it before retrying.`,
+    `Origin tmux session ${session} does not contain exactly one Codex pane or one idle shell. It reported: ${panes.map((item) => item.currentCommand).join(", ") || "no panes"}. Attach and inspect it before retrying.`,
   );
 }
 

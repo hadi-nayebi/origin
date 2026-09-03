@@ -1,18 +1,28 @@
 #!/usr/bin/env node
-import { spawn } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { startOriginServer } from "../server/index.mjs";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const child = spawn(process.execPath, ["server/index.mjs"], {
-  cwd: root,
-  env: { ...process.env, ORIGIN_PORT: "0" },
-  stdio: ["ignore", "pipe", "pipe"],
-});
-let output = "";
+const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "origin-smoke-"));
+let server;
 
 try {
-  const baseUrl = await waitForReady(child);
+  fs.cpSync(path.join(sourceRoot, "dist"), path.join(fixtureRoot, "dist"), { recursive: true });
+  fs.mkdirSync(path.join(fixtureRoot, "docs"));
+  fs.cpSync(path.join(sourceRoot, "docs", "wiki"), path.join(fixtureRoot, "docs", "wiki"), {
+    recursive: true,
+  });
+  server = await startOriginServer({
+    root: fixtureRoot,
+    port: 0,
+    host: "127.0.0.1",
+    deliverWakes: false,
+  });
+  const address = server.address();
+  const baseUrl = `http://127.0.0.1:${address.port}`;
   const [healthResponse, pageResponse] = await Promise.all([
     fetch(`${baseUrl}/api/health`),
     fetch(baseUrl),
@@ -21,57 +31,12 @@ try {
   if (!pageResponse.ok) throw new Error(`Dashboard returned ${pageResponse.status}.`);
   const health = await healthResponse.json();
   const page = await pageResponse.text();
-  if (health.name !== "origin" || health.status !== "ready" || health.localOnly !== true) {
+  if (health.name !== "origin" || health.status !== "ready" || health.localOnly !== true)
     throw new Error("Health endpoint did not return Origin's ready contract.");
-  }
-  if (!page.includes('<div id="root"></div>')) {
+  if (!page.includes('<div id="root"></div>'))
     throw new Error("Production dashboard shell was not served.");
-  }
-  console.log(`PASS  Production server startup and health check (${baseUrl})`);
+  console.log(`PASS  Isolated production server startup and health check (${baseUrl})`);
 } finally {
-  await stopChild(child);
-}
-
-function waitForReady(processHandle) {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(
-      () => reject(new Error(`Origin did not become ready within 15 seconds.\n${output}`)),
-      15_000,
-    );
-    const finish = (callback, value) => {
-      clearTimeout(timeout);
-      processHandle.stdout.off("data", onStdout);
-      processHandle.stderr.off("data", onStderr);
-      processHandle.off("error", onError);
-      processHandle.off("exit", onExit);
-      callback(value);
-    };
-    const onStdout = (chunk) => {
-      output += chunk;
-      const match = output.match(/Origin is ready at (https?:\/\/\S+)/);
-      if (match) finish(resolve, match[1]);
-    };
-    const onStderr = (chunk) => {
-      output += chunk;
-    };
-    const onError = (error) => finish(reject, error);
-    const onExit = (code) =>
-      finish(reject, new Error(`Origin exited before readiness with code ${code}.\n${output}`));
-    processHandle.stdout.on("data", onStdout);
-    processHandle.stderr.on("data", onStderr);
-    processHandle.once("error", onError);
-    processHandle.once("exit", onExit);
-  });
-}
-
-async function stopChild(processHandle) {
-  if (processHandle.exitCode !== null) return;
-  processHandle.kill();
-  await new Promise((resolve) => {
-    const timeout = setTimeout(resolve, 5_000);
-    processHandle.once("exit", () => {
-      clearTimeout(timeout);
-      resolve();
-    });
-  });
+  if (server) await new Promise((resolve) => server.close(resolve));
+  fs.rmSync(fixtureRoot, { recursive: true, force: true });
 }

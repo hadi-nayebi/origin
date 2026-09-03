@@ -105,6 +105,53 @@ test("README is agent-first and contains no headless fallback", () => {
   assert.doesNotMatch(readme, /headless worker|dashboard still works without/i);
 });
 
+test("plugin voices provide objective-driven orientation rather than vague notices", () => {
+  const feedbackVoice = fs.readFileSync(
+    path.join(root, ".codex", "plugins", "contextual-feedback", "voice.xml"),
+    "utf8",
+  );
+  const feedbackBodies = [
+    ...feedbackVoice.matchAll(/<voice id="([^"]+)">\s*<body>([\s\S]*?)<\/body>/g),
+  ];
+  assert.deepEqual(feedbackBodies.map((match) => match[1]).sort(), [
+    "feedback.accepted",
+    "feedback.answer",
+    "feedback.dismissed",
+    "feedback.during-active",
+    "feedback.new",
+    "feedback.reopened",
+    "feedback.resume",
+  ]);
+  for (const [, id, body] of feedbackBodies) {
+    assert.match(body, /Why this voice fired:/, id);
+    assert.match(body, /Orient to the work:/, id);
+    assert.match(body, /Next boundary:/, id);
+    assert.match(body, /\{\{wakeMarker\}\}/, id);
+  }
+  const stopVoice = fs.readFileSync(
+    path.join(root, ".codex", "plugins", "agent-stop-state", "voice.xml"),
+    "utf8",
+  );
+  for (const match of stopVoice.matchAll(/<voice id="([^"]+)">\s*<body>([\s\S]*?)<\/body>/g))
+    assert.match(match[2], /Why (?:this gate fired|stopping is allowed)/, match[1]);
+});
+
+test("agent instructions distinguish internal voice coaching from hard enforcement", () => {
+  const files = [
+    "AGENTS.md",
+    ".codex/AGENTS.md",
+    ".codex/plugins/AGENTS.md",
+    ".codex/plugins/contextual-feedback/AGENTS.md",
+    ".codex/plugins/agent-stop-state/AGENTS.md",
+  ];
+  const combined = files.map((file) => fs.readFileSync(path.join(root, file), "utf8")).join("\n");
+  assert.match(combined, /event-triggered reorientation/i);
+  assert.match(combined, /language of the work/i);
+  assert.match(combined, /probabilistic coaching/i);
+  assert.match(combined, /(?:hard|deterministic) (?:invariants|boundary|edge|enforcement|hook)/i);
+  assert.match(combined, /plugin objective/i);
+});
+
 test("lockfile and package versions match", () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
   const lock = JSON.parse(fs.readFileSync(path.join(root, "package-lock.json"), "utf8"));

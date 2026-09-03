@@ -33,6 +33,17 @@ export function applyEvent(records, event) {
     );
     return;
   }
+  if (event.type === "feedback.message-transitioned") {
+    if (current.messages.some((message) => message.id === event.message.id))
+      throw new Error("Feedback message ID is repeated.");
+    assertTransition(current.status, event.status);
+    assertSingleFocus(records, event);
+    records.set(
+      event.id,
+      transitionedRecord({ ...current, messages: [...current.messages, event.message] }, event),
+    );
+    return;
+  }
   if (event.type === "feedback.interpreted") {
     records.set(
       event.id,
@@ -59,6 +70,11 @@ export function applyEvent(records, event) {
     return;
   }
   assertTransition(current.status, event.status);
+  assertSingleFocus(records, event);
+  records.set(event.id, transitionedRecord(current, event));
+}
+
+function assertSingleFocus(records, event) {
   if (
     event.status === "in_progress" &&
     [...records.values()].some(
@@ -66,6 +82,9 @@ export function applyEvent(records, event) {
     )
   )
     throw new Error("Only one feedback thread may be in progress.");
+}
+
+function transitionedRecord(current, event) {
   const next = {
     ...current,
     status: event.status,
@@ -86,7 +105,7 @@ export function applyEvent(records, event) {
   if (event.status === "open") {
     next.reopenReason = event.reason;
   }
-  records.set(event.id, freezeRecord(next));
+  return freezeRecord(next);
 }
 
 export function assertTransition(current, next) {

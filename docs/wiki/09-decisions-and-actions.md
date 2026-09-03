@@ -34,3 +34,10 @@ verification as separate records.
 The agent should not ask the user to confirm routine next steps that are already implied by the
 accepted objective. Evidence gathering, implementation judgment, and ordinary verification remain
 agent responsibilities.
+
+Origin 1.0 separates the dashboard review surface from the agent CLI: the agent can provide
+verification and request review, while acceptance, withdrawal, and review-based reopening are absent
+from its public command list. The journal makes that distinction inspectable. Because the dashboard
+and Codex run as the same operating-system user, this prevents accidental authority confusion but is
+not a security defense against a malicious local process. Stronger identity and role enforcement
+belongs to a future multi-user architecture.

@@ -93,12 +93,28 @@ export function validateCreatedRecord(record) {
 }
 
 export function validateEvent(event) {
-  if (!event || event.schemaVersion !== 3 || typeof event.type !== "string")
+  if (!event || event.schemaVersion !== 4 || typeof event.type !== "string")
     throw new Error("Feedback ledger contains an invalid event.");
   if (event.type === "feedback.created") return validateCreatedRecord(event.record);
   normalizeId(event.id);
   if (!validTimestamp(event.at)) throw new Error("Feedback event timestamp is invalid.");
   if (event.type === "feedback.message-added") return validateMessage(event.message);
+  if (event.type === "feedback.message-transitioned") {
+    validateMessage(event.message);
+    const validComposite =
+      (event.message.role === "user" &&
+        event.message.type === "answer" &&
+        event.status === "open") ||
+      (event.message.role === "agent" &&
+        event.message.type === "question" &&
+        event.status === "waiting") ||
+      (event.message.role === "user" &&
+        event.message.type === "review" &&
+        ["resolved", "open", "dismissed"].includes(event.status));
+    if (!validComposite)
+      throw new Error("Feedback message transition is not a valid atomic action.");
+    return validateStatusChange(event);
+  }
   if (event.type === "feedback.interpreted") {
     bounded(event.classification, "Classification", 3, 80);
     bounded(event.interpretation, "Interpretation", 3, 2000);
@@ -111,6 +127,10 @@ export function validateEvent(event) {
   if (event.type === "feedback.heartbeat") return event;
   if (event.type !== "feedback.status-changed")
     throw new Error("Feedback ledger contains an unknown event type.");
+  return validateStatusChange(event);
+}
+
+function validateStatusChange(event) {
   if (!STATUSES.includes(event.status)) throw new Error("Feedback status is unknown.");
   if (event.status === "waiting") bounded(event.reason, "Waiting reason", 5, 1000);
   if (event.status === "ready_for_review")

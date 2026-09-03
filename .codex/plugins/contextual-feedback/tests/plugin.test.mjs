@@ -20,6 +20,7 @@ import {
   listFeedback,
   nextFeedback,
   recoverStaleFeedback,
+  reviewFeedback,
   restoreFeedback,
   transitionFeedback,
   verifyFeedback,
@@ -84,12 +85,16 @@ test("a user answer reopens a waiting thread and wakes active state", () => {
   const answered = addFeedbackMessage(
     root,
     record.id,
-    { role: "user", type: "answer", body: "Use Projects." },
+    { role: "user", type: "comment", body: "Use Projects." },
     { role: "user" },
   );
   assert.equal(answered.status, "open");
   assert.equal(answered.messages.at(-1).type, "answer");
   assert.equal(readAgentState(root).mode, "active");
+  const events = readEvents(root);
+  assert.equal(events.at(-1).type, "feedback.message-transitioned");
+  assert.equal(events.at(-1).message.type, "answer");
+  assert.equal(events.at(-1).status, "open");
 });
 
 test("multiline questions stay in the thread while global Stop state remains injection-safe", () => {
@@ -103,6 +108,10 @@ test("multiline questions stay in the thread while global Stop state remains inj
   assert.match(waiting.messages.at(-1).body, /\n- Projects/);
   assert.doesNotMatch(readAgentState(root).reason, /[\r\n]/);
   assert.equal(readAgentState(root).mode, "waiting");
+  const event = readEvents(root).at(-1);
+  assert.equal(event.type, "feedback.message-transitioned");
+  assert.equal(event.message.type, "question");
+  assert.equal(event.status, "waiting");
 });
 
 test("agent verification requires user acceptance before resolution", () => {
@@ -118,11 +127,32 @@ test("agent verification requires user acceptance before resolution", () => {
   });
   assert.equal(review.status, "ready_for_review");
   assert.equal(readAgentState(root).mode, "waiting");
-  const accepted = transitionFeedback(root, record.id, "resolved", {
+  const accepted = reviewFeedback(root, record.id, "resolved", {
     acceptance: "Accepted by user.",
   });
   assert.equal(accepted.status, "resolved");
   assert.equal(readAgentState(root).mode, "idle");
+  const event = readEvents(root).at(-1);
+  assert.equal(event.type, "feedback.message-transitioned");
+  assert.equal(event.message.type, "review");
+  assert.equal(event.status, "resolved");
+});
+
+test("agent lifecycle operations cannot claim user review authority", () => {
+  const root = fixture();
+  const record = createFeedback(root, input("Keep closure user-owned"));
+  transitionFeedback(root, record.id, "in_progress");
+  transitionFeedback(root, record.id, "ready_for_review", {
+    verification: "Verified the bounded behavior and recorded evidence for user review.",
+  });
+  assert.throws(
+    () => transitionFeedback(root, record.id, "resolved", { acceptance: "Agent accepted." }),
+    /User-owned resolution/,
+  );
+  assert.throws(
+    () => transitionFeedback(root, record.id, "open", { reason: "Agent reopened." }),
+    /User-owned reopening/,
+  );
 });
 
 test("rejection and reopening preserve verification and complete history", () => {
@@ -132,7 +162,7 @@ test("rejection and reopening preserve verification and complete history", () =>
   transitionFeedback(root, record.id, "ready_for_review", {
     verification: "Built the route and verified the page through the browser integration test.",
   });
-  const reopened = transitionFeedback(root, record.id, "open", {
+  const reopened = reviewFeedback(root, record.id, "open", {
     reason: "The user requested a clearer page title.",
   });
   assert.equal(reopened.verification.includes("browser"), true);
@@ -188,7 +218,7 @@ test("hash tampering fails closed and backups restore prior state", () => {
   assert.throws(() => verifyFeedback(root), /integrity check failed/);
 });
 
-test("every emitted event matches the tracked v3 JSON Schema", () => {
+test("every emitted event matches the tracked v4 JSON Schema", () => {
   const root = fixture();
   const record = createFeedback(root, input("Validate the complete lifecycle"));
   interpretFeedback(root, record.id, {
@@ -200,7 +230,7 @@ test("every emitted event matches the tracked v3 JSON Schema", () => {
   transitionFeedback(root, record.id, "ready_for_review", {
     verification: "Validated the emitted event history with the repository JSON Schema.",
   });
-  transitionFeedback(root, record.id, "resolved", { acceptance: "Accepted by user." });
+  reviewFeedback(root, record.id, "resolved", { acceptance: "Accepted by user." });
   const schema = JSON.parse(
     fs.readFileSync(path.resolve(testDirectory, "../data.schema.json"), "utf8"),
   );
@@ -214,3 +244,11 @@ test("every emitted event matches the tracked v3 JSON Schema", () => {
     .map(JSON.parse);
   for (const event of events) assert.equal(validate(event), true, JSON.stringify(validate.errors));
 });
+
+function readEvents(root) {
+  return fs
+    .readFileSync(path.join(root, ".origin", "feedback.jsonl"), "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map(JSON.parse);
+}

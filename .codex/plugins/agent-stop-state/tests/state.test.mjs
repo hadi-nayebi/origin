@@ -36,7 +36,7 @@ test("initial state is explicit idle and active state blocks Stop", () => {
   assert.equal(stopOutcome(root).block, true);
 });
 
-test("pause preserves the exact resume state and resists reconciliation", () => {
+test("pause remains authoritative while reconciliation updates the state that will resume", () => {
   const root = fixture();
   ensureAgentState(root);
   setAgentState(root, {
@@ -47,12 +47,18 @@ test("pause preserves the exact resume state and resists reconciliation", () => 
   });
   const paused = pauseAgent(root, "User requested a deliberate pause.");
   assert.equal(paused.mode, "paused");
-  assert.equal(
-    setAgentState(root, { mode: "idle", reason: "No work.", nextAction: null, reference: null })
-      .mode,
-    "paused",
-  );
-  assert.equal(resumeAgent(root).mode, "active");
+  const reconciled = setAgentState(root, {
+    mode: "active",
+    reason: "New feedback arrived during the pause.",
+    nextAction: "Read the new feedback after the user resumes.",
+    reference: { plugin: "contextual-feedback", id: "feedback-003" },
+  });
+  assert.equal(reconciled.mode, "paused");
+  assert.equal(reconciled.resumeState.mode, "active");
+  assert.equal(reconciled.resumeState.reference.id, "feedback-003");
+  const resumed = resumeAgent(root);
+  assert.equal(resumed.mode, "active");
+  assert.equal(resumed.reference.id, "feedback-003");
 });
 
 test("revision mismatch and corrupt state fail closed", () => {

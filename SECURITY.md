@@ -17,6 +17,13 @@ exposed to a LAN or the public internet.
   Project hooks remain subject to Codex's explicit review-and-trust boundary.
 - Clone-local state is ignored by Git and created with owner-only permissions where the operating
   system supports POSIX modes.
+- Dashboard review and the agent CLI are separate capability surfaces, but both ultimately run under
+  one operating-system account. This prevents accidental authority confusion and creates an audit
+  trail; it cannot defend against a malicious local process with the user's file and loopback
+  access.
+- “Local” describes persistence and serving. When Codex retrieves a feedback thread, its content is
+  processed under the user's configured Codex/OpenAI data path; Origin does not claim that model
+  input remains on-device.
 
 ## Integrity and recovery
 
@@ -25,6 +32,9 @@ envelope, event shape, chronology, and lifecycle. Mutations use a live-process l
 a unique successor, atomically publish it, and retain bounded pre-mutation backups. Wake events are
 claimed through a separate process-safe outbox and retried with bounded backoff. Invalid state fails
 closed. The CLI provides `verify`, `backups`, and explicit `restore` operations.
+
+The hash chain detects corruption and uncoordinated alteration. It is not a cryptographic signature
+against an actor who can rewrite the journal and recompute every hash.
 
 ## Reporting
 

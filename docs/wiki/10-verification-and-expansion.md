@@ -22,6 +22,10 @@ DOM-interaction, Markdown, and accessibility checks through `npm run check`. Its
 contract on Linux, macOS, and Windows; `npm run doctor` diagnoses the local checkout and agent
 command.
 
+The smoke test uses an isolated temporary repository so verification cannot reconstruct or deliver a
+real user's pending `.origin/` work. Real authenticated Codex/tmux behavior remains a separate live
+acceptance contract.
+
 Resolution evidence should name the relevant level and observed result. A link or screenshot may
 help review but does not substitute for an explanation.
 

@@ -32,12 +32,14 @@ Origin is a starting substrate, not a prefabricated agent and not a copy of priv
 - Empty responsive canvas with floating Wiki and Feedback controls.
 - One foreground interactive Codex relationship shared by terminal and dashboard.
 - Repository-scoped tmux session creation, reuse, attachment, and `--resume-last` support.
-- Durable, serialized, verified dashboard-to-Codex wake delivery.
+- Durable, serialized dashboard-to-Codex wake delivery with per-event markers and verified paste and
+  submission evidence.
 - `agent-stop-state`: clone-local `idle`, `active`, `waiting`, and `paused` control with a Stop
   hook.
 - `contextual-feedback`: raw input, page context, thread messages, interpretation, linked work,
   questions, answers, verification, user acceptance, dismissal, and reopening.
-- Sequence-numbered SHA-256 feedback history, atomic writes, backups, and recovery.
+- Sequence-numbered SHA-256 feedback history, atomic lifecycle actions, atomic writes, backups, and
+  recovery.
 - Loopback-only server and local files under ignored `.origin/`.
 - Ten Wiki chapters explaining how dashboards, jobs, OPEVC, plugins, authority, and verification
   grow.
@@ -68,9 +70,15 @@ Agent Stop State hook. Origin does not bypass Codex's trust boundary.
 ## The feedback loop
 
 When feedback arrives, Origin saves the authoritative thread first and then records a wake event.
-The wake prompt contains only a stable feedback ID and route, never the raw body. If Codex is idle,
-the prompt is submitted. If Codex is busy, it is queued without interrupting the current tool call.
-Both dashboard events and direct terminal conversation reach the same interactive Codex session.
+The wake prompt contains only a stable feedback ID, route, and unique delivery marker, never the raw
+body. A successful dashboard save may still show a pending wake. If Codex is idle, the prompt is
+submitted; if Codex is busy, it is queued without interrupting the current tool call. Nonterminal
+wakes are never evicted to limit history, and retry requests attempt delivery immediately. Both
+dashboard events and direct terminal conversation reach the same interactive Codex session.
+
+Every voice explains why its plugin fired, which objective is being protected, where authoritative
+context lives, what kind of work comes next, and what evidence opens the next boundary. See
+[internal voice design](docs/VOICE-DESIGN.md).
 
 ```bash
 npm run feedback -- next
@@ -83,9 +91,12 @@ npm run feedback -- review <id> "What changed and how it was verified"
 npm run agent-state -- get
 ```
 
-The agent may mark work `ready_for_review`; only the dashboard user accepts final resolution. A
-rejection reopens the thread and wakes the same Codex session. Waiting permits Stop only when no
-other runnable feedback remains.
+The agent may mark work `ready_for_review`; the agent CLI does not expose acceptance, dismissal, or
+review-based reopening. Those actions live on the dashboard review surface, are recorded atomically
+with the user's review message, and wake the same Codex session. This is a deliberate capability and
+audit boundary inside one trusted local account—not a security boundary against a malicious process
+running as that operating-system user. Waiting permits Stop only when no other runnable feedback
+remains.
 
 ## Other CLI agents
 

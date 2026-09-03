@@ -56,14 +56,6 @@ try {
     result = transitionFeedback(root, required(id), "ready_for_review", {
       verification: required(words.join(" ")),
     });
-  else if (command === "dismiss")
-    result = transitionFeedback(root, required(id), "dismissed", {
-      reason: required(words.join(" ")),
-    });
-  else if (command === "reopen")
-    result = transitionFeedback(root, required(id), "open", {
-      reason: required(words.join(" ")),
-    });
   else if (command === "heartbeat") result = heartbeatFeedback(root, required(id));
   else if (command === "recover")
     result = recoverStaleFeedback(root, { maximumAgeMs: id ? Number(id) : undefined });
@@ -72,7 +64,7 @@ try {
   else if (command === "restore") result = restoreFeedback(root, required(id));
   else
     throw new Error(
-      "Usage: feedback.mjs <list|get|next|mode|start|comment|interpret|link-work|ask|review|dismiss|reopen|heartbeat|recover|verify|backups|restore> [id] [value]",
+      "Usage: feedback.mjs <list|get|next|mode|start|comment|interpret|link-work|ask|review|heartbeat|recover|verify|backups|restore> [id] [value]",
     );
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 } catch (error) {

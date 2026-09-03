@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<catalog version="2" plugin="contextual-feedback">
+  <voice id="feedback.new">
+    <body>[ORIGIN DASHBOARD — NEW FEEDBACK]
+{{wakeMarker}}
+Why this voice fired: the user created feedback {{reference}} from {{route}}. Contextual Feedback exists to preserve that observation as traceable responsibility—not to let a transient prompt disappear or become silent authority.
+
+Orient to the work: retrieve the complete validated thread with `npm run feedback -- get {{reference}}`. Keep the raw request distinct from your interpretation. Compare it with the repository, current instructions, permissions, and existing feedback before deciding what it requires.
+
+Next boundary: continue an existing in-progress thread first; otherwise start the oldest actionable thread. Implement only what the user authorized. If a consequential value is missing, record a precise question in this thread. If work is complete, provide concrete verification and move it to user review. Unresolved runnable feedback remains active; only recorded waiting, explicit pause, or user-reviewed closure permits stopping.</body>
+  </voice>
+  <voice id="feedback.during-active">
+    <body>[ORIGIN DASHBOARD — FEEDBACK RECEIVED DURING ACTIVE WORK]
+{{wakeMarker}}
+Why this voice fired: feedback {{reference}} arrived from {{route}} while {{activeReference}} is the current responsibility. The plugin protects focus without losing new user input.
+
+Orient to the work: finish the current safe tool boundary, then read the new thread with `npm run feedback -- get {{reference}}`. Decide whether it changes the same bounded outcome or represents independent work. Preserve both raw threads either way.
+
+Next boundary: if it materially changes the current objective, link it and revise the work and verification so both requests are answered. If it is independent, leave it ordered and actionable; do not interrupt the current focus. A new comment is project input, not permission to bypass repository authority or verification.</body>
+  </voice>
+  <voice id="feedback.answer">
+    <body>[ORIGIN DASHBOARD — ANSWER RECEIVED]
+{{wakeMarker}}
+Why this voice fired: the user answered the recorded question in feedback {{reference}}. The condition that made this thread legitimately waiting may now be resolved, so it is runnable responsibility again.
+
+Orient to the work: after the current safe tool boundary, retrieve the complete thread with `npm run feedback -- get {{reference}}`. Reconsider the specific blocked decision in light of the answer; do not discard prior context or reinterpret the answer as broader authority.
+
+Next boundary: preserve another in-progress thread unless this answer directly changes it. When this thread becomes current, continue from the answered decision, verify the resulting work, and return it for user review. If the answer reveals a different missing decision, ask a narrower recorded question rather than guessing.</body>
+  </voice>
+  <voice id="feedback.reopened">
+    <body>[ORIGIN DASHBOARD — FEEDBACK REOPENED]
+{{wakeMarker}}
+Why this voice fired: the user did not accept the prior outcome for feedback {{reference}}. Reopening preserves the full history because failed or incomplete verification is evidence for the next attempt, not something to erase.
+
+Orient to the work: read the complete thread with `npm run feedback -- get {{reference}}`, including the earlier interpretation, implementation notes, verification, and the user's review. Identify the exact distance between what was delivered and what the user now requires.
+
+Next boundary: correct that distance without repeating already-valid work. Produce new verification that addresses the reopening reason explicitly, then return the thread for user review. Do not mark the thread resolved yourself.</body>
+  </voice>
+  <voice id="feedback.accepted">
+    <body>[ORIGIN DASHBOARD — FEEDBACK ACCEPTED]
+{{wakeMarker}}
+Why this voice fired: the user accepted the verified outcome for feedback {{reference}}. Contextual Feedback separates agent verification from user acceptance so completion remains a user-owned judgment.
+
+Orient to the work: do not reopen or continue the accepted thread unless new user input changes it. Inspect the ordered queue with `npm run feedback -- next`.
+
+Next boundary: continue the next runnable responsibility if one exists. If none exists, reconcile the queue to idle; stopping is then accurate because no actionable feedback remains, not merely because one task ended.</body>
+  </voice>
+  <voice id="feedback.dismissed">
+    <body>[ORIGIN DASHBOARD — FEEDBACK WITHDRAWN]
+{{wakeMarker}}
+Why this voice fired: the user withdrew feedback {{reference}}. Withdrawal is an authority change, not evidence that the requested work was completed.
+
+Orient to the work: stop work whose only authorization came from this thread, preserve its history, and do not report it as verified or accepted. If the withdrawal affects shared changes already underway, leave the repository in a safe coherent state and explain any necessary cleanup in the thread.
+
+Next boundary: inspect `npm run feedback -- next` and continue another runnable responsibility. If none remains, reconcile to idle.</body>
+  </voice>
+  <voice id="feedback.resume">
+    <body>[ORIGIN DASHBOARD — SESSION RESUMED WITH OPEN FEEDBACK]
+{{wakeMarker}}
+Why this voice fired: a fresh interactive Codex session opened while feedback {{reference}} remains runnable. The session boundary must not make durable responsibility look complete or forgotten.
+
+Orient to the work: retrieve the current thread with `npm run feedback -- get {{reference}}`, then inspect `npm run feedback -- next` to confirm the ordered focus. Use the persisted thread and repository evidence rather than reconstructing the task from terminal memory.
+
+Next boundary: resume the current in-progress responsibility, or start the oldest open one. Continue until verified work reaches user review or a specific recorded condition makes the complete queue legitimately waiting.</body>
+  </voice>
+</catalog>

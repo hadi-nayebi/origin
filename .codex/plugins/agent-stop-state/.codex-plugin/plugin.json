@@ -1,0 +1,22 @@
+{
+  "name": "agent-stop-state",
+  "version": "1.0.0",
+  "description": "Clone-local agent activity, waiting, pause, and Stop control for Origin.",
+  "author": { "name": "Hadi Nayebi", "url": "https://github.com/hadi-nayebi" },
+  "repository": "https://github.com/hadi-nayebi/origin",
+  "license": "MIT",
+  "keywords": ["codex", "stop-hook", "agent-state", "agent-harness"],
+  "interface": {
+    "displayName": "Origin Agent Stop State",
+    "shortDescription": "Control active, waiting, paused, and idle continuation.",
+    "longDescription": "Own one clone-local state record and provide the fail-closed Codex Stop decision used by Origin plugins.",
+    "developerName": "Hadi Nayebi",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write", "Hooks"],
+    "defaultPrompt": [
+      "Show Origin's current agent state.",
+      "Explain why Origin may or may not stop."
+    ],
+    "brandColor": "#C9F27B"
+  }
+}

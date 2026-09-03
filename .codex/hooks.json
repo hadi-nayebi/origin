@@ -1,0 +1,17 @@
+{
+  "description": "Origin host registration for the clone-local Agent Stop State gate.",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/plugins/agent-stop-state/hooks/stop.mjs\"",
+            "timeout": 5,
+            "statusMessage": "Checking Origin agent state"
+          }
+        ]
+      }
+    ]
+  }
+}

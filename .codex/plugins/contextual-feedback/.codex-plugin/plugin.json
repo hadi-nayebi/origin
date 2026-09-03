@@ -1,0 +1,22 @@
+{
+  "name": "contextual-feedback",
+  "version": "1.0.0",
+  "description": "Turns page-aware feedback into durable user-agent conversation and reviewed work.",
+  "author": { "name": "Hadi Nayebi", "url": "https://github.com/hadi-nayebi" },
+  "repository": "https://github.com/hadi-nayebi/origin",
+  "license": "MIT",
+  "keywords": ["codex", "dashboard", "feedback", "agent-harness"],
+  "interface": {
+    "displayName": "Origin Contextual Feedback",
+    "shortDescription": "Turn dashboard feedback into reviewed agent responsibility.",
+    "longDescription": "Preserve contextual feedback threads, questions, interpretations, linked work, verification, acceptance, and reopening while coordinating Origin's global stop-state plugin.",
+    "developerName": "Hadi Nayebi",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write", "Hooks"],
+    "defaultPrompt": [
+      "Show the next unresolved dashboard feedback.",
+      "Continue the focused Origin feedback record."
+    ],
+    "brandColor": "#C9F27B"
+  }
+}

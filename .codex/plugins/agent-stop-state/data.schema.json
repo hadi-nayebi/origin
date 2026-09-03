@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hadi-nayebi.github.io/origin/schemas/agent-stop-state-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "mode",
+    "reason",
+    "nextAction",
+    "reference",
+    "resumeState",
+    "revision",
+    "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "mode": { "enum": ["idle", "active", "waiting", "paused"] },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$"
+    },
+    "nextAction": {
+      "type": ["string", "null"],
+      "maxLength": 500,
+      "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$"
+    },
+    "reference": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["plugin", "id"],
+          "properties": {
+            "plugin": { "type": "string", "pattern": "^[a-z0-9-]{2,64}$" },
+            "id": { "type": "string", "pattern": "^[A-Za-z0-9-]{3,128}$" }
+          }
+        }
+      ]
+    },
+    "resumeState": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "reason", "nextAction", "reference"],
+          "properties": {
+            "mode": { "enum": ["idle", "active", "waiting"] },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$"
+            },
+            "nextAction": {
+              "type": ["string", "null"],
+              "maxLength": 500,
+              "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]+$"
+            },
+            "reference": { "$ref": "#/$defs/reference" }
+          }
+        }
+      ]
+    },
+    "revision": { "type": "integer", "minimum": 0 },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "reference": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["plugin", "id"],
+          "properties": {
+            "plugin": { "type": "string", "pattern": "^[a-z0-9-]{2,64}$" },
+            "id": { "type": "string", "pattern": "^[A-Za-z0-9-]{3,128}$" }
+          }
+        }
+      ]
+    }
+  }
+}

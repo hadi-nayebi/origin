@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<catalog version="2" plugin="agent-stop-state">
+  <voice id="stop.active">
+    <body>[ORIGIN AGENT STATE — ACTIVE]
+Why this gate fired: Codex is attempting to stop while Origin still records runnable user responsibility. Agent Stop State exists to prevent unfinished work from disappearing merely because a response boundary was reached.
+
+Stopping is blocked because the complete queue remains active.
+
+Current evidence: {{reason}}
+Owning reference: {{reference}}
+Next valid boundary: {{nextAction}}
+
+Reorient before acting: retrieve the owning record through its public plugin interface, continue the current bounded objective, and leave inspectable progress. Do not merely repeat this message or force the state to idle. If useful progress truly depends on user input, permission, or an external event, record the exact condition through the owning plugin; if implementation is complete, record concrete verification and request user review. Stop becomes valid only after the complete queue reconciles to waiting, paused, or idle.</body>
+  </voice>
+  <voice id="stop.waiting">
+    <body>[ORIGIN AGENT STATE — WAITING]
+Why stopping is allowed: every remaining responsibility is blocked on a specific recorded condition, so continued generation would create motion without legitimate progress.
+
+Current evidence: {{reason}}
+Owning reference: {{reference}}
+Resume boundary: {{nextAction}}
+
+Preserve the thread and stop cleanly. Do not invent the missing answer, broaden authority, or call waiting completion. A dashboard answer or other recorded condition change will make the responsibility runnable and wake this interactive session again.</body>
+  </voice>
+  <voice id="stop.paused">
+    <body>[ORIGIN AGENT STATE — PAUSED]
+Why stopping is allowed: the user explicitly interrupted Origin. Human control outranks the harness's preference to continue, and a pause must remain distinct from completion.
+
+Pause record: {{reason}}
+Preserved reference: {{reference}}
+
+Stop without resolving, dismissing, or rewriting pending responsibility. New feedback may update what should resume, but it does not override the pause. Continue only after an explicit user resume; the complete queue will then be reconciled before work proceeds.</body>
+  </voice>
+  <voice id="stop.idle">
+    <body>[ORIGIN AGENT STATE — IDLE]
+Why stopping is allowed: the owning plugins report no runnable responsibility, no recorded wait requiring this session to remain active, and no unresolved review action for Codex. Idle is a derived absence of work—not a status to claim in order to exit.</body>
+  </voice>
+</catalog>

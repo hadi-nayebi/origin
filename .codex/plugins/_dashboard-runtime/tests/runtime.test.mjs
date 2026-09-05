@@ -167,7 +167,7 @@ test("a pending paste behind an existing queue stays retryable in the outbox", a
     "Working (42) · esc to interrupt\nMessages to be submitted after next tool call\n› ";
   const pending = `${before}[Pasted Content ${wake.prompt.length} chars]`;
   await deliverPendingWakes(root, {
-    run: fakeRun(root, { capture: [before, ...Array(13).fill(pending)] }),
+    run: fakeRun(root, { capture: [before], captureFallback: pending }),
     wait: () => {},
   });
   assert.equal(wakeStatus(root).last.status, "retrying");
@@ -608,7 +608,8 @@ test("combined launcher switches an existing tmux client into the repository ses
 });
 
 function fakeRun(root, options = {}) {
-  const captures = [...(options.capture || ["idle"]), "idle"];
+  const captures = [...(options.capture || ["idle"])];
+  const captureFallback = options.captureFallback || "idle";
   const calls = [];
   const run = (command, args) => {
     calls.push({ command, args });
@@ -620,7 +621,11 @@ function fakeRun(root, options = {}) {
       };
     if (command === "ps") return { status: 0, stdout: "101 1 codex\n", stderr: "" };
     if (command === "tmux" && args[0] === "capture-pane")
-      return { status: 0, stdout: captures.shift(), stderr: "" };
+      return {
+        status: 0,
+        stdout: captures.length ? captures.shift() : captureFallback,
+        stderr: "",
+      };
     return { status: 0, stdout: "", stderr: "" };
   };
   run.calls = calls;

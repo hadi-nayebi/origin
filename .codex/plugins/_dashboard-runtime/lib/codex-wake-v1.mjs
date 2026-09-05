@@ -107,10 +107,11 @@ export function editorPending(value, marker, options = {}) {
 }
 
 export function submissionAccepted({ value, marker, wasBusy, before, promptLength }) {
+  const queued = /Messages to be submitted after next tool call/i;
   return (
     !editorPending(value, marker, { before, promptLength }) ||
     (!wasBusy && codexIsBusy(value)) ||
-    (wasBusy && /Messages to be submitted after next tool call/i.test(String(value)))
+    (wasBusy && queued.test(String(value)) && !queued.test(String(before || "")))
   );
 }
 

@@ -136,6 +136,45 @@ test("wake outbox persists before delivery and records success", async () => {
   assert.equal(wakeStatus(root).last.status, "delivered");
 });
 
+test("an existing queue banner cannot acknowledge a newly pending wake", () => {
+  const root = fixture();
+  const marker = "[ORIGIN WAKE new-event]";
+  const before =
+    "Working (42) · esc to interrupt\nMessages to be submitted after next tool call\n› ";
+  const pending = `${before}${marker}`;
+  assert.equal(editorPending(pending, marker, { before }), true);
+  assert.equal(submissionAccepted({ value: pending, marker, wasBusy: true, before }), false);
+  const run = fakeRun(root, { capture: [before, pending, pending, `${pending}\n› `] });
+  const result = deliverCodexWake(root, { marker, prompt: marker }, { run, wait: () => {} });
+  assert.equal(result.state, "queued-without-interruption");
+  assert.equal(run.calls.filter((call) => call.args[0] === "send-keys").length, 2);
+  assert.equal(
+    run.calls.some((call) => call.args.includes("C-c")),
+    false,
+  );
+});
+
+test("a pending paste behind an existing queue stays retryable in the outbox", async () => {
+  const root = fixture();
+  const record = createFeedback(root, {
+    kind: "bug",
+    body: "Preserve delivery responsibility",
+    pagePath: "/",
+    pageLabel: "Origin canvas",
+  });
+  const wake = enqueueWake(root, { kind: "feedback.new", reference: record.id, route: "/" });
+  const before =
+    "Working (42) · esc to interrupt\nMessages to be submitted after next tool call\n› ";
+  const pending = `${before}[Pasted Content ${wake.prompt.length} chars]`;
+  await deliverPendingWakes(root, {
+    run: fakeRun(root, { capture: [before, ...Array(13).fill(pending)] }),
+    wait: () => {},
+  });
+  assert.equal(wakeStatus(root).last.status, "retrying");
+  assert.equal(wakeStatus(root).pending, 1);
+  assert.match(wakeStatus(root).last.error, /could not verify its submission/);
+});
+
 test("every feedback wake voice renders a bounded pointer without the raw body", () => {
   const root = fixture();
   const rawBody = "A private-looking user sentence that must stay in the ledger";

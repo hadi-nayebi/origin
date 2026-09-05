@@ -14,7 +14,9 @@ feedback exists but no wake is pending.
 
 The runtime does not write cognitive instructions. It renders the voice owned by Contextual
 Feedback, adds transport evidence, and records whether the specific prompt was pasted and submitted.
-See `docs/VOICE-DESIGN.md` at the repository root.
+An existing queued-message banner is not submission evidence for a new wake. If the new paste
+remains pending, delivery keeps trying bounded submission and leaves failure retryable in the
+outbox. See `docs/VOICE-DESIGN.md` at the repository root.
 
 The runtime deliberately fails when Codex, Codex authentication, or tmux is unavailable. On Windows,
 run Origin inside WSL2.

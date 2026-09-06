@@ -252,6 +252,46 @@ test("failed delivery is durable and retryable", async () => {
   assert.equal(wakeStatus(root).last.attempts, 2);
 });
 
+test("validation failures preserve wake delivery responsibility", async () => {
+  for (const corruptFile of ["feedback.jsonl", "agent-stop-state/data.json"]) {
+    const root = fixture();
+    const record = createFeedback(root, {
+      kind: "bug",
+      body: "Preserve this wake until durable state can be recovered",
+      pagePath: "/",
+      pageLabel: "Origin canvas",
+    });
+    enqueueWake(root, { kind: "feedback.new", reference: record.id, route: "/" });
+    const authoritativeFile = path.join(root, ".origin", corruptFile);
+    const authoritativeSource = fs.readFileSync(authoritativeFile, "utf8");
+    fs.writeFileSync(authoritativeFile, "{corrupt}\n");
+    let called = false;
+    await deliverPendingWakes(root, {
+      now: new Date("2030-01-01T00:00:00Z"),
+      deliver: async () => {
+        called = true;
+      },
+    });
+    const status = wakeStatus(root);
+    assert.equal(called, false);
+    assert.equal(status.pending, 1);
+    assert.equal(status.last.status, "retrying");
+    assert.equal(status.last.attempts, 1);
+    assert.match(status.last.error, /Wake validation deferred: .*corrupt/i);
+
+    fs.writeFileSync(authoritativeFile, authoritativeSource);
+    await deliverPendingWakes(root, {
+      now: new Date("2030-01-01T00:01:00Z"),
+      deliver: async () => {
+        called = true;
+        return { state: "submitted", transport: "tmux" };
+      },
+    });
+    assert.equal(called, true);
+    assert.equal(wakeStatus(root).last.status, "delivered");
+  }
+});
+
 test("outbox never evicts nonterminal wakes when terminal history is bounded", () => {
   const root = fixture();
   const record = createFeedback(root, {

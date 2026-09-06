@@ -54,5 +54,8 @@ intentional security boundary.
 - `.origin/feedback.jsonl` is the authoritative feedback journal.
 - `.origin/agent-stop-state/data.json` is the current global continuation state.
 
+If feedback or agent state fails validation, pending wakes remain retryable rather than being
+cancelled. Recover the authoritative file first, then run `npm run wake`.
+
 Do not delete `.origin/` to repair a transport failure. The journal and state are user-owned local
 history; inspect and back them up first.

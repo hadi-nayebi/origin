@@ -111,6 +111,19 @@ export async function retryWakeDelivery(root, options = {}) {
   const timer = timers.get(key);
   if (timer) clearTimeout(timer);
   timers.delete(key);
+  const now = options.clock ? options.clock() : options.now || new Date();
+  mutateOutbox(root, (events) => {
+    for (const event of events) {
+      if (
+        ["pending", "retrying"].includes(event.status) &&
+        event.nextAttemptAt > now.toISOString()
+      ) {
+        event.nextAttemptAt = now.toISOString();
+        event.updatedAt = now.toISOString();
+      }
+    }
+    return events;
+  });
   const status = await deliverPendingWakes(root, options);
   if (status.pending > 0) scheduleWakeDelivery(root, options);
   return status;

@@ -354,6 +354,15 @@ test("manual retry cancels scheduled backoff and attempts delivery immediately",
   });
   enqueueWake(root, { kind: "feedback.new", reference: record.id, route: "/" });
   let calls = 0;
+  const now = new Date("2030-01-01T00:00:00Z");
+  await deliverPendingWakes(root, {
+    now,
+    deliver: async () => {
+      calls += 1;
+      throw new Error("tmux is temporarily unavailable");
+    },
+  });
+  assert.equal(wakeStatus(root).last.status, "retrying");
   scheduleWakeDelivery(root, {
     delayMs: 60_000,
     deliver: async () => {
@@ -362,12 +371,13 @@ test("manual retry cancels scheduled backoff and attempts delivery immediately",
     },
   });
   const result = await retryWakeDelivery(root, {
+    now,
     deliver: async () => {
       calls += 1;
       return { state: "submitted", transport: "tmux" };
     },
   });
-  assert.equal(calls, 1);
+  assert.equal(calls, 2);
   assert.equal(result.pending, 0);
   assert.equal(result.last.status, "delivered");
 });

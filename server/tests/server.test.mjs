@@ -66,7 +66,10 @@ test("local API captures feedback, persists a wake, and exposes global state", a
 });
 
 test("development HTML authorizes Vite tags without relaxing production policy", async (context) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "origin-dev-csp-"));
+  // Windows' short-name TEMP path can disagree with Vite's canonical allow list.
+  // Keep this Vite fixture in the same clone-local runtime area as the dashboard.
+  fs.mkdirSync(path.join(repositoryRoot, ".origin"), { recursive: true });
+  const root = fs.mkdtempSync(path.join(repositoryRoot, ".origin", "dev-csp-"));
   fs.writeFileSync(
     path.join(root, "index.html"),
     '<!doctype html><html><head></head><body><script type="module">window.originReady = true;</script></body></html>',
@@ -74,6 +77,7 @@ test("development HTML authorizes Vite tags without relaxing production policy",
   const server = await startOriginServer({ root, port: 0, dev: true, deliverWakes: false });
   context.after(() => server.close());
   const response = await fetch(`http://127.0.0.1:${server.address().port}`);
+  assert.equal(response.status, 200);
   const policy = response.headers.get("content-security-policy");
   const nonce = policy.match(/'nonce-([^']+)'/)?.[1];
   assert.ok(nonce, "development responses need an explicit script/style nonce");

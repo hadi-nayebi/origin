@@ -24,3 +24,13 @@ runs inside WSL2.
 
 `npm run acceptance:codex` is the real machine transport check. The complete human/agent lifecycle
 is documented in [`CODEX-ACCEPTANCE.md`](CODEX-ACCEPTANCE.md).
+
+Development-server checks also exercise Vite's HTML transformation and its matching CSP nonce.
+Development permits nonce-bearing startup scripts/styles and loopback WebSocket hot reload;
+production retains its self-only policy. A served HTML shell or passing production build alone does
+not establish that the normal development dashboard renders in a browser.
+
+After `npm run build`, install Chromium with `npx playwright install chromium` and run
+`npm run test:browser`. This checks development and production rendering, Wiki navigation,
+page-aware feedback, question/answer, user acceptance and mobile width in isolated local state with
+tmux delivery disabled. Linux CI runs it. It does not replace authenticated Codex/hook acceptance.

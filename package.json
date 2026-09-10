@@ -28,6 +28,7 @@
     "test": "node --test .codex/plugins/agent-stop-state/tests/*.test.mjs .codex/plugins/contextual-feedback/tests/*.test.mjs .codex/plugins/_dashboard-runtime/tests/*.test.mjs server/tests/*.test.mjs scripts/tests/*.test.mjs",
     "test:coverage": "node --experimental-test-coverage --test-coverage-lines=85 --test-coverage-branches=65 --test-coverage-functions=80 --test-coverage-include=.codex/plugins/agent-stop-state/lib/**/*.mjs --test-coverage-include=.codex/plugins/agent-stop-state/hooks/**/*.mjs --test-coverage-include=.codex/plugins/contextual-feedback/lib/**/*.mjs --test-coverage-include=.codex/plugins/_dashboard-runtime/lib/**/*.mjs --test-coverage-include=server/**/*.mjs --test .codex/plugins/agent-stop-state/tests/*.test.mjs .codex/plugins/contextual-feedback/tests/*.test.mjs .codex/plugins/_dashboard-runtime/tests/*.test.mjs server/tests/*.test.mjs scripts/tests/*.test.mjs",
     "test:ui": "vitest run",
+    "test:browser": "node scripts/browser-smoke.mjs",
     "lint": "eslint \"**/*.{js,mjs}\"",
     "format:check": "prettier --check .",
     "check": "npm run lint && npm run format:check && npm run test:coverage && npm run test:ui && npm run build && npm run smoke",
@@ -62,6 +63,7 @@
     "eslint": "10.9.1",
     "globals": "17.12.0",
     "jsdom": "30.0.1",
+    "playwright": "1.62.1",
     "prettier": "3.9.6",
     "typescript": "7.0.2",
     "vitest": "4.1.11"

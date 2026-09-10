@@ -101,7 +101,7 @@ function EmptyCanvas() {
   return (
     <section className="empty-canvas" aria-labelledby="canvas-title">
       <div className="empty-message">
-        <p className="eyebrow">A Hadosh Academy base dashboard</p>
+        <p className="eyebrow">Hadosh Academy Origin</p>
         <h1 id="canvas-title">Ready to become yours.</h1>
         <p>Ask your agent to shape the first page, or leave feedback to begin.</p>
       </div>
@@ -112,6 +112,7 @@ function EmptyCanvas() {
 function Wiki({ slug, navigate }: { slug?: string; navigate: (surface: Surface) => void }) {
   const [chapters, setChapters] = useState<WikiChapter[]>([]);
   const [chapter, setChapter] = useState<(WikiChapter & { content: string }) | null>(null);
+  const [loading, setLoading] = useState(Boolean(slug));
   const [error, setError] = useState("");
   useEffect(() => {
     api
@@ -122,8 +123,9 @@ function Wiki({ slug, navigate }: { slug?: string; navigate: (surface: Surface) 
   useEffect(() => {
     let current = true;
     setError("");
+    setChapter(null);
+    setLoading(Boolean(slug));
     if (!slug) {
-      setChapter(null);
       return () => {
         current = false;
       };
@@ -131,10 +133,16 @@ function Wiki({ slug, navigate }: { slug?: string; navigate: (surface: Surface) 
     api
       .chapter(slug)
       .then((value) => {
-        if (current) setChapter(value);
+        if (current) {
+          setChapter(value);
+          setLoading(false);
+        }
       })
       .catch((error: Error) => {
-        if (current) setError(error.message);
+        if (current) {
+          setError(error.message);
+          setLoading(false);
+        }
       });
     return () => {
       current = false;
@@ -172,6 +180,8 @@ function Wiki({ slug, navigate }: { slug?: string; navigate: (surface: Surface) 
           <p className="error" role="alert">
             {error}
           </p>
+        ) : loading ? (
+          <p role="status">Loading chapter…</p>
         ) : chapter ? (
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{chapter.content}</ReactMarkdown>
         ) : (
@@ -389,6 +399,11 @@ function FeedbackRecordCard({
   const [detail, setDetail] = useState("");
   const [message, setMessage] = useState("");
   const [updating, setUpdating] = useState(false);
+  const needsAttention = ["waiting", "ready_for_review"].includes(record.status);
+  const [expanded, setExpanded] = useState(needsAttention);
+  useEffect(() => {
+    if (needsAttention) setExpanded(true);
+  }, [needsAttention]);
   const run = async (operation: () => Promise<unknown>, success: string) => {
     if (updating) return;
     setUpdating(true);
@@ -430,7 +445,6 @@ function FeedbackRecordCard({
       () => api.transitionFeedback(record.id, { status: "dismissed", reason: detail }),
       "Withdrawal saved and wake queued.",
     );
-  const needsAttention = ["waiting", "ready_for_review"].includes(record.status);
   return (
     <article className={`feedback-record ${needsAttention ? "needs-attention" : ""}`}>
       <div className="record-meta">
@@ -449,7 +463,7 @@ function FeedbackRecordCard({
           <strong>Verification:</strong> {record.verification}
         </p>
       )}
-      <details open={needsAttention || undefined}>
+      <details open={expanded} onToggle={(event) => setExpanded(event.currentTarget.open)}>
         <summary>Thread and review</summary>
         <div className="thread">
           {record.messages.map((item) => (

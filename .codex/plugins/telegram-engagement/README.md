@@ -89,3 +89,8 @@ quality.
 Text and voice input create the same responsibility. All outgoing conversational replies currently
 require local voice readiness. Missing models or a failed render remain a visible pending item;
 there is no silent paid or text-only fallback.
+
+Speech chunks default to 300 characters; `speechChunkChars` can be set from 48 to 900. A CUDA device
+with insufficient free memory records `GPU_BUSY` and retries after a delay, without interrupting
+other applications. CPU remains the portable default. GPU memory requirements vary with model,
+sample and reply length.

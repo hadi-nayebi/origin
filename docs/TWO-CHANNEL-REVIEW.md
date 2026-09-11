@@ -87,3 +87,18 @@ Automated evidence at this stage: Node lifecycle/transport/API regressions, Reac
 build/smoke, plugin manifest validation and Python syntax checking. The final head's exact test
 counts and CI results are recorded in the PR handoff. These checks use fake Telegram/model
 boundaries unless explicitly labeled otherwise.
+
+## Additional live-test iteration — GPU contention
+
+A real local Qwen render succeeded, then an attempted longer reply encountered a GPU already
+occupied by a separate application. No message from that failed attempt was sent, and the
+pre-existing bot consumer was restored. This exposed a resource-handling gap beyond the five
+automated review passes.
+
+The worker now checks free CUDA memory before loading, reports a retryable `GPU_BUSY` state,
+releases its own failed allocations after an out-of-memory error, and uses SDPA attention. Speech
+chunks default to 300 characters. It never interrupts another application's GPU process. The
+portable CPU path produced a real cloned-voice render with local ASR alignment 1.0; the voice and a
+neutral attachment were delivered through the actual Bot API using private test binding. Incoming
+owner voice/review and authenticated interactive hook trust remain separate acceptance checks. No
+bot identity, token, sample or model is published.

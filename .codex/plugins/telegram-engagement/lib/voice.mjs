@@ -55,7 +55,13 @@ export class LocalVoice {
       clearTimeout(item.timer);
       this.pending.delete(value.id);
       if (value.ok) item.resolve(value.result);
-      else item.reject(new Error(`Local voice processing failed: ${value.error}`));
+      else
+        item.reject(
+          Object.assign(
+            new Error(`Local voice processing failed: ${value.error}`),
+            value.error?.startsWith("GPU_BUSY:") ? { retryAfter: 30 } : {},
+          ),
+        );
     });
     const fail = () => {
       if (this.child !== child) return;

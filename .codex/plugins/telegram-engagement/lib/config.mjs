@@ -37,6 +37,13 @@ export function loadConfig(root) {
       ))
   )
     throw new Error("Pronunciation overrides must map nonempty text to nonempty spoken text.");
+  if (
+    config.speechChunkChars !== undefined &&
+    (!Number.isInteger(config.speechChunkChars) ||
+      config.speechChunkChars < 48 ||
+      config.speechChunkChars > 900)
+  )
+    throw new Error("speechChunkChars must be between 48 and 900.");
   return { ...config, token };
 }
 export function validateToken(value) {
@@ -56,5 +63,6 @@ export function defaults() {
     device: "cpu",
     maxMediaBytes: 20 * 1024 * 1024,
     voiceRequired: true,
+    speechChunkChars: 300,
   };
 }

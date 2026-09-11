@@ -35,10 +35,14 @@ class Speech:
         import soundfile as sf
         import torch
         if self.tts is None:
+            if self.config.get("device", "cpu").startswith("cuda"):
+                free, _total = torch.cuda.mem_get_info(self.config.get("device", "cuda"))
+                if free < 2300 * 1024 * 1024:
+                    raise RuntimeError("GPU_BUSY: leave other workloads alone and retry when memory is available, or choose cpu")
             from qwen_tts import Qwen3TTSModel
             device = self.config.get("device", "cpu")
             self.tts = Qwen3TTSModel.from_pretrained(str(self.root / "models/qwen"), device_map=device,
-                        dtype=torch.float32 if device == "cpu" else torch.bfloat16, local_files_only=True)
+                        dtype=torch.float32 if device == "cpu" else torch.bfloat16, attn_implementation="sdpa", local_files_only=True)
         sample = self.root / "voice/reference.wav"
         reference_text = (self.root / "voice/reference.txt").read_text().strip()
         if self.prompt is None:
@@ -102,8 +106,17 @@ def main():
                 else: raise ValueError("Unknown speech operation")
             response = {"id": request["id"], "ok": True, "result": result}
         except Exception as error:
+            gpu_busy = str(error).startswith("GPU_BUSY:") or type(error).__name__ == "OutOfMemoryError"
+            if type(error).__name__ == "OutOfMemoryError":
+                # Release this worker's failed model/cache, never another process.
+                import gc
+                import torch
+                speech.tts = speech.prompt = None
+                error.__traceback__ = None
+                gc.collect()
+                torch.cuda.empty_cache()
             # Do not expose user speech or internal provider request objects.
-            response = {"id": request.get("id"), "ok": False, "error": type(error).__name__ + ": check local models, sample, FFmpeg and speech configuration"}
+            response = {"id": request.get("id"), "ok": False, "error": ("GPU_BUSY: retry when GPU memory is available or configure cpu" if gpu_busy else type(error).__name__ + ": check local models, sample, FFmpeg and speech configuration")}
         print(json.dumps(response), flush=True)
 
 

@@ -31,7 +31,7 @@
     "test:browser": "node scripts/browser-smoke.mjs",
     "lint": "eslint \"**/*.{js,mjs}\"",
     "format:check": "prettier --check .",
-    "check": "npm run lint && npm run format:check && npm run test:coverage && npm run test:ui && npm run build && npm run smoke",
+    "check": "npm run lint && npm run format:check && npm run test:coverage && npm run test:voice && npm run test:ui && npm run build && npm run smoke",
     "smoke": "node scripts/smoke.mjs",
     "feedback": "node .codex/plugins/contextual-feedback/scripts/feedback.mjs",
     "agent-state": "node .codex/plugins/agent-stop-state/scripts/state.mjs",
@@ -40,7 +40,8 @@
     "doctor": "node scripts/doctor.mjs",
     "setup": "node scripts/install.mjs",
     "telegram": "node .codex/plugins/telegram-engagement/scripts/telegram.mjs",
-    "origin:remote": "node .codex/plugins/_dashboard-runtime/scripts/start-harness.mjs --telegram-only"
+    "origin:remote": "node .codex/plugins/_dashboard-runtime/scripts/start-harness.mjs --telegram-only",
+    "test:voice": "node scripts/test-voice.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "6.1.1",

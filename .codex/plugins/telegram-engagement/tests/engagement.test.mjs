@@ -553,3 +553,31 @@ test("owner can withdraw a remote request without representing it as accepted", 
   assert.equal(getFeedback(scope, thread.id).acceptance, null);
   assert.match(readTransport(root).callbackReceipts[991], /Withdrawn/);
 });
+
+test("a later speech chunk failure sends no partial conversation and retains earlier renders", async (t) => {
+  const root = fixture(t);
+  const thread = request(scopeFor(root));
+  const item = queueReply(root, thread.id, "A bounded sentence for this test. ".repeat(30));
+  let renders = 0;
+  let sends = 0;
+  await assert.rejects(
+    deliverReply(
+      root,
+      config,
+      {
+        sendFile: async () => {
+          sends++;
+        },
+      },
+      {
+        render: async () => {
+          if (++renders === 2) throw new Error("GPU_BUSY");
+        },
+      },
+      item,
+    ),
+  );
+  assert.equal(sends, 0);
+  assert.equal(readTransport(root).outbox[item.id].chunks[0].status, "rendered");
+  assert.equal(readTransport(root).outbox[item.id].chunks[1].status, "prepared");
+});

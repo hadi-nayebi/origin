@@ -148,12 +148,14 @@ export async function deliverReply(root, config, api, voice, original) {
     return;
   }
   if (!item.chunks.length) {
-    const chunks = captionChunks(item.text).map((caption, index) => ({
-      caption,
-      index,
-      status: "prepared",
-      file: path.join(directory(root), "outbound", item.id, `${index}.ogg`),
-    }));
+    const chunks = captionChunks(item.text, config.speechChunkChars || 300).map(
+      (caption, index) => ({
+        caption,
+        index,
+        status: "prepared",
+        file: path.join(directory(root), "outbound", item.id, `${index}.ogg`),
+      }),
+    );
     updateTransport(root, (s) => {
       s.outbox[item.id].chunks = chunks;
     });

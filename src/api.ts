@@ -40,18 +40,36 @@ export const api = {
       `/api/feedback/${encodeURIComponent(id)}/messages`,
       { method: "POST", body: JSON.stringify({ body }) },
     ),
+  attachMaterial: (id: string, file: File) =>
+    request<{ record: FeedbackRecord; delivery: DeliveryStatus }>(
+      `/api/feedback/${encodeURIComponent(id)}/materials`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/octet-stream",
+          "X-Origin-File-Name": encodeURIComponent(file.name),
+        },
+        body: file,
+      },
+    ),
   transitionFeedback: (
     id: string,
     input: {
       status: Extract<FeedbackStatus, "resolved" | "open" | "dismissed">;
       reason?: string;
       acceptance?: string;
+      expectedVersion?: string;
     },
   ) =>
     request<{ record: FeedbackRecord; delivery: DeliveryStatus }>(
       `/api/feedback/${encodeURIComponent(id)}`,
       { method: "PATCH", body: JSON.stringify(input) },
     ),
+  controlFeedback: (action: "pause" | "resume") =>
+    request<{ outcome: AgentState; delivery: DeliveryStatus }>("/api/feedback/control", {
+      method: "POST",
+      body: JSON.stringify({ action }),
+    }),
   wakeFeedback: () =>
     request<{ delivery: DeliveryStatus }>("/api/feedback/wake", {
       method: "POST",

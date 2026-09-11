@@ -14,7 +14,13 @@ import {
   reviewFeedbackMutation,
   verifyFeedback,
 } from "../.codex/plugins/_engagement-core/lib/service.mjs";
-import { ensureAgentState, stopOutcome } from "../.codex/plugins/_engagement-core/lib/state.mjs";
+import {
+  ensureAgentState,
+  stopOutcome,
+  pauseAgent,
+  resumeAgent,
+  readAgentState,
+} from "../.codex/plugins/_engagement-core/lib/state.mjs";
 import {
   enqueueFeedbackWake,
   hasFeedbackWakeForEvent,
@@ -23,6 +29,12 @@ import {
   wakeStatus,
 } from "../.codex/plugins/_dashboard-runtime/lib/wake-outbox.mjs";
 import { runtimeInstanceId } from "../.codex/plugins/_dashboard-runtime/lib/runtime-control.mjs";
+
+import {
+  attachMaterial,
+  materialForThread,
+  threadView,
+} from "../.codex/plugins/_engagement-core/lib/materials.mjs";
 
 const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -66,7 +78,7 @@ export async function createOriginApp(options = {}) {
   app.get("/api/feedback", (_request, response, next) => {
     try {
       response.json({
-        records: listFeedback(root),
+        records: listFeedback(root).map((record) => threadView(root, record)),
         feedbackMode: feedbackMode(root),
         outcome: stopOutcome(root),
         delivery: wakeStatus(root),
@@ -98,6 +110,22 @@ export async function createOriginApp(options = {}) {
       });
       if (options.deliverWakes !== false) scheduleWakeDelivery(root, options.wakeOptions);
       response.status(201).json({ record, wake, delivery: wakeStatus(root) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/feedback/control", (request, response, next) => {
+    try {
+      requireJson(request);
+      if (request.body?.action === "pause") pauseAgent(root, "Paused by the dashboard owner.");
+      else if (request.body?.action === "resume") {
+        reconcileAgentState(root);
+        if (readAgentState(root).mode === "paused") resumeAgent(root);
+        ensureRunnableWakeCoverage(root);
+        if (options.deliverWakes !== false) scheduleWakeDelivery(root, options.wakeOptions);
+      } else throw new Error("Invalid dashboard channel control.");
+      response.json({ outcome: stopOutcome(root), delivery: wakeStatus(root) });
     } catch (error) {
       next(error);
     }
@@ -172,13 +200,50 @@ export async function createOriginApp(options = {}) {
     }
   });
 
+  app.post(
+    "/api/feedback/:id/materials",
+    express.raw({ type: "application/octet-stream", limit: "20mb" }),
+    (request, response, next) => {
+      try {
+        if (!request.is("application/octet-stream"))
+          throw new Error("Content-Type application/octet-stream is required.");
+        const name = decodeURIComponent(String(request.headers["x-origin-file-name"] || ""));
+        const { record, event } = attachMaterial(root, request.params.id, name, request.body);
+        const wake = enqueueFeedbackWake(root, {
+          kind: event.message.type === "answer" ? "feedback.answer" : "feedback.during-active",
+          reference: record.id,
+          route: record.pagePath,
+          activeReference: record.id,
+          sourceEventHash: event.hash,
+          sourceSequence: event.sequence,
+        });
+        if (options.deliverWakes !== false) scheduleWakeDelivery(root, options.wakeOptions);
+        response
+          .status(201)
+          .json({ record: threadView(root, record), wake, delivery: wakeStatus(root) });
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+  app.get("/api/feedback/:id/materials/:material", (request, response, next) => {
+    try {
+      const material = materialForThread(root, request.params.id, request.params.material);
+      response.attachment(material.name).type("application/octet-stream").send(material.bytes);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.patch("/api/feedback/:id", (request, response, next) => {
     try {
       requireJson(request);
-      const { status, reason, acceptance } = request.body || {};
+      const { status, reason, acceptance, expectedVersion } = request.body || {};
+      if (!/^[a-f0-9]{64}$/.test(expectedVersion || ""))
+        throw new Error("A current thread version is required; refresh before reviewing.");
       if (!["resolved", "open", "dismissed"].includes(status))
         throw new Error("Dashboard may only accept, reopen, or dismiss feedback.");
-      const detail = status === "resolved" ? { acceptance } : { reason };
+      const detail = { expectedVersion, ...(status === "resolved" ? { acceptance } : { reason }) };
       const { record, event } = reviewFeedbackMutation(root, request.params.id, status, detail);
       let wake = null;
       if (["resolved", "open", "dismissed"].includes(status)) {
@@ -249,7 +314,9 @@ export async function createOriginApp(options = {}) {
 
   app.use((error, _request, response, _next) => {
     if (error?.type === "entity.too.large")
-      return response.status(413).json({ error: "JSON body exceeds the 16 KiB limit." });
+      return response
+        .status(413)
+        .json({ error: "Request body exceeds the limit: 16 KiB for JSON, 20 MiB for materials." });
     if (error?.type === "entity.parse.failed")
       return response.status(400).json({ error: "Invalid JSON body." });
     const message = error instanceof Error ? error.message : "Origin request failed.";

@@ -43,3 +43,22 @@ Use `npm run feedback -- <command>`. Run without a command to see the complete c
 
 `npm run feedback -- associate SOURCE_ID TARGET_ID` preserves both histories and moves their
 responsibility to the parent. New messages reopen completed or waiting threads.
+
+## Materials and review
+
+Each dashboard thread accepts files up to 20 MiB, including images, documents, recordings and other
+binary material. Files are stored privately before the conversation message is committed. The agent
+retrieves their paths with `get` and can return a file with
+`npm run feedback -- material THREAD_ID /absolute/path/to/file "description"`. Downloads are forced
+attachments; untrusted HTML or scripts are not rendered inside the dashboard. Dashboard recording,
+speech recognition and cloned-voice generation remain later work.
+
+The browser supplies the exact displayed thread version for acceptance, reopening and withdrawal. A
+stale tab cannot accept later work it has not displayed. Associated source threads show their parent
+and no independent review controls. Review the complete parent history. Material references are
+carried by stable message IDs without changing the existing journal event format. Preserve the
+private materials directory alongside a journal backup; the journal does not contain file bytes.
+
+Use **Pause dashboard channel** and **Resume dashboard channel** in the feedback panel to control
+only local engagement. Incoming comments are still retained during a pause; resume reconciles the
+current queue. Telegram's independent state and Stop vote are unaffected.

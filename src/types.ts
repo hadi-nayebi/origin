@@ -3,6 +3,7 @@ export type FeedbackStatus =
   "open" | "in_progress" | "waiting" | "ready_for_review" | "resolved" | "dismissed";
 
 export interface FeedbackMessage {
+  material?: { id: string; name?: string; size?: number; error?: string };
   id: string;
   role: "user" | "agent";
   type:
@@ -13,6 +14,7 @@ export interface FeedbackMessage {
 
 export interface FeedbackRecord {
   id: string;
+  version?: string;
   mergedInto?: string;
   kind: FeedbackKind;
   body: string;

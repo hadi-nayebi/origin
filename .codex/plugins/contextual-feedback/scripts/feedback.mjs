@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 import path from "node:path";
+import fs from "node:fs";
+import {
+  attachMaterial,
+  threadView,
+  MAX_MATERIAL_BYTES,
+} from "../../_engagement-core/lib/materials.mjs";
 import { fileURLToPath } from "node:url";
 import {
   addFeedbackMessage,
@@ -27,10 +33,21 @@ const [command, id, ...words] = process.argv.slice(2);
 
 try {
   let result;
-  if (command === "list") result = listFeedback(root);
+  if (command === "list")
+    result = listFeedback(root).map((record) => threadView(root, record, { localPaths: true }));
   else if (command === "associate") result = mergeFeedback(root, required(id), required(words[0]));
-  else if (command === "get") result = getFeedback(root, required(id));
-  else if (command === "next") result = nextFeedback(root);
+  else if (command === "get")
+    result = threadView(root, getFeedback(root, required(id)), { localPaths: true });
+  else if (command === "material") {
+    const file = fs.realpathSync(required(words[0]));
+    const stat = fs.statSync(file);
+    if (!stat.isFile() || stat.size > MAX_MATERIAL_BYTES)
+      throw new Error("Material must be a file of at most 20 MiB.");
+    result = attachMaterial(root, required(id), path.basename(file), fs.readFileSync(file), {
+      role: "agent",
+      body: words.slice(1).join(" ") || undefined,
+    });
+  } else if (command === "next") result = nextFeedback(root);
   else if (command === "mode") result = feedbackMode(root);
   else if (command === "start") result = transitionFeedback(root, required(id), "in_progress");
   else if (command === "comment")
@@ -66,7 +83,7 @@ try {
   else if (command === "restore") result = restoreFeedback(root, required(id));
   else
     throw new Error(
-      "Usage: feedback.mjs <list|get|next|mode|start|comment|interpret|link-work|ask|review|heartbeat|recover|verify|backups|restore> [id] [value]",
+      "Usage: feedback.mjs <list|get|next|mode|start|comment|material|associate|interpret|link-work|ask|review|heartbeat|recover|verify|backups|restore> [id] [value]",
     );
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 } catch (error) {

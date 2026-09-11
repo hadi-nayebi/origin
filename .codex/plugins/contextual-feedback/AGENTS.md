@@ -24,3 +24,7 @@ resumption are different orientations and must not share vague generic wording.
 Question, answer, and dashboard review actions must be single journal events so the conversation and
 its lifecycle cannot disagree after interruption. The agent-facing CLI may prepare work for review;
 user-owned acceptance, reopening, dismissal, pause, and resume remain distinct interface actions.
+
+Thread material references are stable journal message IDs. Read file metadata/paths through `get`,
+inspect the original bytes before interpretation, and use `material` to return files. Browser review
+requires the displayed version; associated sources are reviewed only through the full parent.

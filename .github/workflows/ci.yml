@@ -28,4 +28,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      - name: Install Chromium for browser acceptance
+        if: runner.os == 'Linux'
+        run: npx playwright install --with-deps chromium
+      - name: Verify development and production browser lifecycles
+        if: runner.os == 'Linux'
+        run: npm run test:browser
       - run: npm audit --omit=dev --audit-level=high

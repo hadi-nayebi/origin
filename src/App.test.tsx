@@ -105,6 +105,38 @@ describe("Origin dashboard", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
+  test("does not show a previous chapter under a newly selected route while loading", async () => {
+    const user = userEvent.setup();
+    const existingFetch = vi.mocked(fetch).getMockImplementation()!;
+    let finishChapter!: (response: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input) === "/api/wiki")
+          return Promise.resolve(
+            response({
+              chapters: [chapter, { ...chapter, slug: "02-next", title: "Next chapter" }],
+            }),
+          );
+        if (String(input) === "/api/wiki/02-next")
+          return new Promise<Response>((resolve) => {
+            finishChapter = resolve;
+          });
+        return existingFetch(input, init);
+      }),
+    );
+    window.history.replaceState({}, "", "/wiki/01-welcome");
+    render(<App />);
+    expect(await screen.findByRole("table")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: /Next chapter/ }));
+    expect(window.location.pathname).toBe("/wiki/02-next");
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.getByText("Loading chapter…")).toBeTruthy();
+    finishChapter(response({ ...chapter, slug: "02-next", content: "# The next chapter" }));
+    expect(await screen.findByRole("heading", { name: "The next chapter" })).toBeTruthy();
+    expect(screen.queryByText("Loading chapter…")).toBeNull();
+  });
+
   test("shows attention and sends a waiting-thread answer", async () => {
     const user = userEvent.setup();
     let current = record({

@@ -2,6 +2,7 @@ import express from "express";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { readFile, readdir } from "node:fs/promises";
+import { randomBytes } from "node:crypto";
 import {
   addFeedbackMessageMutation,
   createFeedbackMutation,
@@ -28,10 +29,11 @@ export async function createOriginApp(options = {}) {
   const root = path.resolve(options.root || sourceRoot);
   const isDev = Boolean(options.dev);
   const serveUi = options.serveUi !== false;
+  const devNonce = isDev && serveUi ? randomBytes(24).toString("base64") : null;
   const app = express();
 
   app.disable("x-powered-by");
-  app.use(securityHeaders);
+  app.use((request, response, next) => securityHeaders(request, response, next, devNonce));
   app.use(requireLocalRequest);
   app.use(express.json({ limit: "16kb", strict: true, type: "application/json" }));
 
@@ -216,7 +218,13 @@ export async function createOriginApp(options = {}) {
 
   if (serveUi && isDev) {
     const { createServer } = await import("vite");
-    const vite = await createServer({ root, server: { middlewareMode: true }, appType: "spa" });
+    const vite = await createServer({
+      root,
+      html: { cspNonce: devNonce },
+      server: { middlewareMode: true, ws: { host: "127.0.0.1" } },
+      appType: "spa",
+    });
+    app.locals.closeUi = () => vite.close();
     app.use(vite.middlewares);
   } else if (serveUi) {
     app.use(express.static(path.join(root, "dist"), { etag: true, maxAge: "1h" }));
@@ -258,6 +266,7 @@ export async function startOriginServer(options = {}) {
     const listening = app.listen(port, host, () => resolve(listening));
     listening.once("error", reject);
   });
+  server.once("close", () => void app.locals.closeUi?.());
   if (options.deliverWakes !== false) scheduleWakeDelivery(root, options.wakeOptions);
   return server;
 }
@@ -273,11 +282,14 @@ function ensureRunnableWakeCoverage(root) {
   }
 }
 
-function securityHeaders(_request, response, next) {
+function securityHeaders(_request, response, next, devNonce) {
+  // Vite adds a React preamble and injects styles during development. Authorize
+  // only its nonce-bearing tags; keep production free of inline-script grants.
+  const nonce = devNonce ? ` 'nonce-${devNonce}'` : "";
+  const hotReload = devNonce ? " ws://127.0.0.1:*" : "";
   response.set({
     "Cache-Control": "no-store",
-    "Content-Security-Policy":
-      "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+    "Content-Security-Policy": `default-src 'self'; script-src 'self'${nonce}; style-src 'self'${nonce}; img-src 'self' data:; connect-src 'self'${hotReload}; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`,
     "Cross-Origin-Opener-Policy": "same-origin",
     "Cross-Origin-Resource-Policy": "same-origin",
     "Referrer-Policy": "no-referrer",

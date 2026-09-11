@@ -38,6 +38,7 @@ test("local API captures feedback, persists a wake, and exposes global state", a
   const health = await fetch(`${app.base}/api/health`);
   assert.equal(health.status, 200);
   assert.match(health.headers.get("content-security-policy"), /default-src 'self'/);
+  assert.doesNotMatch(health.headers.get("content-security-policy"), /nonce-|ws:|unsafe-inline/);
   const healthBody = await health.json();
   assert.equal(healthBody.agent.mode, "idle");
   assert.match(healthBody.instanceId, /^[a-f0-9]{16}$/);
@@ -62,6 +63,36 @@ test("local API captures feedback, persists a wake, and exposes global state", a
   assert.equal(listing.records[0].status, "open");
   assert.equal(listing.outcome.mode, "active");
   assert.equal(listing.delivery.pending, 1);
+});
+
+test("development HTML authorizes Vite tags without relaxing production policy", async (context) => {
+  // Windows' short-name TEMP path can disagree with Vite's canonical allow list.
+  // Keep this Vite fixture in the same clone-local runtime area as the dashboard.
+  fs.mkdirSync(path.join(repositoryRoot, ".origin"), { recursive: true });
+  const root = fs.mkdtempSync(path.join(repositoryRoot, ".origin", "dev-csp-"));
+  fs.writeFileSync(
+    path.join(root, "index.html"),
+    '<!doctype html><html><head></head><body><script type="module">window.originReady = true;</script></body></html>',
+  );
+  const server = await startOriginServer({ root, port: 0, dev: true, deliverWakes: false });
+  context.after(() => server.close());
+  const response = await fetch(`http://127.0.0.1:${server.address().port}`);
+  assert.equal(response.status, 200);
+  const policy = response.headers.get("content-security-policy");
+  const nonce = policy.match(/'nonce-([^']+)'/)?.[1];
+  assert.ok(nonce, "development responses need an explicit script/style nonce");
+  assert.doesNotMatch(policy, /unsafe-inline|unsafe-eval/);
+  assert.match(policy, /connect-src 'self' ws:\/\/127\.0\.0\.1:\*/);
+  const html = await response.text();
+  assert.match(html, new RegExp(`nonce="${nonce.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
+  for (const tag of html.matchAll(/<script\b[^>]*>/g)) {
+    assert.ok(tag[0].includes(`nonce="${nonce}"`), "every Vite script must carry the CSP nonce");
+  }
+  assert.match(
+    html,
+    /property="csp-nonce"/,
+    "Vite's dynamic style loader needs the nonce metadata",
+  );
 });
 
 test("server startup repairs a feedback-to-wake crash window", async (context) => {

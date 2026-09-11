@@ -44,12 +44,12 @@ export function deliverCodexWake(root, input, options = {}) {
   const waitMilliseconds = Number(options.waitMilliseconds ?? 15_000);
   return withWakeLease(root, () => {
     const pane = resolveCodexPane(root, { run });
-    const before = capture(run, pane.id);
+    const styledBefore = capture(run, pane.id, true);
+    const before = stripTerminalStyle(styledBefore);
     const wasBusy = codexIsBusy(before);
-    const editor = String(before).split(/\n› /).at(-1);
-    if ((before.includes("\n› ") && editor.trim()) || /\[Pasted (?:Content|text)/i.test(before))
+    if (codexEditorHasInput(styledBefore))
       throw new Error(
-        "Codex editor contains pending input; preserve it and retry after it clears.",
+        "Codex editor is unavailable or contains pending input; preserve it and retry after it clears.",
       );
     const buffer = `origin-${process.pid}-${crypto.randomBytes(5).toString("hex")}`;
     assertSuccess(run("tmux", ["set-buffer", "-b", buffer, "--", prompt]), "tmux buffer write");
@@ -92,6 +92,54 @@ export function codexIsBusy(captured) {
   );
 }
 
+// Codex renders an empty editor's placeholder with SGR dim (2). Its words are
+// configurable, so text matching would mistake an identical owner draft for a
+// placeholder. Inspect styling only at the final prompt, never transcript text.
+export function codexEditorHasInput(captured) {
+  const lines = String(captured).split("\n");
+  let prompt = -1;
+  for (let index = 0; index < lines.length; index += 1)
+    if (stripTerminalStyle(lines[index]).startsWith("› ")) prompt = index;
+  if (prompt < 0) return true;
+  const block = [];
+  for (const line of lines.slice(prompt)) {
+    if (!stripTerminalStyle(line).trim()) break;
+    block.push(line);
+  }
+  const editor = block.join("\n").replace(/^.*?›/, "");
+  let dim = false;
+  let placeholder = false;
+  for (const part of editor.split(/(\x1b\[[0-9;]*m)/)) {
+    if (part.startsWith("\x1b[")) {
+      const codes = part.slice(2, -1).split(";").map(Number);
+      for (let index = 0; index < codes.length; index += 1) {
+        const code = codes[index];
+        if ([38, 48, 58].includes(code)) {
+          index += codes[index + 1] === 2 ? 4 : codes[index + 1] === 5 ? 2 : 0;
+          continue;
+        }
+        if (code === 0 || code === 22) dim = false;
+        if (code === 2) dim = true;
+      }
+    } else if (part.trim()) {
+      if (!dim) return true;
+      placeholder = true;
+    }
+  }
+  // A draft may start with blank lines. Only the styled placeholder establishes
+  // that following text belongs to terminal chrome rather than such a draft.
+  if (
+    !placeholder &&
+    lines.slice(prompt + block.length).some((line) => stripTerminalStyle(line).trim())
+  )
+    return true;
+  return false;
+}
+
+function stripTerminalStyle(value) {
+  return String(value).replace(/\x1b\[[0-9;]*m/g, "");
+}
+
 export function editorPending(value, marker, options = {}) {
   const tail = String(value).split("\n").slice(-40).join("\n");
   const previous = String(options.before || "")
@@ -122,10 +170,10 @@ function pastedLengths(value) {
   );
 }
 
-function capture(run, pane) {
-  const result = run("tmux", ["capture-pane", "-p", "-J", "-t", pane, "-S", "-80"]);
+function capture(run, pane, styled = false) {
+  const result = run("tmux", ["capture-pane", "-p", "-e", "-J", "-t", pane, "-S", "-80"]);
   assertSuccess(result, "tmux pane capture");
-  return String(result.stdout || "");
+  return styled ? String(result.stdout || "") : stripTerminalStyle(result.stdout || "");
 }
 
 function readProcesses(run) {

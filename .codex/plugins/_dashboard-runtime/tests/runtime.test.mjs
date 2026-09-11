@@ -13,6 +13,7 @@ import {
 import { readFeedbackEvents } from "../../contextual-feedback/lib/store.mjs";
 import {
   deliverCodexWake,
+  codexEditorHasInput,
   editorPending,
   resolveCodexPane,
   submissionAccepted,
@@ -54,7 +55,7 @@ test("pane resolution is repository-scoped and requires exactly one Codex pane",
 test("idle Codex receives a verified prompt through a tmux buffer", () => {
   const root = fixture();
   const marker = "[ORIGIN DASHBOARD — NEW FEEDBACK]";
-  const run = fakeRun(root, { capture: ["Codex ready", marker, `${marker}\nWorking (1)`] });
+  const run = fakeRun(root, { capture: ["Codex ready\n› ", marker, `${marker}\nWorking (1)`] });
   const result = deliverCodexWake(
     root,
     { marker, prompt: `${marker}\nRead feedback-001.` },
@@ -73,7 +74,7 @@ test("busy Codex queues a message without interruption", () => {
   const marker = "[ORIGIN DASHBOARD — ANSWER RECEIVED]";
   const run = fakeRun(root, {
     capture: [
-      "Working (42) · esc to interrupt",
+      "Working (42) · esc to interrupt\n› ",
       marker,
       `${marker}\nMessages to be submitted after next tool call`,
     ],
@@ -659,7 +660,7 @@ test("combined launcher switches an existing tmux client into the repository ses
 });
 
 function fakeRun(root, options = {}) {
-  const captures = [...(options.capture || ["idle"])];
+  const captures = [...(options.capture || ["idle\n› "])];
   const captureFallback = options.captureFallback || "idle";
   const calls = [];
   const run = (command, args) => {
@@ -696,4 +697,36 @@ test("blank screen and unrelated work are not submission evidence", () => {
   const marker = "[ORIGIN WAKE unique-123]";
   assert.equal(submissionAccepted({ value: "", marker, wasBusy: false }), false);
   assert.equal(submissionAccepted({ value: "Working (12)", marker, wasBusy: false }), false);
+});
+
+test("real Codex styled placeholder allows a wake while identical owner text is preserved", () => {
+  const placeholder =
+    "\u001b[1m›\u001b[0m \u001b[2mAsk Codex to do anything\n\n  Context 100% left";
+  assert.equal(codexEditorHasInput(placeholder), false);
+  assert.equal(codexEditorHasInput("› Ask Codex to do anything\n\n  Context 100% left"), true);
+  assert.equal(codexEditorHasInput("› \n"), false);
+  assert.equal(codexEditorHasInput("› \n\n  owner multiline draft"), true);
+  assert.equal(codexEditorHasInput("Hooks\nPress enter to view hooks; esc to close"), true);
+  assert.equal(codexEditorHasInput("› \u001b[2mPlaceholder\u001b[22m actual owner text"), true);
+  assert.equal(codexEditorHasInput("› \u001b[38;2;23;42;90mowner text"), true);
+  const root = fixture();
+  const marker = "[ORIGIN WAKE styled-editor]";
+  const run = fakeRun(root, {
+    capture: [placeholder, `› ${marker}`, `${marker}\nWorking (1)\n› `],
+  });
+  assert.equal(
+    deliverCodexWake(root, { marker, prompt: marker }, { run, wait: () => {} }).state,
+    "submitted",
+  );
+  const blocked = fakeRun(root, { capture: ["› Ask Codex to do anything"] });
+  assert.throws(
+    () => deliverCodexWake(root, { marker, prompt: marker }, { run: blocked, wait: () => {} }),
+    /pending input/,
+  );
+  assert.equal(
+    blocked.calls.some((call) =>
+      ["set-buffer", "paste-buffer", "send-keys"].includes(call.args[0]),
+    ),
+    false,
+  );
 });

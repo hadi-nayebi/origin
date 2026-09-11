@@ -7,17 +7,20 @@ contains generic original code, not credentials or personal agent machinery. Two
 removable channel plugins use a neutral lifecycle library and separate state/journals. Dashboard
 audio remains later work.
 
-The user requested at least five review/fix iterations of this PR. Each iteration will record its
+The user requested at least five review/fix iterations of this PR. Each iteration records its
 concrete findings, fixes and validation here. Passing automated checks does not establish zero
 defects.
 
 ## Acceptance still required
 
-- Dedicated paired bot: text, reply threading, all supported media, owner rejection.
-- Local model installation, owner sample enrollment, cloned-voice preview and listening review;
-  disconnect and restart recovery.
-- Authenticated interactive Codex with the exact trusted hooks: either channel active, both active,
-  independent pauses, physical removal, and idle wake.
+- Dedicated-bot acceptance of automatic reply threading, the complete media matrix, and owner
+  callback rejection/acceptance. The authorized shared-bot test has ended.
+- Fresh-machine model installation, owner sample enrollment and listening review, and live
+  disconnect/restart recovery. Existing local models and an authorized owner reference were used for
+  the real inference test.
+- The full dashboard question/answer/review/reopen sequence in `CODEX-ACCEPTANCE.md`, plus live
+  independent pauses and physical removal. Hook OR behavior and idle wake were tested interactively;
+  removal, pauses and lifecycle transitions also have deterministic regression tests.
 - No merge until review and acceptance evidence have been considered by the owner.
 
 ## Iteration 1 — independent continuation and local ownership
@@ -99,6 +102,25 @@ The worker now checks free CUDA memory before loading, reports a retryable `GPU_
 releases its own failed allocations after an out-of-memory error, and uses SDPA attention. Speech
 chunks default to 300 characters. It never interrupts another application's GPU process. The
 portable CPU path produced a real cloned-voice render with local ASR alignment 1.0; the voice and a
-neutral attachment were delivered through the actual Bot API using private test binding. Incoming
-owner voice/review and authenticated interactive hook trust remain separate acceptance checks. No
-bot identity, token, sample or model is published.
+neutral attachment were delivered through the actual Bot API using private test binding. An incoming
+owner voice note was downloaded and transcribed locally. It arrived without a reply-to reference, so
+its thread was explicitly associated with the test parent; this does not claim live automatic reply
+correlation or callback acceptance. The original bot consumer was restored, the test listener
+disabled, and its temporary token copy removed. No bot identity, token, sample or model is
+published.
+
+## Additional interactive-test iteration — idle editor detection
+
+Real Codex 0.154.0 testing on Linux found that the empty-editor placeholder and status footer were
+being mistaken for an owner draft, preventing idle wakes. The transport now inspects terminal
+styling to distinguish dim placeholder text from actual input, rejects unavailable editors, and
+preserves identically worded owner drafts. Regression coverage includes true-color escape sequences
+and proves that no paste or Enter happens when a draft is present.
+
+In an isolated authenticated Codex tmux session with synthetic local states and no bot credentials,
+both exact project hooks were reviewed and trusted through the normal UI. The repository-scoped
+transport submitted a uniquely marked wake. The real host blocked Stop for both active channels,
+then for Telegram alone with dashboard waiting, then dashboard alone with Telegram waiting. With
+both waiting, the next bounded prompt completed without a Stop block. The isolated session was
+closed and its synthetic Telegram activation removed. This is bounded host acceptance, not
+certification of every onboarding, media or operating-system scenario.

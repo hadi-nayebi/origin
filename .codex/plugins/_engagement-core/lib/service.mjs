@@ -13,11 +13,14 @@ import {
 } from "./store.mjs";
 
 export function listFeedback(root) {
-  return orderedRecords(readFeedbackState(root));
+  const records = readFeedbackState(root);
+  return orderedRecords(records).map((r) =>
+    r.mergedInto ? { ...r, status: canonicalRecord(records, r.id).status } : r,
+  );
 }
 
 export function getFeedback(root, id) {
-  const record = readFeedbackState(root).get(normalizeId(id));
+  const record = canonicalRecord(readFeedbackState(root), normalizeId(id));
   if (!record) throw new Error("Feedback record not found.");
   return record;
 }
@@ -76,7 +79,7 @@ export function addFeedbackMessage(root, id, input, options = {}, now = new Date
 }
 
 export function addFeedbackMessageMutation(root, id, input, options = {}, now = new Date()) {
-  const safeId = normalizeId(id);
+  const safeId = getFeedback(root, normalizeId(id)).id;
   const role = options.role || "user";
   const messageId = options.messageId || `msg-${crypto.randomUUID()}`;
   const result = appendFeedbackEvent(root, (records) => {
@@ -116,7 +119,7 @@ export function addFeedbackMessageMutation(root, id, input, options = {}, now = 
 }
 
 export function interpretFeedback(root, id, detail, now = new Date()) {
-  const safeId = normalizeId(id);
+  const safeId = getFeedback(root, normalizeId(id)).id;
   const result = appendFeedbackEvent(root, (records) => {
     if (!records.has(safeId)) throw new Error("Feedback record not found.");
     return {
@@ -132,7 +135,7 @@ export function interpretFeedback(root, id, detail, now = new Date()) {
 }
 
 export function linkFeedbackWork(root, id, workReference, now = new Date()) {
-  const safeId = normalizeId(id);
+  const safeId = getFeedback(root, normalizeId(id)).id;
   const result = appendFeedbackEvent(root, (records) => {
     if (!records.has(safeId)) throw new Error("Feedback record not found.");
     return {
@@ -147,7 +150,7 @@ export function linkFeedbackWork(root, id, workReference, now = new Date()) {
 }
 
 export function transitionFeedback(root, id, status, detail = {}, now = new Date()) {
-  const safeId = normalizeId(id);
+  const safeId = getFeedback(root, normalizeId(id)).id;
   if (["resolved", "dismissed"].includes(status))
     throw new Error("User-owned resolution and dismissal require the dashboard review operation.");
   const result = appendFeedbackEvent(root, (records) => {
@@ -166,7 +169,7 @@ export function transitionFeedback(root, id, status, detail = {}, now = new Date
 }
 
 export function askFeedbackQuestion(root, id, question, now = new Date()) {
-  const safeId = normalizeId(id);
+  const safeId = getFeedback(root, normalizeId(id)).id;
   const message = normalizeMessage(
     { role: "agent", type: "question", body: question },
     "agent",
@@ -198,7 +201,7 @@ export function reviewFeedback(root, id, status, detail = {}, now = new Date()) 
 export function reviewFeedbackMutation(root, id, status, detail = {}, now = new Date()) {
   if (!["resolved", "open", "dismissed"].includes(status))
     throw new Error("Dashboard may only accept, reopen, or dismiss feedback.");
-  const safeId = normalizeId(id);
+  const safeId = getFeedback(root, normalizeId(id)).id;
   const body = status === "resolved" ? detail.acceptance || "Accepted by user." : detail.reason;
   const message = normalizeMessage(
     { role: "user", type: "review", body },
@@ -226,7 +229,7 @@ export function reviewFeedbackMutation(root, id, status, detail = {}, now = new 
 }
 
 export function heartbeatFeedback(root, id, now = new Date()) {
-  const safeId = normalizeId(id);
+  const safeId = getFeedback(root, normalizeId(id)).id;
   const result = appendFeedbackEvent(root, (records) => {
     const current = records.get(safeId);
     if (!current || current.status !== "in_progress")
@@ -281,7 +284,8 @@ export function feedbackWakeIntents(root) {
   return Object.freeze(
     [...latest.entries()].flatMap(([id, value]) => {
       const record = records.get(id);
-      if (!record || !wakeMatchesCurrentRecord(value.kind, record.status)) return [];
+      if (!record || record.mergedInto || !wakeMatchesCurrentRecord(value.kind, record.status))
+        return [];
       return [
         Object.freeze({
           kind: value.kind,
@@ -303,6 +307,7 @@ function wakeMatchesCurrentRecord(kind, status) {
 
 function wakeKind(event) {
   if (event.type === "feedback.created") return "feedback.new";
+  if (event.type === "feedback.merged") return "feedback.during-active";
   if (event.type === "feedback.message-added" && event.message.role === "user")
     return "feedback.during-active";
   if (event.type !== "feedback.message-transitioned" || event.message.role !== "user") return null;
@@ -359,4 +364,29 @@ export function commitAgentReply(root, id, intent, now = new Date()) {
   });
   reconcileAgentState(root, now);
   return result.records.get(id);
+}
+
+// Association moves responsibility, not acceptance. Preserve both histories and
+// reopen the parent so transferred contributions receive verification there.
+export function mergeFeedback(root, sourceId, targetId, now = new Date()) {
+  normalizeId(sourceId);
+  normalizeId(targetId);
+  const result = appendFeedbackEvent(root, (records) => {
+    const source = records.get(sourceId);
+    if (source?.mergedInto === targetId) return null;
+    return { type: "feedback.merged", id: targetId, mergedId: sourceId, at: now.toISOString() };
+  });
+  reconcileAgentState(root, now);
+  return result.records.get(targetId);
+}
+
+function canonicalRecord(records, id) {
+  const seen = new Set();
+  let record = records.get(id);
+  while (record?.mergedInto) {
+    if (seen.has(record.id)) throw new Error("Thread association cycle.");
+    seen.add(record.id);
+    record = records.get(record.mergedInto);
+  }
+  return record;
 }

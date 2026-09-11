@@ -10,6 +10,7 @@ import {
   heartbeatFeedback,
   interpretFeedback,
   linkFeedbackWork,
+  mergeFeedback,
   listFeedback,
   nextFeedback,
   recoverStaleFeedback,
@@ -27,6 +28,7 @@ const [command, id, ...words] = process.argv.slice(2);
 try {
   let result;
   if (command === "list") result = listFeedback(root);
+  else if (command === "associate") result = mergeFeedback(root, required(id), required(words[0]));
   else if (command === "get") result = getFeedback(root, required(id));
   else if (command === "next") result = nextFeedback(root);
   else if (command === "mode") result = feedbackMode(root);

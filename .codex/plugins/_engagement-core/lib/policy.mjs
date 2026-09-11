@@ -20,6 +20,35 @@ export function applyEvent(records, event) {
   const current = records.get(event.id);
   if (!current) throw new Error("Feedback event references a missing record.");
   if (event.at < current.updatedAt) throw new Error("Feedback event timestamp moves backward.");
+  if (event.type === "feedback.merged") {
+    const source = records.get(event.mergedId);
+    if (!source || source.mergedInto || current.mergedInto || source.id === current.id)
+      throw new Error("Invalid thread association.");
+    if (event.at < source.updatedAt) throw new Error("Association timestamp moves backward.");
+    const messages = [
+      ...current.messages,
+      ...source.messages.filter((m) => !current.messages.some((old) => old.id === m.id)),
+    ];
+    const linkedWork = [...new Set([...current.linkedWork, ...source.linkedWork])];
+    records.set(
+      current.id,
+      freezeRecord({
+        ...current,
+        messages,
+        linkedWork,
+        status: current.status === "in_progress" ? "in_progress" : "open",
+        acceptance: null,
+        updatedAt: event.at,
+      }),
+    );
+    records.set(
+      source.id,
+      freezeRecord({ ...source, mergedInto: current.id, updatedAt: event.at }),
+    );
+    return;
+  }
+  if (current.mergedInto)
+    throw new Error("Thread has been associated; continue its parent thread.");
   if (event.type === "feedback.message-added") {
     if (current.messages.some((message) => message.id === event.message.id))
       throw new Error("Feedback message ID is repeated.");
@@ -78,7 +107,7 @@ function assertSingleFocus(records, event) {
   if (
     event.status === "in_progress" &&
     [...records.values()].some(
-      (record) => record.id !== event.id && record.status === "in_progress",
+      (record) => !record.mergedInto && record.id !== event.id && record.status === "in_progress",
     )
   )
     throw new Error("Only one feedback thread may be in progress.");
@@ -114,7 +143,7 @@ export function assertTransition(current, next) {
 }
 
 export function selectNext(records) {
-  const ordered = orderedRecords(records);
+  const ordered = orderedRecords(records).filter((r) => !r.mergedInto);
   return (
     ordered.find((record) => record.status === "in_progress") ||
     ordered.find((record) => record.status === "open") ||
@@ -131,7 +160,9 @@ export function deriveFeedbackMode(records, channel = "contextual-feedback") {
       nextAction: `Read and continue feedback ${next.id}.`,
       reference: { plugin: channel, id: next.id },
     });
-  const review = orderedRecords(records).find((record) => record.status === "ready_for_review");
+  const review = orderedRecords(records).find(
+    (record) => !record.mergedInto && record.status === "ready_for_review",
+  );
   if (review)
     return Object.freeze({
       mode: "waiting",
@@ -139,7 +170,9 @@ export function deriveFeedbackMode(records, channel = "contextual-feedback") {
       nextAction: `Resume if the user accepts or reopens feedback ${review.id}.`,
       reference: { plugin: channel, id: review.id },
     });
-  const waiting = orderedRecords(records).find((record) => record.status === "waiting");
+  const waiting = orderedRecords(records).find(
+    (record) => !record.mergedInto && record.status === "waiting",
+  );
   if (waiting)
     return Object.freeze({
       mode: "waiting",

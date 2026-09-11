@@ -98,6 +98,10 @@ export function validateEvent(event) {
   if (event.type === "feedback.created") return validateCreatedRecord(event.record);
   normalizeId(event.id);
   if (!validTimestamp(event.at)) throw new Error("Feedback event timestamp is invalid.");
+  if (event.type === "feedback.merged") {
+    normalizeId(event.mergedId);
+    return event;
+  }
   if (event.type === "feedback.message-added") return validateMessage(event.message);
   if (event.type === "feedback.message-transitioned") {
     validateMessage(event.message);

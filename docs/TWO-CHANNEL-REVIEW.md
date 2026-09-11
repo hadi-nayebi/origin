@@ -31,3 +31,14 @@ pause precedence; the listener reconciles that projection and exits after disabl
 require a dead local owner before reclamation. Private directory creation rejects symbolic
 ancestors. The hook checks activation's boolean value. Physical-removal tests cover each plugin as
 the sole remaining channel; additional tests cover backlog continuation and directory containment.
+
+## Iteration 2 — thread association and crash replay
+
+Found: associating an input left a duplicate active source responsibility; reply commit recovery
+could become stale after the journal write but before its receipt.
+
+Fixed: an atomic association event preserves both histories, moves responsibility to the parent,
+invalidates prior acceptance and follows the parent on future replies. The source's displayed
+resolution follows the parent. Both channel CLIs can associate conversations. Stable outbound
+message IDs make question/review commits replayable without duplicated messages. Tests exercise
+source-to-parent resolution, further replies, repeated association and lost commit receipts.

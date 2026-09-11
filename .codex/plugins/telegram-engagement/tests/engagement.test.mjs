@@ -304,3 +304,38 @@ test("private storage rejects symbolic ancestors", async (t) => {
   assert.throws(() => privateDirectory(path.join(root, "link", "nested")), /symlink/);
   assert.equal(fs.existsSync(path.join(root, "outside", "nested")), false);
 });
+
+test("associated conversations retain all history and resolve with their parent", async (t) => {
+  const { associateInput } = await import("../lib/service.mjs");
+  const root = fixture(t);
+  const scope = scopeFor(root);
+  receiveUpdate(root, config, input(801, "Main request"));
+  receiveUpdate(root, config, input(802, "Additional detail"));
+  const main = materializeThread(root, config, 801, "Main request");
+  const detail = materializeThread(root, config, 802, "Additional detail");
+  associateInput(root, 802, main.id);
+  associateInput(root, 802, main.id);
+  assert.equal(getFeedback(scope, main.id).messages.length, 2);
+  assert.equal(getFeedback(scope, detail.id).id, main.id);
+  ready(scope, main.id);
+  reviewFeedback(scope, main.id, "resolved");
+  assert.equal(getFeedback(scope, detail.id).status, "resolved");
+  assert.equal(inspectChannelStop(scope).block, false);
+  receiveUpdate(root, config, input(803, "More detail", { reply_to_message: { message_id: 802 } }));
+  materializeThread(root, config, 803, "More detail");
+  assert.equal(getFeedback(scope, main.id).status, "open");
+});
+
+test("journal commit replay recovers a question after transport receipt loss", async (t) => {
+  const { commitReply } = await import("../lib/service.mjs");
+  const root = fixture(t);
+  const scope = scopeFor(root);
+  const thread = request(scope);
+  const intent = queueReply(root, thread.id, "Which option should I implement?", "question");
+  const snapshot = readTransport(root);
+  commitReply(root, intent.id);
+  atomicJSON(path.join(directory(root), "transport.json"), snapshot);
+  commitReply(root, intent.id);
+  assert.equal(getFeedback(scope, thread.id).messages.length, 2);
+  assert.equal(readTransport(root).outbox[intent.id].committed, true);
+});

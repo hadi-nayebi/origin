@@ -8,6 +8,7 @@ import {
   reconcileAgentState,
   recordVersion,
   commitAgentReply,
+  mergeFeedback,
 } from "../../_engagement-core/lib/service.mjs";
 import { pauseAgent, resumeAgent, readAgentState } from "../../_engagement-core/lib/state.mjs";
 import { readTransport, updateTransport, scopeFor } from "./storage.mjs";
@@ -147,20 +148,19 @@ export function associateInput(root, updateId, targetId) {
     if (!item) throw new Error("Input is missing.");
     if (item.threadId === targetId) return item;
     const previous = item.threadId;
-    // Never delete or silently resolve the old thread. Preserve an explicit link.
-    const body = `${item.text || "Related material"}\n\nRelated Telegram input ${updateId}; previous thread: ${previous || "unassigned"}.`;
-    addFeedbackMessageMutation(
-      scopeFor(root),
-      targetId,
-      { body },
-      { messageId: `association-${updateId}-${crypto.randomUUID()}` },
-    );
-    item.associations = [
-      ...(item.associations || []),
-      { from: previous, to: targetId, at: new Date().toISOString() },
-    ];
-    item.threadId = targetId;
-    state.replies[String(item.messageId)] = targetId;
+    if (previous) mergeFeedback(scopeFor(root), previous, targetId);
+    for (const related of Object.values(state.inbox)) {
+      if (related === item || (previous && related.threadId === previous)) {
+        related.associations = [
+          ...(related.associations || []),
+          { from: previous, to: targetId, at: new Date().toISOString() },
+        ];
+        related.threadId = targetId;
+        state.replies[String(related.messageId)] = targetId;
+      }
+    }
+    for (const [key, value] of Object.entries(state.replies))
+      if (previous && value === previous) state.replies[key] = targetId;
     return item;
   });
 }

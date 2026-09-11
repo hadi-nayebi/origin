@@ -20,7 +20,7 @@ whether Codex accepted it immediately or queued it behind active work.
 ## Complete lifecycle check
 
 1. Run `npm run origin`; confirm the browser opens and the terminal attaches to interactive Codex.
-2. In Codex, use `/hooks`, inspect `.codex/hooks.json`, and trust the Agent Stop State hook.
+2. In Codex, use `/hooks`, inspect `.codex/hooks.json`, and trust both channel Stop hooks.
 3. Leave one dashboard comment while Codex is idle. Confirm it appears in that same terminal session
    with a unique wake marker, the plugin's reason for firing, the validated retrieval command, and a
    concrete next boundary.
@@ -29,8 +29,8 @@ whether Codex accepted it immediately or queued it behind active work.
    the current tool call and remains visible as separate responsibility.
 6. From Codex, run `npm run feedback -- ask <id> "..."`. Confirm the question appears in the thread
    with the red attention indicator.
-7. If another runnable thread exists, confirm global state remains active. After runnable work is
-   exhausted, confirm it may become waiting.
+7. If another runnable thread exists, confirm owning channel state remains active. After runnable
+   work is exhausted, confirm it may become waiting.
 8. Answer in the dashboard. Confirm the answer enters the same Codex session and state becomes
    active. Confirm the answer and transition out of waiting are one journal event.
 9. Have Codex mark the work ready for review with verification evidence. Confirm Codex may wait but

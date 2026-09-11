@@ -15,9 +15,11 @@ type Surface = { kind: "canvas"; path: string } | { kind: "wiki"; slug?: string 
 export default function App() {
   const [surface, setSurface] = useState<Surface>(() => surfaceFromPath(window.location.pathname));
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackEnabled, setFeedbackEnabled] = useState(true);
   const [attention, setAttention] = useState(0);
   const refreshAttention = async () => {
-    const { records } = await api.feedback();
+    const { records, disabled } = await api.feedback();
+    setFeedbackEnabled(!disabled);
     setAttention(
       records.filter((record) => ["waiting", "ready_for_review"].includes(record.status)).length,
     );
@@ -70,22 +72,24 @@ export default function App() {
         <BookIcon />
         <span>Wiki</span>
       </button>
-      <button
-        className="floating-control feedback-control"
-        onClick={() => setFeedbackOpen(true)}
-        aria-label={
-          attention ? `Give feedback, ${attention} items need your attention` : "Give feedback"
-        }
-      >
-        <CommentIcon />
-        <span>Feedback</span>
-        {attention > 0 && (
-          <b className="attention-dot" aria-hidden="true">
-            {attention}
-          </b>
-        )}
-      </button>
-      {feedbackOpen && (
+      {feedbackEnabled && (
+        <button
+          className="floating-control feedback-control"
+          onClick={() => setFeedbackOpen(true)}
+          aria-label={
+            attention ? `Give feedback, ${attention} items need your attention` : "Give feedback"
+          }
+        >
+          <CommentIcon />
+          <span>Feedback</span>
+          {attention > 0 && (
+            <b className="attention-dot" aria-hidden="true">
+              {attention}
+            </b>
+          )}
+        </button>
+      )}
+      {feedbackEnabled && feedbackOpen && (
         <FeedbackPanel
           pagePath={pagePath}
           pageLabel={pageLabel}

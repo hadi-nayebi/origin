@@ -43,12 +43,10 @@ Generic dashboard and server code may transport, validate, and render plugin rec
 acquire a second lifecycle policy. When cognition is distributed across unrelated helpers, future
 agents cannot identify its owner or safely modify it.
 
-Origin 1.0 demonstrates two distinct plugin anatomies. `contextual-feedback` owns thread contracts,
-policy, integrity, persistence, service operations, event voice, commands, documentation, schema,
-and tests. `agent-stop-state` owns its clone-local `data.json`, mutation contract, Stop voice, Stop
-hook, commands, documentation, schema, and tests. `_dashboard-runtime` is explicitly infrastructure:
-it owns tmux session and delivery mechanics but no cognition. Host registration remains at the
-harness root because the host owns registration.
-
-More mature, multi-user systems may add role masks and activation review. Those are deliberately
-absent from this one-user foundation rather than being half-implemented inside the plugin.
+Origin demonstrates two independent engagement plugins. `contextual-feedback` owns dashboard
+conversation and `.origin/contextual-feedback/data.json`; `telegram-engagement` owns remote
+conversation and `.origin/telegram-engagement/data.json`. They share tested rules through
+`_engagement-core` and neutral transport through `_dashboard-runtime`. Deleting either channel must
+not break the other. Each active hook blocks Stop; passive hooks abstain. The old `agent-stop-state`
+directory is a dashboard compatibility adapter. See the Telegram plugin README for per-feature
+activation and the review record for verified limits.

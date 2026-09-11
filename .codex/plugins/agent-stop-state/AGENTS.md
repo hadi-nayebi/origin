@@ -1,19 +1,8 @@
-# Agent Stop State plugin
+# Dashboard state compatibility adapter
 
-Objective: own Origin's single clone-local agent state and decide whether a Codex Stop event may
-complete. Other plugins may request a state transition through the public service; they do not
-derive Stop behavior themselves.
-
-The valid modes are `idle`, `active`, `waiting`, and `paused`. Every mutation records a reason, next
-action, stable reference, revision, and timestamp. The Stop hook is read-only and fails closed when
-state is missing or corrupt.
-
-Only callers that have already validated their own state and authority may mutate this plugin. Keep
-plugin-specific lifecycle data outside this state file.
-
-Stop voices explain the cognitive reason for the boundary. `active` reorients Codex to the owning
-responsibility and the evidence needed to leave active; `waiting` names why more generation would be
-futile; `paused` preserves human interruption without pretending completion; `idle` explains that it
-is derived from the complete queue. Do not emit bare “continue” or “stop” language. The hook's exit
-status enforces the boundary; the voice teaches why the boundary exists and what valid transition
-comes next.
+This directory preserves existing `npm run agent-state` commands for dashboard engagement. It
+re-exports the neutral core and targets `.origin/contextual-feedback/data.json` by default. It is
+not a global owner. The registered Stop hooks now belong to each engagement channel. Do not route
+Telegram state through this adapter. Legacy `.origin/agent-stop-state/data.json` is imported once
+into dashboard state if the new dashboard state does not exist; preserve its explicit pause and
+leave the old file untouched for recovery.

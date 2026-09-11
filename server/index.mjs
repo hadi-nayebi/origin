@@ -117,6 +117,8 @@ export async function createOriginApp(options = {}) {
   });
 
   app.post("/api/session/wake", (request, response, next) => {
+    if (!feedbackEnabled)
+      return response.json({ wake: null, disabled: true, delivery: { state: "idle", pending: 0 } });
     try {
       requireJson(request);
       let wake = null;

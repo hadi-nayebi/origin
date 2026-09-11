@@ -169,6 +169,7 @@ export function wakeStatus(root) {
           ? "connected"
           : "idle",
     transport: "tmux",
+    retryable: events.filter((e) => ["pending", "retrying"].includes(e.status)).length,
     pending,
     last: last
       ? Object.freeze({

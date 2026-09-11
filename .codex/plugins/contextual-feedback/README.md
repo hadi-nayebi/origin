@@ -5,8 +5,9 @@ responsibility without treating a comment as unrestricted authorization.
 
 The plugin owns raw input, page context, thread messages, classification, interpretation, linked
 work, focus, questions, answers, verification, user acceptance, dismissal, reopening, heartbeat,
-backup, and recovery. It requests global continuation changes from `agent-stop-state`; it does not
-own Stop policy or tmux delivery.
+backup, and recovery. It owns its own Stop decision and `.origin/contextual-feedback/data.json`;
+neutral core services enforce lifecycle rules. Its existing ledger remains `.origin/feedback.jsonl`.
+It does not depend on Telegram or own tmux delivery.
 
 ## Lifecycle
 
@@ -39,3 +40,6 @@ contracts, the journal, lifecycle policy, and Stop state enforce.
 ## Interfaces
 
 Use `npm run feedback -- <command>`. Run without a command to see the complete command list.
+
+`npm run feedback -- associate SOURCE_ID TARGET_ID` preserves both histories and moves their
+responsibility to the parent. New messages reopen completed or waiting threads.

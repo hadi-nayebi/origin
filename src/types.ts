@@ -13,6 +13,7 @@ export interface FeedbackMessage {
 
 export interface FeedbackRecord {
   id: string;
+  mergedInto?: string;
   kind: FeedbackKind;
   body: string;
   pagePath: string;
@@ -42,14 +43,14 @@ export interface AgentState {
 }
 
 export interface DeliveryStatus {
-  state: "idle" | "pending" | "retrying" | "connected";
+  state: "idle" | "pending" | "retrying" | "connected" | "attention";
   transport: "tmux";
   pending: number;
   last: null | {
     id: string;
     kind: string;
     reference: string;
-    status: "pending" | "retrying" | "delivered" | "cancelled";
+    status: "pending" | "retrying" | "delivering" | "indeterminate" | "delivered" | "cancelled";
     attempts: number;
     updatedAt: string;
     result?: { state: "submitted" | "queued-without-interruption"; session: string } | null;

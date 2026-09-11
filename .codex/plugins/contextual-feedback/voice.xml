@@ -63,4 +63,8 @@ Orient to the work: retrieve the current thread with `npm run feedback -- get {{
 
 Next boundary: resume the current in-progress responsibility, or start the oldest open one. Continue until verified work reaches user review or a specific recorded condition makes the complete queue legitimately waiting.</body>
   </voice>
+  <voice id="stop.active">
+    <body>[ORIGIN — CONTEXTUAL-FEEDBACK RESPONSIBILITY REMAINS]
+This channel prevents Stop because thread {{reference}} still contains runnable user work. Read its complete history with `npm run feedback -- get {{reference}}` and inspect the ordered queue. Continue the current focus, verify the requested result and present concrete evidence for user review. A question is appropriate only for a real missing decision; an explicit channel pause remains binding. Do not manufacture acceptance or let another channel's idle state erase this responsibility. Stop becomes valid when this channel has no runnable work, and every other enabled channel independently permits it.</body>
+  </voice>
 </catalog>

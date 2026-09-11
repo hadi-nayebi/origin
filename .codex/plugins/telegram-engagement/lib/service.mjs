@@ -48,6 +48,9 @@ export function receiveUpdate(root, config, update) {
     const callback = update.callback_query;
     const message = update.message || update.edited_message;
     if (callback) {
+      state.callbackReceipts ||= {};
+      state.callbackReceipts[String(update.update_id)] =
+        "This control is expired, already used, or the conversation changed. Read the latest reply.";
       const auth = { ...callback.message, from: callback.from };
       if (authorized(auth, config)) {
         const action = state.callbacks[callback.data];
@@ -62,9 +65,18 @@ export function receiveUpdate(root, config, update) {
             reviewFeedbackMutation(scopeFor(root), action.threadId, action.status, {
               expectedVersion: action.version,
               acceptance: "Accepted by paired Telegram owner.",
-              reason: "Paired Telegram owner requested another review.",
+              reason:
+                action.status === "dismissed"
+                  ? "Paired Telegram owner withdrew this request."
+                  : "Paired Telegram owner requested another review.",
             });
             action.used = true;
+            state.callbackReceipts[String(update.update_id)] =
+              action.status === "resolved"
+                ? "Accepted."
+                : action.status === "dismissed"
+                  ? "Withdrawn; history preserved."
+                  : "Reopened.";
           }
         }
       }
@@ -102,6 +114,36 @@ export function receiveUpdate(root, config, update) {
             nextAttemptAt: 0,
             receivedAt: new Date().toISOString(),
           };
+          const item = state.inbox[key];
+          if (!sample) {
+            const threadId = item.threadId || `telegram-${config.botId}-${update.update_id}`;
+            const rawBody =
+              text ||
+              "Media input received. Inspect the preserved source; local processing is pending.";
+            let existing;
+            try {
+              existing = getFeedback(scopeFor(root), threadId);
+            } catch (error) {
+              if (error.message !== "Feedback record not found.") throw error;
+            }
+            if (existing && threadId !== `telegram-${config.botId}-${update.update_id}`)
+              addFeedbackMessageMutation(
+                scopeFor(root),
+                threadId,
+                { body: rawBody },
+                { messageId: `telegram-raw-${config.botId}-${update.update_id}` },
+              );
+            else
+              createFeedbackMutation(scopeFor(root), {
+                externalId: threadId,
+                kind: "update",
+                body: rawBody,
+                pagePath: "/telegram",
+                pageLabel: "Telegram conversation",
+              });
+            item.threadId = threadId;
+            state.replies[String(message.message_id)] = threadId;
+          }
         }
       }
     }
@@ -120,8 +162,13 @@ export function materializeThread(root, config, updateId, text, materials = []) 
     const messageId = `telegram-message-${config.botId}-${updateId}`;
     let mutation;
     const body = text || "Material received; inspect the preserved attachment and source metadata.";
-    if (item.threadId) mutation = addFeedbackMessageMutation(scope, id, { body }, { messageId });
-    else
+    if (item.threadId) {
+      const existing = getFeedback(scope, id);
+      mutation =
+        body === item.text
+          ? { record: existing }
+          : addFeedbackMessageMutation(scope, id, { body }, { messageId });
+    } else
       mutation = createFeedbackMutation(scope, {
         externalId: id,
         kind: "update",
@@ -143,7 +190,7 @@ export function getThread(root, id) {
   return {
     ...thread,
     version: recordVersion(thread),
-    inputs: Object.values(readTransport(root).inbox).filter((item) => item.threadId === id),
+    inputs: Object.values(readTransport(root).inbox).filter((item) => item.threadId === thread.id),
   };
 }
 export function associateInput(root, updateId, targetId) {
@@ -178,6 +225,13 @@ export function queueReply(root, id, text, kind = "progress", materials = [], op
   return updateTransport(root, (state) => {
     if (state.outbox[packageId]) return state.outbox[packageId];
     const current = getFeedback(scope, id);
+    if (
+      kind === "review" &&
+      Object.values(state.inbox).some(
+        (i) => i.threadId === id && !["ready", "sample-ready"].includes(i.status),
+      )
+    )
+      throw new Error("Process all preserved inputs before offering review.");
     if (!["progress", "question", "review", "preview"].includes(kind))
       throw new Error("Unknown reply kind.");
     if (!text.trim()) throw new Error("A reply needs readable text for its voice caption.");
@@ -206,11 +260,16 @@ export function commitReply(root, packageId) {
     const record = commitAgentReply(scope, item.threadId, item);
     item.committed = true;
     item.reviewVersion = recordVersion(record);
-    if (item.kind === "review") {
-      item.buttons = [
-        ["Accept", "resolved"],
-        ["Reopen", "open"],
-      ].map(([text, status]) => {
+    {
+      const actions =
+        item.kind === "review"
+          ? [
+              ["Accept", "resolved"],
+              ["Reopen", "open"],
+              ["Withdraw", "dismissed"],
+            ]
+          : [["Withdraw", "dismissed"]];
+      item.buttons = actions.map(([text, status]) => {
         const token = crypto.randomBytes(16).toString("hex");
         state.callbacks[token] = {
           threadId: item.threadId,

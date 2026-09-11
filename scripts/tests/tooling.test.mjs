@@ -116,7 +116,7 @@ test("plugin voices provide objective-driven orientation rather than vague notic
     "utf8",
   );
   const feedbackBodies = [
-    ...feedbackVoice.matchAll(/<voice id="([^"]+)">\s*<body>([\s\S]*?)<\/body>/g),
+    ...feedbackVoice.matchAll(/<voice id="(feedback\.[^"]+)">\s*<body>([\s\S]*?)<\/body>/g),
   ];
   assert.deepEqual(feedbackBodies.map((match) => match[1]).sort(), [
     "feedback.accepted",

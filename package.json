@@ -26,7 +26,7 @@
     "origin:resume": "node .codex/plugins/_dashboard-runtime/scripts/start-harness.mjs --resume-last",
     "dashboard": "node server/index.mjs --dev",
     "test": "node --test .codex/plugins/agent-stop-state/tests/*.test.mjs .codex/plugins/contextual-feedback/tests/*.test.mjs .codex/plugins/_dashboard-runtime/tests/*.test.mjs server/tests/*.test.mjs scripts/tests/*.test.mjs .codex/plugins/telegram-engagement/tests/*.test.mjs",
-    "test:coverage": "node --experimental-test-coverage --test-coverage-lines=85 --test-coverage-branches=65 --test-coverage-functions=80 --test-coverage-include=.codex/plugins/_engagement-core/lib/**/*.mjs --test-coverage-include=.codex/plugins/agent-stop-state/hooks/**/*.mjs --test-coverage-include=.codex/plugins/contextual-feedback/lib/**/*.mjs --test-coverage-include=.codex/plugins/_dashboard-runtime/lib/**/*.mjs --test-coverage-include=server/**/*.mjs --test .codex/plugins/agent-stop-state/tests/*.test.mjs .codex/plugins/contextual-feedback/tests/*.test.mjs .codex/plugins/_dashboard-runtime/tests/*.test.mjs server/tests/*.test.mjs scripts/tests/*.test.mjs",
+    "test:coverage": "node --experimental-test-coverage --test-coverage-lines=85 --test-coverage-branches=65 --test-coverage-functions=80 --test-coverage-include=.codex/plugins/_engagement-core/lib/**/*.mjs --test-coverage-include=.codex/plugins/agent-stop-state/hooks/**/*.mjs --test-coverage-include=.codex/plugins/contextual-feedback/lib/**/*.mjs --test-coverage-include=.codex/plugins/_dashboard-runtime/lib/**/*.mjs --test-coverage-include=server/**/*.mjs --test .codex/plugins/agent-stop-state/tests/*.test.mjs .codex/plugins/contextual-feedback/tests/*.test.mjs .codex/plugins/_dashboard-runtime/tests/*.test.mjs server/tests/*.test.mjs scripts/tests/*.test.mjs .codex/plugins/telegram-engagement/tests/*.test.mjs",
     "test:ui": "vitest run",
     "test:browser": "node scripts/browser-smoke.mjs",
     "lint": "eslint \"**/*.{js,mjs}\"",
@@ -39,7 +39,8 @@
     "acceptance:codex": "node scripts/acceptance-codex.mjs",
     "doctor": "node scripts/doctor.mjs",
     "setup": "node scripts/install.mjs",
-    "telegram": "node .codex/plugins/telegram-engagement/scripts/telegram.mjs"
+    "telegram": "node .codex/plugins/telegram-engagement/scripts/telegram.mjs",
+    "origin:remote": "node .codex/plugins/_dashboard-runtime/scripts/start-harness.mjs --telegram-only"
   },
   "dependencies": {
     "@vitejs/plugin-react": "6.1.1",

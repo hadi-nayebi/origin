@@ -297,6 +297,8 @@ test("transport backlog independently blocks Stop until delivered or explicitly 
 });
 
 test("private storage rejects symbolic ancestors", async (t) => {
+  if (process.platform === "win32")
+    return t.skip("Full harness uses WSL; native Windows symlinks require privileges.");
   const { privateDirectory } = await import("../lib/storage.mjs");
   const root = fixture(t);
   fs.mkdirSync(path.join(root, "outside"));
@@ -459,4 +461,95 @@ test("owner sample enrollment preserves the sample and queues exactly one voice 
   assert.equal(Object.values(state.outbox).length, 1);
   assert.match(Object.values(state.outbox)[0].text, /voice preview/);
   assert.equal(fs.existsSync(path.join(directory(root), "voice/reference.wav")), true);
+});
+
+test("HTTP dashboard remains healthy when its engagement plugin is physically removed", async (t) => {
+  const { pathToFileURL } = await import("node:url");
+  const root = fixture(t);
+  fs.cpSync(path.join(repo, ".codex"), path.join(root, ".codex"), { recursive: true });
+  fs.cpSync(path.join(repo, "server"), path.join(root, "server"), { recursive: true });
+  fs.rmSync(path.join(root, ".codex/plugins/contextual-feedback"), { recursive: true });
+  const { startOriginServer } = await import(pathToFileURL(path.join(root, "server/index.mjs")));
+  const server = await startOriginServer({ root, port: 0, serveUi: false, deliverWakes: false });
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  assert.equal((await fetch(`${base}/api/health`)).status, 200);
+  assert.equal((await (await fetch(`${base}/api/feedback`)).json()).disabled, true);
+  const response = await fetch(`${base}/api/session/wake`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
+  assert.equal((await response.json()).disabled, true);
+});
+
+test("related replies are assigned before slow media processing finishes", (t) => {
+  const root = fixture(t);
+  receiveUpdate(root, config, input(941, "", { voice: { file_id: "slow-audio" } }));
+  receiveUpdate(
+    root,
+    config,
+    input(942, "This belongs to my voice request", { reply_to_message: { message_id: 941 } }),
+  );
+  const state = readTransport(root);
+  assert.equal(state.inbox[941].threadId, state.inbox[942].threadId);
+  assert.equal(listFeedback(scopeFor(root)).length, 1);
+  assert.throws(
+    () =>
+      queueReply(
+        root,
+        state.inbox[941].threadId,
+        "Verified this result and all its material.",
+        "review",
+      ),
+    /Process all/,
+  );
+});
+
+test("a lost ingress snapshot cannot duplicate the initial raw contribution", (t) => {
+  const root = fixture(t);
+  const snapshot = readTransport(root);
+  receiveUpdate(root, config, input(951, "Preserve this request once"));
+  atomicJSON(path.join(directory(root), "transport.json"), snapshot);
+  receiveUpdate(root, config, input(951, "Preserve this request once"));
+  assert.equal(listFeedback(scopeFor(root))[0].messages.length, 1);
+});
+
+test("channel-owned Stop voices render validated responsibility pointers", async (t) => {
+  const { inspectStop: inspectLocal } = await import("../../contextual-feedback/hooks/stop.mjs");
+  const { inspectStop: inspectRemote } = await import("../hooks/stop.mjs");
+  const root = fixture(t);
+  const local = request(root);
+  const remote = request(scopeFor(root));
+  assert.match(inspectLocal(root).reason, new RegExp(local.id));
+  assert.match(inspectRemote(scopeFor(root)).reason, new RegExp(remote.id));
+  assert.match(inspectRemote(scopeFor(root)).reason, /npm run telegram/);
+  assert.match(inspectLocal(root).reason, /npm run feedback/);
+});
+
+test("owner can withdraw a remote request without representing it as accepted", async (t) => {
+  const root = fixture(t);
+  const scope = scopeFor(root);
+  const thread = request(scope);
+  const item = queueReply(root, thread.id, "I have started reviewing your request.");
+  await deliverReply(
+    root,
+    config,
+    { sendFile: async () => ({ message_id: 990 }) },
+    { render: async () => ({}) },
+    item,
+  );
+  const token = readTransport(root).outbox[item.id].buttons[0].callback_data;
+  receiveUpdate(root, config, {
+    update_id: 991,
+    callback_query: {
+      id: "991",
+      data: token,
+      from: { id: 200 },
+      message: { chat: { id: 100 }, message_id: 990 },
+    },
+  });
+  assert.equal(getFeedback(scope, thread.id).status, "dismissed");
+  assert.equal(getFeedback(scope, thread.id).acceptance, null);
+  assert.match(readTransport(root).callbackReceipts[991], /Withdrawn/);
 });

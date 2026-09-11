@@ -4,10 +4,13 @@ Origin is a public, topic-agnostic starting point for a local dashboard and its 
 Preserve its empty-canvas character: do not add domain, company, profession, or workflow assumptions
 to the shipped dashboard.
 
-Origin 1.0 contains one visible cognitive behavior, `contextual-feedback`, supported by the
-low-level `agent-stop-state` control plugin. Feedback owns thread lifecycle; Stop State owns global
-idle, active, waiting, and paused state. The underscore-prefixed dashboard runtime transports
-durable wake events into one interactive Codex tmux session without acquiring cognitive policy.
+Origin contains two independently removable engagement plugins: `contextual-feedback` for the local
+dashboard and `telegram-engagement` for remote Telegram conversations. Each owns its own thread
+journal and continuation `data.json`, with identical mode names but no shared channel state. The
+neutral `_engagement-core` provides lifecycle rules; `_dashboard-runtime` provides serialized
+transport into one interactive Codex tmux session. The old `agent-stop-state` commands are dashboard
+compatibility aliases, not a global state owner. Either active channel can block Stop; a passive
+channel must abstain and must never override another channel's continuation decision.
 
 Before changing a nested path, read every applicable `AGENTS.md`. Keep durable source and
 documentation tracked. Keep clone-local feedback, delivery state, logs, and generated runtime data
@@ -21,7 +24,9 @@ identifiers; the agent reads the full body through the plugin's validated public
 An actionable open or in-progress record keeps the agent active while useful progress remains
 possible. Waiting is valid only when no other runnable responsibility remains. The agent marks work
 ready for review with concrete evidence; only the user accepts final resolution or reopens it.
-Continue an in-progress record first; otherwise take the oldest actionable open record.
+Continue an in-progress record first; otherwise take the oldest actionable open record. Inspect both
+enabled channels at safe work boundaries so neither starves. A merge associates responsibility and
+history; it is not user acceptance.
 
 Origin is the public Hadosh Academy dashboard-plus-harness substrate for onboarding Phases 6 and 7.
 If `ONBOARDING_HANDOFF.md` exists, verify it with the user and record a receipt before

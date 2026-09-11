@@ -17,6 +17,7 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export type FeedbackView = {
+  disabled?: boolean;
   records: FeedbackRecord[];
   outcome: AgentState;
   delivery: DeliveryStatus;

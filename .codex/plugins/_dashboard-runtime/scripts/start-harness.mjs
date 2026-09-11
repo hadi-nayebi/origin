@@ -3,7 +3,7 @@ import { pluginPresent } from "../../_engagement-core/lib/scope.mjs";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { spawn, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { ensureAgentState } from "../../_engagement-core/lib/state.mjs";
 import { reconcileAgentState } from "../../_engagement-core/lib/service.mjs";
@@ -42,18 +42,13 @@ export async function startHarness(options = {}) {
     pluginPresent({ root: repositoryRoot, channel: "telegram-engagement" }) &&
     fs.existsSync(path.join(repositoryRoot, ".origin/telegram-engagement/enabled.json"))
   ) {
-    const log = fs.openSync(
-      path.join(repositoryRoot, ".origin/telegram-engagement/runtime.log"),
-      "a",
-      0o600,
+    const { startBackground } = await import(
+      pathToFileURL(
+        path.join(repositoryRoot, ".codex/plugins/telegram-engagement/lib/launcher.mjs"),
+      )
     );
-    const child = spawn(
-      process.execPath,
-      [path.join(repositoryRoot, ".codex/plugins/telegram-engagement/scripts/telegram.mjs"), "run"],
-      { cwd: repositoryRoot, detached: true, stdio: ["ignore", log, log] },
-    );
-    child.unref();
-    fs.closeSync(log);
+    const telegram = await startBackground(repositoryRoot);
+    process.stdout.write(`Telegram listener: ${telegram.status} (PID ${telegram.pid})\n`);
   }
   if (process.env.TMUX || options.insideTmux) {
     process.stdout.write(

@@ -64,3 +64,28 @@ and acceptance tests when extending them. Never place user text into a shell com
 by an operator before another send; blind retries can duplicate a Telegram message. Hook
 registration cannot wake a stopped process by itself: the listener and the exact local Codex/tmux
 session must remain running. A sleeping or powered-off laptop cannot process messages.
+
+## Operator recovery commands
+
+- `npm run telegram -- reconcile-output PACKAGE_ID voice|material INDEX sent|not-sent MESSAGE_ID "observed evidence"`
+  records an inspected indeterminate part. Index is zero-based; use `0` for the message ID only when
+  confirming it was not sent. Inspect the paired chat first.
+- `npm run wake -- reconcile contextual-feedback|telegram-engagement WAKE_ID submitted|not-submitted "observed evidence"`
+  reconciles a wake after inspecting the exact Codex pane. Confirm that pending editor text is
+  cleared or submitted before choosing not-submitted.
+- `npm run telegram -- sample-text /absolute/path/to/transcript.txt` corrects the reference sample
+  transcript. Restart the listener to clear its cached clone prompt and queue a reply to preview it
+  again.
+- `npm run telegram -- associate UPDATE_ID PARENT_THREAD_ID` moves the source conversation's
+  responsibility to the parent and preserves every contribution.
+
+A model installation writes `model-receipts.json` with exact upstream revisions. To reproduce them,
+set `qwenRevision` and `sttRevision` in private config before installing. Optional `pronunciation`
+maps written phrases to spoken forms for local synthesis; captions keep the original text. Speech
+quality is checked with local recognition, but you should listen to your enrollment
+preview—automatic alignment cannot certify speaker similarity, pronunciation or multilingual
+quality.
+
+Text and voice input create the same responsibility. All outgoing conversational replies currently
+require local voice readiness. Missing models or a failed render remain a visible pending item;
+there is no silent paid or text-only fallback.

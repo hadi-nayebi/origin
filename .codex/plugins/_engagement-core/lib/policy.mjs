@@ -4,7 +4,7 @@ const ALLOWED = Object.freeze({
   open: Object.freeze(["in_progress", "waiting", "dismissed"]),
   in_progress: Object.freeze(["open", "waiting", "ready_for_review", "dismissed"]),
   waiting: Object.freeze(["open", "in_progress", "dismissed"]),
-  ready_for_review: Object.freeze(["resolved", "open", "in_progress"]),
+  ready_for_review: Object.freeze(["resolved", "open", "in_progress", "dismissed"]),
   resolved: Object.freeze(["open"]),
   dismissed: Object.freeze(["open"]),
 });

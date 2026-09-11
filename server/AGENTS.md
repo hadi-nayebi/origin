@@ -1,12 +1,13 @@
 # Local server boundary
 
-The server validates HTTP shapes, calls the public `contextual-feedback` library, persists wake
-events before scheduling tmux delivery, renders tracked wiki sources, and serves the dashboard.
-Feedback lifecycle belongs to Contextual Feedback; Stop decisions belong to Agent Stop State; tmux
-delivery belongs to the runtime.
+The server validates HTTP shapes, calls the neutral core on behalf of `contextual-feedback`,
+persists wake events before scheduling tmux delivery, renders tracked wiki sources, and serves the
+dashboard. Feedback lifecycle belongs to Contextual Feedback; each channel owns its Stop decision;
+tmux delivery belongs to the runtime.
 
-Bind to loopback by default. Do not introduce authentication, remote access, cloud storage, Git
-synchronization, or multi-user policy into Origin 1.0.
+Bind to loopback by default. The optional Telegram plugin supplies authenticated remote engagement
+separately. Do not expose the dashboard HTTP server to the network or introduce cloud storage, Git
+synchronization or multi-user policy.
 
 HTTP success means the authoritative mutation and durable wake record were saved; it does not mean
 tmux delivery already completed. Return delivery state precisely so the interface never calls a

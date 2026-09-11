@@ -1,3 +1,4 @@
+import { deliverAsyncWake } from "../../_dashboard-runtime/lib/async-wake.mjs";
 import { reconcileTelegram } from "./continuation.mjs";
 import fs from "node:fs";
 import path from "node:path";
@@ -10,6 +11,7 @@ import {
   readTransport,
   updateTransport,
   privateDirectory,
+  atomicJSON,
 } from "./storage.mjs";
 import { receiveUpdate, materializeThread, commitReply, queueReply } from "./service.mjs";
 import { loadConfig } from "./config.mjs";
@@ -25,6 +27,7 @@ import {
 import { readAgentState } from "../../_engagement-core/lib/state.mjs";
 import {
   enqueueFeedbackWake,
+  wakeStatus,
   hasFeedbackWakeForEvent,
   deliverPendingWakes,
 } from "../../_dashboard-runtime/lib/wake-outbox.mjs";
@@ -34,7 +37,14 @@ function failure(root, lane, id, error) {
     const item = state[lane][id];
     item.attempts = (item.attempts || 0) + 1;
     item.error = error.message;
-    item.status = error.uncertain ? "indeterminate" : "retrying";
+    item.status =
+      error.uncertain ||
+      (lane === "outbox" &&
+        [...(item.chunks || []), ...(item.materials || [])].some(
+          (p) => p.status === "indeterminate",
+        ))
+        ? "indeterminate"
+        : "retrying";
     item.nextAttemptAt =
       Date.now() +
       Math.max(
@@ -234,6 +244,11 @@ export async function runTelegram(root, options = {}) {
   let sending = false;
   try {
     await api.verify(config);
+    atomicJSON(path.join(directory(root), "runtime.json"), {
+      pid: process.pid,
+      status: "ready",
+      at: new Date().toISOString(),
+    });
     reconcileAgentState(scope);
     const poll = async () => {
       while (!signal.aborted) {
@@ -243,7 +258,12 @@ export async function runTelegram(root, options = {}) {
             receiveUpdate(root, config, update);
             if (update.callback_query)
               await api
-                .call("answerCallbackQuery", { callback_query_id: update.callback_query.id })
+                .call("answerCallbackQuery", {
+                  callback_query_id: update.callback_query.id,
+                  text:
+                    readTransport(root).callbackReceipts?.[String(update.update_id)] ||
+                    "This control was already processed.",
+                })
                 .catch(() => {});
           }
         } catch (error) {
@@ -290,7 +310,9 @@ export async function runTelegram(root, options = {}) {
           for (const intent of feedbackWakeIntents(scope))
             if (!hasFeedbackWakeForEvent(scope, intent.sourceEventHash))
               enqueueFeedbackWake(scope, intent);
-          await deliverPendingWakes(scope, { ...options.wakeOptions, maxDeliveries: 1 });
+          if (options.wakeOptions)
+            await deliverPendingWakes(scope, { ...options.wakeOptions, maxDeliveries: 1 });
+          else if (wakeStatus(scope).retryable > 0) await deliverAsyncWake(scope);
           if (!sending) {
             const item = Object.values(readTransport(root).outbox).find(
               (p) =>
@@ -315,6 +337,11 @@ export async function runTelegram(root, options = {}) {
     await Promise.all([poll().finally(shutdown), work().finally(shutdown)]);
   } finally {
     controller.abort();
+    atomicJSON(path.join(directory(root), "runtime.json"), {
+      pid: process.pid,
+      status: "stopped",
+      at: new Date().toISOString(),
+    });
     voice.close();
     await Promise.allSettled([...jobs]);
     release();

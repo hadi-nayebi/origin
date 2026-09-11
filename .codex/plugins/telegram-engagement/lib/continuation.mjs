@@ -48,6 +48,7 @@ export function inspectStop(scope) {
   const state = readAgentState(scope);
   const mode = state.mode === "paused" ? state : telegramMode(scope.root);
   return {
+    reference: mode.reference,
     block: mode.mode === "active",
     mode: mode.mode,
     reason: `Telegram engagement: ${mode.reason} ${mode.nextAction || ""} Read the thread with npm run telegram -- get ID. Preserve user ownership of acceptance. A pending delivery is not a resolved conversation.`,

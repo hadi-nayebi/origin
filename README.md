@@ -27,15 +27,14 @@ The primary reader of this repository is often an agent already helping a user t
 
 Origin is a starting substrate, not a prefabricated agent or a finished domain system.
 
-## What Origin 1.0 includes
+## What Origin includes
 
 - Empty responsive canvas with floating Wiki and Feedback controls.
 - One foreground interactive Codex relationship shared by terminal and dashboard.
 - Repository-scoped tmux session creation, reuse, attachment, and `--resume-last` support.
 - Durable, serialized dashboard-to-Codex wake delivery with per-event markers and verified paste and
   submission evidence.
-- `agent-stop-state`: clone-local `idle`, `active`, `waiting`, and `paused` control with a Stop
-  hook.
+- Independent `idle`, `active`, `waiting`, and `paused` state and Stop decisions for each channel.
 - `contextual-feedback`: raw input, page context, thread messages, interpretation, linked work,
   questions, answers, verification, user acceptance, dismissal, and reopening.
 - Sequence-numbered SHA-256 feedback history, atomic lifecycle actions, atomic writes, backups, and
@@ -44,8 +43,14 @@ Origin is a starting substrate, not a prefabricated agent or a finished domain s
 - Ten Wiki chapters explaining how dashboards, jobs, OPEVC, plugins, authority, and verification
   grow.
 
-Origin 1.0 is for one local user. Accounts, remote access, synchronization, and team authority are
-outside this version.
+Optional [Telegram engagement](.codex/plugins/telegram-engagement/README.md) adds remote
+conversations with local Qwen3-TTS voice cloning, local recognition and preserved media. Each
+channel works when the other plugin is removed. Telegram requires a dedicated bot, owner pairing,
+local speech dependencies/models and an owner voice sample. Accounts for multiple users,
+synchronization and team authority remain outside this version.
+
+Read the [five-pass review record](docs/TWO-CHANNEL-REVIEW.md) before enabling the preview.
+Model/sample/token files stay under ignored `.origin/`; no speech model is shipped in Git.
 
 ## Start
 
@@ -65,7 +70,7 @@ Use `npm run origin:resume` to launch Codex with `codex resume --last`. `npm run
 only the development dashboard for diagnostics; it is not the complete Origin interaction model.
 
 The first time Codex opens the repository, use `/hooks`, inspect `.codex/hooks.json`, and trust the
-Agent Stop State hook. Origin does not bypass Codex's trust boundary.
+two channel Stop hooks. Origin does not bypass Codex's trust boundary.
 
 ## The feedback loop
 

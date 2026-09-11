@@ -68,3 +68,22 @@ escalates termination. Downloads resolve and record exact model revisions; expli
 overrides retain canonical captions. Doctor fails when voice prerequisites are missing. The sample
 integration test runs real FFmpeg conversion with a synthetic fixture and mocked speech; it is not
 evidence of voice-clone perceptual quality or actual model inference.
+
+## Iteration 5 — public clone, integration and documentation
+
+Found: old diagnostics and instruction layers still described one global state; removing dashboard
+engagement left a misleading feedback control; a reply arriving during slow transcription could form
+a separate thread; synchronous tmux observation could block the Telegram polling event loop; startup
+lacked listener readiness evidence.
+
+Fixed: schemas, instructions, wiki, diagnostics and UI now describe/use the independent channels.
+Raw inputs acquire thread identity before media processing, with replay-safe journal writes, and
+pending media prevents premature review. tmux observation runs in a separate worker. The launcher
+checks listener ownership and startup readiness. Stop coaching belongs to each channel's voice
+catalog. Additional tests cover a physically removed dashboard plugin's HTTP server, ingress crash
+replay, slow-media threading and channel-owned Stop voices.
+
+Automated evidence at this stage: Node lifecycle/transport/API regressions, React checks, production
+build/smoke, plugin manifest validation and Python syntax checking. The final head's exact test
+counts and CI results are recorded in the PR handoff. These checks use fake Telegram/model
+boundaries unless explicitly labeled otherwise.

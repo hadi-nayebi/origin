@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { bounded } from "../../_engagement-core/lib/contracts.mjs";
 import {
   createFeedbackMutation,
   addFeedbackMessageMutation,
@@ -7,6 +8,7 @@ import {
   listFeedback,
   reconcileAgentState,
   recordVersion,
+  replyVersion,
   commitAgentReply,
   mergeFeedback,
 } from "../../_engagement-core/lib/service.mjs";
@@ -85,7 +87,7 @@ export function receiveUpdate(root, config, update) {
       if (!state.inbox[key]) {
         const text = message.text || message.caption || "";
         const files = mediaOf(message);
-        const command = text.trim();
+        const command = files.length ? "" : text.trim();
         if (command === "/pause")
           pauseAgent(scopeFor(root), "Paused by the paired Telegram owner.");
         else if (command === "/resume") {
@@ -98,6 +100,12 @@ export function receiveUpdate(root, config, update) {
             files.some((f) => ["voice", "audio"].includes(f.kind));
           if (sample) state.enrollment = null;
           const reply = message.reply_to_message?.message_id;
+          const album =
+            message.media_group_id &&
+            Object.values(state.inbox).find(
+              (item) =>
+                item.source?.message?.media_group_id === message.media_group_id && item.threadId,
+            );
           const original = Object.values(state.inbox).find(
             (item) => item.messageId === message.message_id && item.threadId,
           );
@@ -105,7 +113,7 @@ export function receiveUpdate(root, config, update) {
             updateId: update.update_id,
             messageId: message.message_id,
             source: update,
-            threadId: original?.threadId || state.replies[String(reply)] || null,
+            threadId: original?.threadId || state.replies[String(reply)] || album?.threadId || null,
             kind: sample ? "voice-sample" : "engagement",
             text,
             files,
@@ -115,10 +123,10 @@ export function receiveUpdate(root, config, update) {
             receivedAt: new Date().toISOString(),
           };
           const item = state.inbox[key];
-          if (!sample) {
+          {
             const threadId = item.threadId || `telegram-${config.botId}-${update.update_id}`;
             const rawBody =
-              text ||
+              safeConversationText(text) ||
               "Media input received. Inspect the preserved source; local processing is pending.";
             let existing;
             try {
@@ -161,11 +169,13 @@ export function materializeThread(root, config, updateId, text, materials = []) 
     const id = item.threadId || `telegram-${config.botId}-${updateId}`;
     const messageId = `telegram-message-${config.botId}-${updateId}`;
     let mutation;
-    const body = text || "Material received; inspect the preserved attachment and source metadata.";
+    const body =
+      safeConversationText(text) ||
+      "Material received; inspect the preserved attachment and source metadata.";
     if (item.threadId) {
       const existing = getFeedback(scope, id);
       mutation =
-        body === item.text
+        body === safeConversationText(item.text)
           ? { record: existing }
           : addFeedbackMessageMutation(scope, id, { body }, { messageId });
     } else
@@ -225,6 +235,7 @@ export function queueReply(root, id, text, kind = "progress", materials = [], op
   return updateTransport(root, (state) => {
     if (state.outbox[packageId]) return state.outbox[packageId];
     const current = getFeedback(scope, id);
+    id = current.id;
     if (
       kind === "review" &&
       Object.values(state.inbox).some(
@@ -234,13 +245,43 @@ export function queueReply(root, id, text, kind = "progress", materials = [], op
       throw new Error("Process all preserved inputs before offering review.");
     if (!["progress", "question", "review", "preview"].includes(kind))
       throw new Error("Unknown reply kind.");
-    if (!text.trim()) throw new Error("A reply needs readable text for its voice caption.");
+    text = bounded(
+      text,
+      "Reply text",
+      kind === "review" ? 20 : kind === "question" ? 5 : 1,
+      kind === "review" ? 4000 : kind === "question" ? 1000 : 65536,
+    );
+    if (
+      (kind === "review" && current.status !== "in_progress") ||
+      (kind === "question" && !["open", "in_progress"].includes(current.status)) ||
+      (["progress", "preview"].includes(kind) &&
+        !["open", "in_progress", "waiting"].includes(current.status))
+    )
+      throw new Error(
+        "Reply is invalid for the current thread status; inspect or start the thread first.",
+      );
+    const pending = Object.values(state.outbox).filter(
+      (p) => p.threadId === id && !["sent", "superseded", "cancelled"].includes(p.status),
+    );
+    if (
+      pending.some(
+        (p) =>
+          p.kind === "review" || (["question", "review"].includes(kind) && p.kind === "question"),
+      )
+    )
+      throw new Error(
+        "A lifecycle reply is already pending; finish or repair it before preparing another.",
+      );
     const intent = {
       id: packageId,
       threadId: id,
       text,
       kind,
       materials,
+      replyToMessageId:
+        Object.values(state.inbox)
+          .filter((i) => i.threadId === id)
+          .at(-1)?.messageId || null,
       status: "prepared",
       createdAt: new Date().toISOString(),
       attempts: 0,
@@ -249,6 +290,7 @@ export function queueReply(root, id, text, kind = "progress", materials = [], op
     };
     state.outbox[packageId] = intent;
     intent.expectedVersion = recordVersion(current);
+    intent.expectedReplyVersion = replyVersion(current);
     return intent;
   });
 }
@@ -325,6 +367,28 @@ export function reconcileDelivery(root, packageId, component, index, outcome, me
     }
     item.status = "sending";
     item.nextAttemptAt = 0;
+    item.error = null;
+    return item;
+  });
+}
+
+// Preserve the exact Telegram envelope separately; unsafe display characters must
+// never poison polling and prevent all later updates from being received.
+function safeConversationText(text) {
+  return String(text || "")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "�")
+    .trim()
+    .slice(0, 65536);
+}
+
+export function retryOutput(root, id) {
+  return updateTransport(root, (state) => {
+    const item = state.outbox[id];
+    if (!item || !["retrying", "failed"].includes(item.status))
+      throw new Error("Output is not retryable; reconcile uncertain sends first.");
+    item.status = "prepared";
+    item.nextAttemptAt = 0;
+    item.attempts = 0;
     item.error = null;
     return item;
   });

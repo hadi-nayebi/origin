@@ -20,6 +20,7 @@ import {
   getThread,
   associateInput,
   queueReply,
+  retryOutput,
   reconcileDelivery,
 } from "../lib/service.mjs";
 import {
@@ -109,12 +110,14 @@ try {
       historyPreserved: true,
       next: "The listener observes disable and stops. History is retained; the other channel is unaffected.",
     });
-  } else if (command === "retry-input") {
+  } else if (command === "retry-output") print(retryOutput(root, id));
+  else if (command === "retry-input") {
     updateTransport(root, (s) => {
       const item = s.inbox[id];
       if (!item || !["retrying", "failed"].includes(item.status))
         throw new Error("Input is not retryable.");
       item.status = "received";
+      item.attempts = 0;
       item.nextAttemptAt = 0;
     });
     print({ retry: id });
@@ -148,7 +151,7 @@ try {
       process.exitCode = 1;
   } else
     throw new Error(
-      "Usage: telegram <setup|install-voice|run|doctor|enable|disable|status|list|next|get|start|reply|ask|review|material|associate|pause|resume|verify|retry-input> [id] [text or file]",
+      "Usage: telegram <setup|install-voice|run|doctor|enable|disable|status|list|next|get|start|reply|ask|review|material|associate|pause|resume|verify|retry-input|retry-output|reconcile-output|sample-text> [id] [text or file]",
     );
 } catch (error) {
   process.stderr.write(error.message + "\n");
@@ -232,6 +235,7 @@ async function setup() {
     )
       throw new Error("Existing token path is not a regular file.");
     fs.writeFileSync(path.join(dir, "bot-token"), token + "\n", { mode: 0o600, flag: "w" });
+    fs.chmodSync(path.join(dir, "bot-token"), 0o600);
     saveConfig(root, {
       ...defaults(),
       botId: String(me.id),

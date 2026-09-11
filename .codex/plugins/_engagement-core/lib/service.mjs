@@ -322,6 +322,15 @@ function mutationResult(result, id) {
   return Object.freeze({ event: result.event, record: result.records.get(id) });
 }
 
+export function replyVersion(record) {
+  return crypto
+    .createHash("sha256")
+    .update(
+      JSON.stringify({ id: record.id, inputs: record.messages.filter((m) => m.role === "user") }),
+    )
+    .digest("hex");
+}
+
 export function recordVersion(record) {
   return crypto.createHash("sha256").update(JSON.stringify(record)).digest("hex");
 }
@@ -334,7 +343,11 @@ export function commitAgentReply(root, id, intent, now = new Date()) {
     if (!record) throw new Error("Feedback record not found.");
     const messageId = `outbound-${intent.id}`;
     if (record.messages.some((m) => m.id === messageId)) return null;
-    if (recordVersion(record) !== intent.expectedVersion)
+    if (
+      intent.expectedReplyVersion
+        ? replyVersion(record) !== intent.expectedReplyVersion
+        : recordVersion(record) !== intent.expectedVersion
+    )
       throw new Error("Thread changed while reply was prepared; prepare a fresh reply.");
     const type =
       intent.kind === "question"
@@ -348,7 +361,7 @@ export function commitAgentReply(root, id, intent, now = new Date()) {
       now,
       messageId,
     );
-    if (intent.kind === "progress") {
+    if (["progress", "preview"].includes(intent.kind)) {
       if (!["open", "in_progress", "waiting"].includes(record.status))
         throw new Error("Reopen this thread before sending progress.");
       return { type: "feedback.message-added", id, at: now.toISOString(), message };

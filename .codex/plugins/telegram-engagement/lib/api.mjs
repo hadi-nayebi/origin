@@ -101,13 +101,13 @@ export class BotAPI {
       if (fd !== undefined) fs.closeSync(fd);
     }
   }
-  async sendFile(method, field, file, config, extra = {}) {
+  async sendFile(method, field, file, config, extra = {}, options = {}) {
     const form = new FormData();
     form.set("chat_id", config.chatId);
     for (const [key, value] of Object.entries(extra))
       if (value !== undefined)
         form.set(key, typeof value === "object" ? JSON.stringify(value) : String(value));
     form.set(field, new Blob([fs.readFileSync(file)]), path.basename(file));
-    return this.call(method, form, { multipart: true, timeout: 180000 });
+    return this.call(method, form, { multipart: true, timeout: 180000, signal: options.signal });
   }
 }

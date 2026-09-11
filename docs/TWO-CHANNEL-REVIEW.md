@@ -124,3 +124,39 @@ then for Telegram alone with dashboard waiting, then dashboard alone with Telegr
 both waiting, the next bounded prompt completed without a Stop block. The isolated session was
 closed and its synthetic Telegram activation removed. This is bounded host acceptance, not
 certification of every onboarding, media or operating-system scenario.
+
+## Renewed review — conversation parity and recoverability
+
+A further source review found gaps despite the earlier passing checks:
+
+- Dashboard review had no displayed-version guard, and associated source cards could offer review
+  controls against incomplete history. Review requests now require the current version; associated
+  source cards point to the parent. Withdrawal is available throughout actionable/review states.
+- Dashboard conversations lacked file exchange. Owner uploads and agent-returned materials now
+  attach to threads, preserve private file bytes, wake answered work and support explicit downloads.
+  HTML is downloaded as an attachment rather than rendered. Journal formats remain compatible.
+- Telegram progress packages queued together could supersede one another when an earlier agent
+  message changed the record digest. Reply preparation now tracks the user contributions separately
+  from agent progress, while later owner inputs still invalidate stale replies and reviews.
+- Telegram album items could fragment conversations, outgoing messages lacked visible reply
+  association, and unusual display bytes could poison the polling batch. Albums correlate, replies
+  reference their input and safe projections retain the exact raw source separately.
+- Pause/disable during voice rendering did not guard later network sends; repeated processing
+  failures lacked a bounded retry policy. Sends now recheck channel control and recoverable errors
+  stop automatic attempts after five failures, with explicit retry commands and durable evidence.
+- Terminal wake failures could end the listener; failed voice enrollment could lack a thread. Wake
+  errors are isolated, enrollment immediately creates responsibility, and the preview includes the
+  selected transcript. An alive listener lock alone no longer claims startup readiness.
+
+New regression evidence covers stale-browser review, both directions of local file exchange, unsafe
+download rendering, albums, preserved raw bytes, sequential replies, later owner corrections, pause
+during rendering and bounded retry. A production-listener integration test uses simulated HTTP and
+speech boundaries to exercise the supported inbound media matrix and continued polling across wake
+failure. Simulated transport is not a claim of dedicated-bot live acceptance.
+
+The subsequent voice/control pass also added direct dashboard pause/resume without changing Telegram
+state, protected pending lifecycle replies against contradictory queued transitions, and made sample
+conversion asynchronous. Speech verification now rejects substantial content changes and truncated
+endings, with coverage for text without word spaces. A fresh local CPU Qwen render using the
+authorized private reference passed the stronger check at alignment 1.0 (2.88 seconds); no bot or
+network delivery was used.

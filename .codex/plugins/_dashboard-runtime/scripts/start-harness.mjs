@@ -40,7 +40,13 @@ export async function startHarness(options = {}) {
   if (feedbackEnabled) await requestSessionWake(runtime.url, options.fetch || fetch);
   if (
     pluginPresent({ root: repositoryRoot, channel: "telegram-engagement" }) &&
-    fs.existsSync(path.join(repositoryRoot, ".origin/telegram-engagement/enabled.json"))
+    fs.existsSync(path.join(repositoryRoot, ".origin/telegram-engagement/enabled.json")) &&
+    JSON.parse(
+      fs.readFileSync(
+        path.join(repositoryRoot, ".origin/telegram-engagement/enabled.json"),
+        "utf8",
+      ),
+    ).enabled === true
   ) {
     const { startBackground } = await import(
       pathToFileURL(

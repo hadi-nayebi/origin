@@ -20,12 +20,14 @@ export async function startBackground(root) {
       if (error.code === "ESRCH") alive = false;
       else throw error;
     }
-    if (alive)
-      return {
-        status: "existing-listener",
-        pid: owner.pid,
-        readiness: readJSON(path.join(dir, "runtime.json"), null),
-      };
+    if (alive) {
+      const readiness = readJSON(path.join(dir, "runtime.json"), null);
+      if (readiness?.pid !== owner.pid || readiness.status !== "ready")
+        throw new Error(
+          "Telegram listener owner is running but readiness is not confirmed; inspect runtime.log before retrying.",
+        );
+      return { status: "existing-listener", pid: owner.pid, readiness };
+    }
   }
   const log = fs.openSync(path.join(dir, "runtime.log"), "a", 0o600);
   const child = spawn(

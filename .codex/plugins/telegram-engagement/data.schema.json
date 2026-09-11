@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Origin Contextual Feedback Event v4",
+  "title": "Origin Telegram Engagement Event v4",
   "$defs": {
     "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "id": { "type": "string", "minLength": 10, "maxLength": 128, "pattern": "^[A-Za-z0-9-]+$" },

@@ -22,3 +22,8 @@ Unknown delivery outcomes require observed operator evidence before retries. Tra
 not user acceptance. Hook coaching explains the boundary; deterministic journal, state and ownership
 checks enforce it. Run the Node tests and actual local speech/paired-bot acceptance before claiming
 end-to-end readiness. Keep the public README accurate about limits.
+
+Inspect failed transport items through `status`; correct the cause before `retry-input` or
+`retry-output`. Five failed attempts halt automatic retries without resolving the responsibility.
+Pause and disable prevent subsequent sends, including after a slow render; reconcile any part whose
+upload was already in flight. A wake error does not mean polling has stopped.

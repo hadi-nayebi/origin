@@ -2,7 +2,7 @@ import { deliverAsyncWake } from "../../_dashboard-runtime/lib/async-wake.mjs";
 import { reconcileTelegram } from "./continuation.mjs";
 import fs from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import {
   directory,
@@ -12,6 +12,7 @@ import {
   updateTransport,
   privateDirectory,
   atomicJSON,
+  readJSON,
 } from "./storage.mjs";
 import { receiveUpdate, materializeThread, commitReply, queueReply } from "./service.mjs";
 import { loadConfig } from "./config.mjs";
@@ -23,6 +24,7 @@ import {
   feedbackWakeIntents,
   getFeedback,
   recordVersion,
+  replyVersion,
 } from "../../_engagement-core/lib/service.mjs";
 import { readAgentState } from "../../_engagement-core/lib/state.mjs";
 import {
@@ -32,7 +34,7 @@ import {
   deliverPendingWakes,
 } from "../../_dashboard-runtime/lib/wake-outbox.mjs";
 
-function failure(root, lane, id, error) {
+export function failure(root, lane, id, error) {
   updateTransport(root, (state) => {
     const item = state[lane][id];
     item.attempts = (item.attempts || 0) + 1;
@@ -44,7 +46,9 @@ function failure(root, lane, id, error) {
           (p) => p.status === "indeterminate",
         ))
         ? "indeterminate"
-        : "retrying";
+        : error.permanent || item.attempts >= 5
+          ? "failed"
+          : "retrying";
     item.nextAttemptAt =
       Date.now() +
       Math.max(
@@ -80,7 +84,7 @@ export async function prepareInput(root, config, api, voice, item, signal) {
   if (item.kind === "voice-sample") {
     const voiceDir = path.join(directory(root), "voice");
     privateDirectory(voiceDir);
-    const conversion = spawnSync(
+    await convertSample(
       "ffmpeg",
       [
         "-y",
@@ -96,9 +100,9 @@ export async function prepareInput(root, config, api, voice, item, signal) {
         "1",
         path.join(voiceDir, "reference.wav"),
       ],
-      { shell: false, encoding: "utf8", timeout: 120000 },
+      signal,
     );
-    if (conversion.status !== 0) throw new Error("Could not prepare the local voice sample.");
+
     // Transcribe exactly the selected reference segment, not the full voice note.
     const reference = await voice.transcribe(path.join(voiceDir, "reference.wav"));
     fs.writeFileSync(path.join(voiceDir, "reference.txt"), reference.text + "\n", { mode: 0o600 });
@@ -114,7 +118,7 @@ export async function prepareInput(root, config, api, voice, item, signal) {
     queueReply(
       root,
       thread.id,
-      "This is your locally generated voice preview. Please listen and reply to this message with any correction or confirm that the voice sounds right.",
+      `The selected sample transcript is: ${reference.text}. This is your locally generated voice preview. Please listen and reply with any correction or confirm that the voice sounds right.`,
       "progress",
       [],
       { packageId: `sample-preview-${item.updateId}` },
@@ -133,13 +137,22 @@ export async function prepareInput(root, config, api, voice, item, signal) {
   materializeThread(root, config, item.updateId, text, material);
 }
 
-export async function deliverReply(root, config, api, voice, original) {
+export async function deliverReply(root, config, api, voice, original, options = {}) {
+  const assertActive = () => {
+    if (options.signal?.aborted || options.canSend?.() === false)
+      throw new Error(
+        "Delivery paused or disabled; retain the unsent parts until explicitly resumed.",
+      );
+  };
+  assertActive();
   let item = readTransport(root).outbox[original.id];
   const scope = scopeFor(root);
   if (
     !item.committed &&
     !getFeedback(scope, item.threadId).messages.some((m) => m.id === `outbound-${item.id}`) &&
-    recordVersion(getFeedback(scope, item.threadId)) !== item.expectedVersion
+    (item.expectedReplyVersion
+      ? replyVersion(getFeedback(scope, item.threadId)) !== item.expectedReplyVersion
+      : recordVersion(getFeedback(scope, item.threadId)) !== item.expectedVersion)
   ) {
     updateTransport(root, (s) => {
       s.outbox[item.id].status = "superseded";
@@ -163,16 +176,19 @@ export async function deliverReply(root, config, api, voice, original) {
   }
   for (const chunk of item.chunks) {
     if (chunk.status !== "prepared") continue;
+    assertActive();
     await voice.render(chunk.caption, chunk.file);
     updateTransport(root, (s) => {
       s.outbox[item.id].chunks[chunk.index].status = "rendered";
     });
   }
+  assertActive();
   commitReply(root, item.id);
   item = readTransport(root).outbox[item.id];
   for (const chunk of item.chunks) {
     if (chunk.status === "sent") continue;
     if (chunk.status === "indeterminate") return;
+    assertActive();
     updateTransport(root, (s) => {
       s.outbox[item.id].status = "indeterminate";
       s.outbox[item.id].chunks[chunk.index].status = "indeterminate";
@@ -180,10 +196,20 @@ export async function deliverReply(root, config, api, voice, original) {
     const last = chunk.index === item.chunks.length - 1;
     let result;
     try {
-      result = await api.sendFile("sendVoice", "voice", chunk.file, config, {
-        caption: chunk.caption,
-        reply_markup: last && item.buttons ? { inline_keyboard: [item.buttons] } : undefined,
-      });
+      result = await api.sendFile(
+        "sendVoice",
+        "voice",
+        chunk.file,
+        config,
+        {
+          caption: chunk.caption,
+          reply_parameters: item.replyToMessageId
+            ? { message_id: item.replyToMessageId, allow_sending_without_reply: true }
+            : undefined,
+          reply_markup: last && item.buttons ? { inline_keyboard: [item.buttons] } : undefined,
+        },
+        { signal: options.signal },
+      );
     } catch (error) {
       if (!error.uncertain)
         updateTransport(root, (s) => {
@@ -199,6 +225,7 @@ export async function deliverReply(root, config, api, voice, original) {
     });
   }
   for (let index = 0; index < item.materials.length; index++) {
+    assertActive();
     const attachment = readTransport(root).outbox[item.id].materials[index];
     if (attachment.status === "sent") continue;
     updateTransport(root, (s) => {
@@ -208,7 +235,18 @@ export async function deliverReply(root, config, api, voice, original) {
     if (attachment.status === "indeterminate") return;
     let result;
     try {
-      result = await api.sendFile("sendDocument", "document", attachment.path, config);
+      result = await api.sendFile(
+        "sendDocument",
+        "document",
+        attachment.path,
+        config,
+        {
+          reply_parameters: item.replyToMessageId
+            ? { message_id: item.replyToMessageId, allow_sending_without_reply: true }
+            : undefined,
+        },
+        { signal: options.signal },
+      );
     } catch (error) {
       if (!error.uncertain)
         updateTransport(root, (s) => {
@@ -241,6 +279,9 @@ export async function runTelegram(root, options = {}) {
   process.once("SIGTERM", shutdown);
   process.once("SIGINT", shutdown);
   const scope = scopeFor(root);
+  const enabled = () =>
+    options.ignoreActivation ||
+    readJSON(path.join(directory(root), "enabled.json"), {}).enabled === true;
   const jobs = new Set();
   const workingInputs = new Set();
   let sending = false;
@@ -282,10 +323,7 @@ export async function runTelegram(root, options = {}) {
     };
     const work = async () => {
       while (!signal.aborted) {
-        if (
-          !options.ignoreActivation &&
-          !fs.existsSync(path.join(directory(root), "enabled.json"))
-        ) {
+        if (!enabled()) {
           controller.abort();
           break;
         }
@@ -309,12 +347,20 @@ export async function runTelegram(root, options = {}) {
           jobs.add(job);
         }
         if (readAgentState(scope).mode !== "paused") {
-          for (const intent of feedbackWakeIntents(scope))
-            if (!hasFeedbackWakeForEvent(scope, intent.sourceEventHash))
-              enqueueFeedbackWake(scope, intent);
-          if (options.wakeOptions)
-            await deliverPendingWakes(scope, { ...options.wakeOptions, maxDeliveries: 1 });
-          else if (wakeStatus(scope).retryable > 0) await deliverAsyncWake(scope);
+          try {
+            for (const intent of feedbackWakeIntents(scope))
+              if (!hasFeedbackWakeForEvent(scope, intent.sourceEventHash))
+                enqueueFeedbackWake(scope, intent);
+            if (options.wakeOptions)
+              await deliverPendingWakes(scope, { ...options.wakeOptions, maxDeliveries: 1 });
+            else if (wakeStatus(scope).retryable > 0)
+              await (options.deliverWake || deliverAsyncWake)(scope);
+          } catch (error) {
+            atomicJSON(path.join(directory(root), "wake-error.json"), {
+              at: new Date().toISOString(),
+              error: error.message,
+            });
+          }
           if (!sending) {
             const item = Object.values(readTransport(root).outbox).find(
               (p) =>
@@ -323,7 +369,10 @@ export async function runTelegram(root, options = {}) {
             );
             if (item) {
               sending = true;
-              const job = deliverReply(root, config, api, voice, item)
+              const job = deliverReply(root, config, api, voice, item, {
+                signal,
+                canSend: () => enabled() && readAgentState(scope).mode !== "paused",
+              })
                 .catch((error) => failure(root, "outbox", item.id, error))
                 .finally(() => {
                   sending = false;
@@ -350,4 +399,26 @@ export async function runTelegram(root, options = {}) {
     process.removeListener("SIGTERM", shutdown);
     process.removeListener("SIGINT", shutdown);
   }
+}
+
+function convertSample(command, args, signal) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      shell: false,
+      stdio: "ignore",
+      signal,
+      timeout: 120000,
+      killSignal: "SIGKILL",
+    });
+    child.once("error", () =>
+      reject(
+        new Error(
+          "Could not prepare the local voice sample; inspect FFmpeg and the preserved input.",
+        ),
+      ),
+    );
+    child.once("close", (code) =>
+      code === 0 ? resolve() : reject(new Error("Could not prepare the local voice sample.")),
+    );
+  });
 }

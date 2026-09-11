@@ -94,3 +94,22 @@ Speech chunks default to 300 characters; `speechChunkChars` can be set from 48 t
 with insufficient free memory records `GPU_BUSY` and retries after a delay, without interrupting
 other applications. CPU remains the portable default. GPU memory requirements vary with model,
 sample and reply length.
+
+## Delivery and processing boundaries
+
+Replies and returned files visibly reply to the relevant Telegram input. Incoming album items share
+one thread. Exact raw updates are preserved, including unfamiliar media forms; unsafe display
+characters are normalized only in the conversation projection. Captions such as `/pause` on an
+attachment are treated as content, so the attachment is not discarded as a command.
+
+Pausing or disabling during synthesis prevents later sends; an upload already in flight can have an
+unknown outcome and still requires reconciliation. Recoverable processing errors retry up to five
+attempts, then remain visible as `failed` responsibilities. Repair the cause and use
+`retry-input UPDATE_ID` or `retry-output PACKAGE_ID`. Unknown network outcomes are never retried by
+these commands. Terminal wake errors are recorded in `wake-error.json` without ending polling. Voice
+enrollment creates a thread immediately, so a processing failure is still inspectable, and the
+preview includes the selected sample transcript for owner review.
+
+Local ASR verification requires at least 0.85 normalized alignment and a matching final word pair,
+including character-aware handling for Han text. A rejected render stays pending for repair or
+retry; automatic verification still cannot certify speaker similarity or every pronunciation.

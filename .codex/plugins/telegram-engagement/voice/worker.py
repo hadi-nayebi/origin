@@ -1,4 +1,6 @@
 """Private, persistent local speech worker. JSON-lines in/out; no cloud inference."""
+import difflib
+import re
 import argparse
 import contextlib
 import json
@@ -67,14 +69,22 @@ class Speech:
         os.chmod(target, 0o600)
         # Keep original caption authoritative. ASR is evidence, not a rewrite.
         heard = self.transcribe(str(target))
-        import difflib
-        import re
-        normalize = lambda s: re.findall(r"\w+", s.casefold())
-        expected, actual = normalize(spoken), normalize(heard["text"])
-        score = difflib.SequenceMatcher(None, expected, actual).ratio()
-        if score < 0.65 or (len(expected) >= 3 and not any(w in actual[-5:] for w in expected[-2:])):
-            raise ValueError("Speech verification failed; preserve the reply and retry or inspect pronunciation")
+        score = verify_speech(spoken, heard["text"])
         return {"file": str(target), "alignment": score, "transcript": heard["text"], "seconds": len(audio) / rate}
+
+
+def verify_speech(expected_text, actual_text):
+    # Split Han characters individually so languages without spaces can still
+    # tolerate small recognition differences without accepting truncated tails.
+    def tokens(text):
+        spaced = re.sub(r"([\u3400-\u4dbf\u4e00-\u9fff])", r" \1 ", text.casefold())
+        return re.findall(r"\w+", spaced)
+    expected, actual = tokens(expected_text), tokens(actual_text)
+    score = difflib.SequenceMatcher(None, expected, actual).ratio()
+    tail = min(2, len(expected))
+    if not expected or score < 0.85 or expected[-tail:] != actual[-tail:]:
+        raise ValueError("Speech verification failed; preserve the reply and inspect pronunciation or retry")
+    return score
 
 
 def main():

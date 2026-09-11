@@ -581,3 +581,114 @@ test("a later speech chunk failure sends no partial conversation and retains ear
   assert.equal(readTransport(root).outbox[item.id].chunks[0].status, "rendered");
   assert.equal(readTransport(root).outbox[item.id].chunks[1].status, "prepared");
 });
+
+test("albums stay in one thread and unsafe display bytes cannot poison later polling", (t) => {
+  const root = fixture(t);
+  receiveUpdate(
+    root,
+    config,
+    input(1, "\u0000\u0007", { media_group_id: "album", photo: [{ file_id: "a" }] }),
+  );
+  receiveUpdate(
+    root,
+    config,
+    input(2, "Second image", { media_group_id: "album", photo: [{ file_id: "b" }] }),
+  );
+  receiveUpdate(root, config, input(3, "Independent question"));
+  const s = readTransport(root);
+  assert.equal(s.offset, 4);
+  assert.equal(s.inbox[1].source.message.text, "\u0000\u0007");
+  assert.equal(s.inbox[1].threadId, s.inbox[2].threadId);
+  assert.notEqual(s.inbox[2].threadId, s.inbox[3].threadId);
+});
+
+test("pause or disable during synthesis prevents the subsequent network send", async (t) => {
+  const root = fixture(t);
+  const thread = request(scopeFor(root));
+  const item = queueReply(root, thread.id, "Render this response.");
+  let active = true,
+    sends = 0;
+  await assert.rejects(
+    deliverReply(
+      root,
+      config,
+      {
+        sendFile: async () => {
+          sends++;
+        },
+      },
+      {
+        render: async () => {
+          active = false;
+        },
+      },
+      item,
+      { canSend: () => active },
+    ),
+    /paused or disabled/,
+  );
+  assert.equal(sends, 0);
+  assert.equal(readTransport(root).outbox[item.id].committed, undefined);
+});
+
+test("queued progress and materials do not supersede each other but new user input does", async (t) => {
+  const root = fixture(t);
+  receiveUpdate(root, config, input(1));
+  const thread = readTransport(root).inbox[1].threadId;
+  const first = queueReply(root, thread, "The first progress response.");
+  const second = queueReply(root, thread, "Here are the accompanying materials.");
+  let n = 100;
+  const api = {
+    sendFile: async (_m, _f, _p, _c, extra) => {
+      assert.equal(extra.reply_parameters.message_id, 1);
+      return { message_id: n++ };
+    },
+  };
+  const voice = { render: async () => ({}) };
+  await deliverReply(root, config, api, voice, first);
+  await deliverReply(root, config, api, voice, second);
+  assert.equal(readTransport(root).outbox[second.id].status, "sent");
+  const stale = queueReply(root, thread, "This response will be superseded.");
+  receiveUpdate(
+    root,
+    config,
+    input(2, "A new correction", { reply_to_message: { message_id: 1 } }),
+  );
+  await deliverReply(root, config, api, voice, stale);
+  assert.equal(readTransport(root).outbox[stale.id].status, "superseded");
+});
+
+test("invalid outgoing lifecycle requests fail before persisting an undeliverable intent", (t) => {
+  const root = fixture(t);
+  const thread = request(scopeFor(root));
+  assert.throws(() => queueReply(root, thread.id, "Too short", "review"), /between/);
+  assert.throws(
+    () => queueReply(root, thread.id, "Verified a behavior before starting any work.", "review"),
+    /status/,
+  );
+  assert.equal(Object.keys(readTransport(root).outbox).length, 0);
+});
+
+test("repeated processing failure becomes inspectable and explicit retry resets the budget", async (t) => {
+  const { failure } = await import("../lib/runtime.mjs");
+  const { retryOutput } = await import("../lib/service.mjs");
+  const root = fixture(t);
+  const thread = request(scopeFor(root));
+  const item = queueReply(root, thread.id, "Waiting for local voice repair.");
+  for (let i = 0; i < 5; i++)
+    failure(root, "outbox", item.id, new Error("local model unavailable"));
+  assert.equal(readTransport(root).outbox[item.id].status, "failed");
+  retryOutput(root, item.id);
+  assert.equal(readTransport(root).outbox[item.id].attempts, 0);
+});
+
+test("pending lifecycle replies cannot queue contradictory question or review transitions", (t) => {
+  const root = fixture(t);
+  const thread = request(scopeFor(root));
+  queueReply(root, thread.id, "Which option do you prefer?", "question");
+  assert.throws(
+    () => queueReply(root, thread.id, "Which other option do you prefer?", "question"),
+    /already pending/,
+  );
+  assert.equal(Object.values(readTransport(root).outbox).length, 1);
+});

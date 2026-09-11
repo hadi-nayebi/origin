@@ -15,9 +15,11 @@ export function loadConfig(root) {
     throw new Error("Bot token must be a private regular file (0600).");
   const token = fs.readFileSync(tokenFile, "utf8").trim();
   validateToken(token);
-  for (const key of ["botId", "chatId", "userId"])
+  for (const key of ["botId", "chatId", "userId"]) {
     if (!/^-?\d+$/.test(config[key] || ""))
       throw new Error(`Missing or invalid ${key}; run Telegram setup.`);
+    config[key] = String(config[key]);
+  }
   if (
     !Number.isSafeInteger(config.maxMediaBytes) ||
     config.maxMediaBytes < 1 ||

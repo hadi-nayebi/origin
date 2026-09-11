@@ -281,3 +281,26 @@ test("legacy global pause migrates only into dashboard state", (t) => {
   assert.equal(readAgentState(root).mode, "paused");
   assert.equal(readAgentState(scopeFor(root)).mode, "idle");
 });
+
+test("transport backlog independently blocks Stop until delivered or explicitly cancelled", async (t) => {
+  const { inspectStop } = await import("../lib/continuation.mjs");
+  const root = fixture(t);
+  ensureAgentState(scopeFor(root));
+  receiveUpdate(
+    root,
+    config,
+    input(901, "a pending voice", { voice: { file_id: "voice", file_size: 100 } }),
+  );
+  assert.equal(inspectStop(scopeFor(root)).block, true);
+  pauseAgent(scopeFor(root), "Owner paused remote processing.");
+  assert.equal(inspectStop(scopeFor(root)).block, false);
+});
+
+test("private storage rejects symbolic ancestors", async (t) => {
+  const { privateDirectory } = await import("../lib/storage.mjs");
+  const root = fixture(t);
+  fs.mkdirSync(path.join(root, "outside"));
+  fs.symlinkSync(path.join(root, "outside"), path.join(root, "link"));
+  assert.throws(() => privateDirectory(path.join(root, "link", "nested")), /symlink/);
+  assert.equal(fs.existsSync(path.join(root, "outside", "nested")), false);
+});

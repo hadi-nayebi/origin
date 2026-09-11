@@ -244,7 +244,6 @@ function withStateLock(root, operation) {
 function clearDeadStateLock(file) {
   try {
     const owner = JSON.parse(fs.readFileSync(file, "utf8"));
-    if (Date.now() - Date.parse(owner.createdAt) > 30_000) return fs.unlinkSync(file);
     if (owner.host !== os.hostname() || !Number.isInteger(owner.pid)) return;
     try {
       process.kill(owner.pid, 0);

@@ -22,6 +22,12 @@ try {
     !fs.existsSync(path.join(channelDirectory(scope), "enabled.json"))
   )
     process.exit(0);
+  if (
+    scope.channel === "telegram-engagement" &&
+    JSON.parse(fs.readFileSync(path.join(channelDirectory(scope), "enabled.json"), "utf8"))
+      .enabled !== true
+  )
+    process.exit(0);
   const plugin = await import(
     pathToFileURL(path.join(root, ".codex/plugins", scope.channel, "hooks/stop.mjs"))
   );

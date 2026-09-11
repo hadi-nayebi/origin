@@ -1,3 +1,4 @@
+import { reconcileTelegram } from "./continuation.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -239,6 +240,14 @@ export async function runTelegram(root, options = {}) {
     };
     const work = async () => {
       while (!signal.aborted) {
+        if (
+          !options.ignoreActivation &&
+          !fs.existsSync(path.join(directory(root), "enabled.json"))
+        ) {
+          controller.abort();
+          break;
+        }
+        reconcileTelegram(root);
         const state = readTransport(root);
         for (const item of Object.values(state.inbox)) {
           if (workingInputs.size >= 2) break;

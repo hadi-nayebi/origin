@@ -7,7 +7,20 @@ import { channelDirectory } from "../../_engagement-core/lib/scope.mjs";
 export const scopeFor = (root) => ({ root, channel: "telegram-engagement" });
 export const directory = (root) => channelDirectory(scopeFor(root));
 export function privateDirectory(dir) {
+  for (
+    let parent = path.resolve(dir);
+    parent !== path.dirname(parent);
+    parent = path.dirname(parent)
+  ) {
+    try {
+      if (fs.lstatSync(parent).isSymbolicLink())
+        throw new Error("Private directory cannot traverse a symlink.");
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+  }
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  fs.chmodSync(dir, 0o700);
   if (fs.lstatSync(dir).isSymbolicLink()) throw new Error("Private directory cannot be a symlink.");
 }
 export function atomicJSON(file, value) {

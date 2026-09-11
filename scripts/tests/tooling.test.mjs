@@ -18,11 +18,12 @@ test("combined launcher and scripts expose the required interactive contract", (
   assert.match(manifest.scripts["agent-state"], /agent-stop-state/);
 });
 
-test("Stop hook is owned by Agent Stop State", () => {
+test("Stop hooks independently dispatch both removable channels", () => {
   const hooks = JSON.parse(fs.readFileSync(path.join(root, ".codex", "hooks.json"), "utf8"));
-  const hook = hooks.hooks.Stop[0].hooks[0];
-  assert.match(hook.command, /agent-stop-state\/hooks\/stop\.mjs/);
-  assert.doesNotMatch(hook.command, /contextual-feedback|feedback-loop/);
+  const commands = hooks.hooks.Stop.flatMap((group) => group.hooks.map((h) => h.command));
+  assert.equal(commands.length, 2);
+  assert.match(commands[0], /channel-hook.mjs.*contextual-feedback/);
+  assert.match(commands[1], /channel-hook.mjs.*telegram-engagement/);
 });
 
 test("repository-scoped tmux session names are stable and separated", () => {

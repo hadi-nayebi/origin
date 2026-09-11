@@ -230,7 +230,8 @@ test("dashboard accepts verified work or reopens it but cannot impersonate agent
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ body: "Change it again without reopening." }),
   });
-  assert.equal(closedComment.status, 400);
+  assert.equal(closedComment.status, 201);
+  assert.equal((await closedComment.json()).record.status, "open");
 });
 
 test("a fresh interactive session receives a resume voice only when no wake is pending", async (context) => {

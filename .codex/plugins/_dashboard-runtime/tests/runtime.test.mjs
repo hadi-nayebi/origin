@@ -253,7 +253,7 @@ test("failed delivery is durable and retryable", async () => {
 });
 
 test("validation failures preserve wake delivery responsibility", async () => {
-  for (const corruptFile of ["feedback.jsonl", "agent-stop-state/data.json"]) {
+  for (const corruptFile of ["feedback.jsonl", "contextual-feedback/data.json"]) {
     const root = fixture();
     const record = createFeedback(root, {
       kind: "bug",
@@ -332,6 +332,7 @@ test("outbox bounds only terminal history after successful delivery", async () =
       route: record.pagePath,
     });
   await deliverPendingWakes(root, {
+    maxDeliveries: 205,
     deliver: async () => ({ state: "submitted", transport: "tmux" }),
   });
   const events = JSON.parse(

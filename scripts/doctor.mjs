@@ -2,8 +2,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { ensureAgentState, stopOutcome } from "../.codex/plugins/agent-stop-state/lib/state.mjs";
-import { verifyFeedback } from "../.codex/plugins/contextual-feedback/lib/service.mjs";
+import { ensureAgentState, stopOutcome } from "../.codex/plugins/_engagement-core/lib/state.mjs";
+import { verifyFeedback } from "../.codex/plugins/_engagement-core/lib/service.mjs";
 import { inspectMachine } from "../.codex/plugins/_dashboard-runtime/lib/machine.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");

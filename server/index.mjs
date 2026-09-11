@@ -1,3 +1,4 @@
+import { pluginPresent } from "../.codex/plugins/_engagement-core/lib/scope.mjs";
 import express from "express";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -12,8 +13,8 @@ import {
   reconcileAgentState,
   reviewFeedbackMutation,
   verifyFeedback,
-} from "../.codex/plugins/contextual-feedback/lib/service.mjs";
-import { ensureAgentState, stopOutcome } from "../.codex/plugins/agent-stop-state/lib/state.mjs";
+} from "../.codex/plugins/_engagement-core/lib/service.mjs";
+import { ensureAgentState, stopOutcome } from "../.codex/plugins/_engagement-core/lib/state.mjs";
 import {
   enqueueFeedbackWake,
   hasFeedbackWakeForEvent,
@@ -31,21 +32,34 @@ export async function createOriginApp(options = {}) {
   const serveUi = options.serveUi !== false;
   const devNonce = isDev && serveUi ? randomBytes(24).toString("base64") : null;
   const app = express();
+  const feedbackEnabled = pluginPresent(sourceRoot);
 
   app.disable("x-powered-by");
   app.use((request, response, next) => securityHeaders(request, response, next, devNonce));
   app.use(requireLocalRequest);
   app.use(express.json({ limit: "16kb", strict: true, type: "application/json" }));
 
+  app.use("/api/feedback", (request, response, next) => {
+    if (feedbackEnabled) return next();
+    if (request.method === "GET")
+      return response.json({
+        records: [],
+        disabled: true,
+        feedbackMode: { mode: "idle" },
+        outcome: { mode: "idle", block: false },
+        delivery: { state: "idle", pending: 0 },
+      });
+    return response.status(404).json({ error: "Dashboard engagement plugin is not installed." });
+  });
   app.get("/api/health", (_request, response) => {
     response.json({
       name: "origin",
       instanceId: runtimeInstanceId(root),
       status: "ready",
       localOnly: true,
-      ledger: verifyFeedback(root),
-      agent: stopOutcome(root),
-      delivery: wakeStatus(root),
+      ledger: feedbackEnabled ? verifyFeedback(root) : { disabled: true },
+      agent: feedbackEnabled ? stopOutcome(root) : { mode: "idle", block: false },
+      delivery: feedbackEnabled ? wakeStatus(root) : { state: "idle", pending: 0 },
     });
   });
 
@@ -258,16 +272,19 @@ export async function startOriginServer(options = {}) {
   if (!Number.isInteger(port) || port < 0 || port > 65535)
     throw new Error("ORIGIN_PORT must be a valid TCP port.");
   const root = path.resolve(options.root || sourceRoot);
-  ensureAgentState(root);
-  reconcileAgentState(root);
-  ensureRunnableWakeCoverage(root);
+  if (pluginPresent(sourceRoot)) {
+    ensureAgentState(root);
+    reconcileAgentState(root);
+    ensureRunnableWakeCoverage(root);
+  }
   const app = await createOriginApp({ ...options, root, dev: isDev });
   const server = await new Promise((resolve, reject) => {
     const listening = app.listen(port, host, () => resolve(listening));
     listening.once("error", reject);
   });
   server.once("close", () => void app.locals.closeUi?.());
-  if (options.deliverWakes !== false) scheduleWakeDelivery(root, options.wakeOptions);
+  if (pluginPresent(sourceRoot) && options.deliverWakes !== false)
+    scheduleWakeDelivery(root, options.wakeOptions);
   return server;
 }
 

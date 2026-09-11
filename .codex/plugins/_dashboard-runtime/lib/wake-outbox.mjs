@@ -1,11 +1,12 @@
+import { channelContext, ledgerDirectory } from "../../_engagement-core/lib/scope.mjs";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { getFeedback } from "../../contextual-feedback/lib/service.mjs";
-import { readAgentState } from "../../agent-stop-state/lib/state.mjs";
-import { renderVoice } from "../../contextual-feedback/lib/voice.mjs";
+import { getFeedback } from "../../_engagement-core/lib/service.mjs";
+import { readAgentState } from "../../_engagement-core/lib/state.mjs";
+import { renderVoice } from "../../_engagement-core/lib/voice.mjs";
 import { deliverCodexWake } from "./codex-wake-v1.mjs";
 
 const waitArray = new Int32Array(new SharedArrayBuffer(4));
@@ -25,7 +26,11 @@ export function enqueueFeedbackWake(root, input, now = new Date()) {
   const sourceSequence = positiveInteger(input?.sourceSequence, "Wake source sequence");
   const id = `wake-${crypto.randomUUID()}`;
   const marker = markerFor(id);
-  const prompt = renderVoice(voiceFile, kind, {
+  const selectedVoice =
+    channelContext(root).channel === "contextual-feedback"
+      ? voiceFile
+      : path.join(channelContext(root).root, ".codex/plugins/telegram-engagement/voice.xml");
+  const prompt = renderVoice(selectedVoice, kind, {
     reference,
     route,
     activeReference: input?.activeReference || reference,
@@ -61,15 +66,18 @@ export function hasFeedbackWakeForEvent(root, sourceEventHash) {
 }
 
 export async function deliverPendingWakes(root, options = {}) {
-  const key = path.resolve(root);
+  const key = ledgerDirectory(root);
   if (activeDeliveries.has(key)) return wakeStatus(root);
   activeDeliveries.add(key);
   try {
-    const deliver = options.deliver || ((input) => deliverCodexWake(root, input, options));
+    const deliver =
+      options.deliver || ((input) => deliverCodexWake(channelContext(root).root, input, options));
     const clock = options.clock || (() => options.now || new Date());
-    while (true) {
+    let deliveredCount = 0;
+    while (deliveredCount < (options.maxDeliveries || 20)) {
       const claimed = claimNextWake(root, clock());
       if (!claimed) break;
+      deliveredCount += 1;
       try {
         const result = await deliver({ prompt: claimed.prompt, marker: claimed.marker });
         finishWake(root, claimed.id, { result }, clock());
@@ -89,7 +97,7 @@ export async function deliverPendingWakes(root, options = {}) {
 }
 
 export function scheduleWakeDelivery(root, options = {}) {
-  const key = path.resolve(root);
+  const key = ledgerDirectory(root);
   if (timers.has(key)) return;
   const delay = options.delayMs ?? nextWakeDelay(root);
   const timer = setTimeout(async () => {
@@ -107,7 +115,7 @@ export function scheduleWakeDelivery(root, options = {}) {
 }
 
 export async function retryWakeDelivery(root, options = {}) {
-  const key = path.resolve(root);
+  const key = ledgerDirectory(root);
   const timer = timers.get(key);
   if (timer) clearTimeout(timer);
   timers.delete(key);
@@ -266,7 +274,7 @@ function mutateOutbox(root, mutation) {
 }
 
 function withOutboxLease(root, operation) {
-  const directory = path.join(path.resolve(root), ".origin");
+  const directory = ledgerDirectory(root);
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   const file = path.join(directory, "wake-outbox.lock");
   const token = crypto.randomUUID();
@@ -348,7 +356,7 @@ function writeOutbox(root, events) {
   fs.renameSync(temporary, file);
 }
 function outboxPath(root) {
-  return path.join(path.resolve(root), ".origin", "wake-outbox.json");
+  return path.join(ledgerDirectory(root), "wake-outbox.json");
 }
 function markerFor(id) {
   return `[ORIGIN WAKE ${id}]`;

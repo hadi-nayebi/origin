@@ -79,7 +79,22 @@ export async function deliverPendingWakes(root, options = {}) {
       if (!claimed) break;
       deliveredCount += 1;
       try {
-        const result = await deliver({ prompt: claimed.prompt, marker: claimed.marker });
+        const result = await (options.deliver
+          ? deliver({ prompt: claimed.prompt, marker: claimed.marker })
+          : deliverCodexWake(
+              channelContext(root).root,
+              { prompt: claimed.prompt, marker: claimed.marker },
+              {
+                ...options,
+                beforeSideEffect: () =>
+                  mutateOutbox(root, (events) => {
+                    const event = events.find((e) => e.id === claimed.id);
+                    event.status = "indeterminate";
+                    event.error = "Submission began; outcome must be observed before retry.";
+                    return events;
+                  }),
+              },
+            ));
         finishWake(root, claimed.id, { result }, clock());
       } catch (error) {
         finishWake(
@@ -140,17 +155,19 @@ export async function retryWakeDelivery(root, options = {}) {
 export function wakeStatus(root) {
   const events = readOutbox(root);
   const pending = events.filter((event) =>
-    ["pending", "retrying", "delivering"].includes(event.status),
+    ["pending", "retrying", "delivering", "indeterminate"].includes(event.status),
   ).length;
   const last = events.at(-1) || null;
   return Object.freeze({
-    state: pending
-      ? last?.status === "retrying"
-        ? "retrying"
-        : "pending"
-      : last?.status === "delivered"
-        ? "connected"
-        : "idle",
+    state: events.some((e) => e.status === "indeterminate")
+      ? "attention"
+      : pending
+        ? last?.status === "retrying"
+          ? "retrying"
+          : "pending"
+        : last?.status === "delivered"
+          ? "connected"
+          : "idle",
     transport: "tmux",
     pending,
     last: last
@@ -172,10 +189,7 @@ function claimNextWake(root, now) {
   let claimed = null;
   mutateOutbox(root, (events) => {
     for (const event of events) {
-      if (
-        event.status === "delivering" &&
-        now.getTime() - Date.parse(event.claimedAt || event.updatedAt) > 30_000
-      ) {
+      if (event.status === "delivering" && claimOwnerDead(event.claimedBy)) {
         event.status = "retrying";
         event.error = "Recovered an interrupted wake delivery claim.";
         event.nextAttemptAt = now.toISOString();
@@ -225,12 +239,12 @@ function claimNextWake(root, now) {
 function finishWake(root, id, outcome, now) {
   mutateOutbox(root, (events) => {
     const event = events.find((item) => item.id === id);
-    if (!event || event.status !== "delivering") return events;
+    if (!event || !["delivering", "indeterminate"].includes(event.status)) return events;
     delete event.claimedAt;
     delete event.claimedBy;
     event.updatedAt = now.toISOString();
     if (outcome.error) {
-      event.status = "retrying";
+      event.status = event.status === "indeterminate" ? "indeterminate" : "retrying";
       event.error = safeError(outcome.error);
       event.nextAttemptAt = new Date(
         now.getTime() + Math.min(60_000, 1_000 * 2 ** Math.min(event.attempts - 1, 6)),
@@ -312,7 +326,7 @@ function withOutboxLease(root, operation) {
 function clearStaleLease(file) {
   try {
     const value = JSON.parse(fs.readFileSync(file, "utf8"));
-    if (Date.now() - Date.parse(value.at) > 30_000) fs.unlinkSync(file);
+    if (claimOwnerDead(`${value.host}:${value.pid}`)) fs.unlinkSync(file);
   } catch {}
 }
 
@@ -329,7 +343,7 @@ function nextWakeDelay(root) {
         : Date.parse(event.nextAttemptAt || event.updatedAt),
     )
     .filter(Number.isFinite);
-  if (!timestamps.length) return 250;
+  if (!timestamps.length) return 60_000;
   return Math.max(25, Math.min(60_000, Math.min(...timestamps) - now));
 }
 
@@ -392,4 +406,30 @@ function compactOutbox(events) {
   return events.filter(
     (event) => !["delivered", "cancelled"].includes(event.status) || keepTerminal.has(event.id),
   );
+}
+
+function claimOwnerDead(owner) {
+  if (typeof owner !== "string") return false;
+  const [host, pid] = owner.split(":");
+  if (host !== os.hostname() || !/^\d+$/.test(pid)) return false;
+  try {
+    process.kill(Number(pid), 0);
+    return false;
+  } catch (error) {
+    return error.code === "ESRCH";
+  }
+}
+export function reconcileWake(root, id, submitted, evidence) {
+  if (typeof evidence !== "string" || evidence.trim().length < 10)
+    throw new Error("Record the operator's submission evidence.");
+  mutateOutbox(root, (events) => {
+    const event = events.find((e) => e.id === id);
+    if (!event || event.status !== "indeterminate") throw new Error("Wake is not indeterminate.");
+    event.status = submitted ? "delivered" : "retrying";
+    event.error = null;
+    event.reconciliation = { evidence, at: new Date().toISOString(), submitted };
+    event.nextAttemptAt = new Date().toISOString();
+    return events;
+  });
+  return wakeStatus(root);
 }

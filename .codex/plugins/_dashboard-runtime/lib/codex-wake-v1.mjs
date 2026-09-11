@@ -46,8 +46,14 @@ export function deliverCodexWake(root, input, options = {}) {
     const pane = resolveCodexPane(root, { run });
     const before = capture(run, pane.id);
     const wasBusy = codexIsBusy(before);
+    const editor = String(before).split(/\n› /).at(-1);
+    if ((before.includes("\n› ") && editor.trim()) || /\[Pasted (?:Content|text)/i.test(before))
+      throw new Error(
+        "Codex editor contains pending input; preserve it and retry after it clears.",
+      );
     const buffer = `origin-${process.pid}-${crypto.randomBytes(5).toString("hex")}`;
     assertSuccess(run("tmux", ["set-buffer", "-b", buffer, "--", prompt]), "tmux buffer write");
+    options.beforeSideEffect?.();
     assertSuccess(
       run("tmux", ["paste-buffer", "-p", "-d", "-b", buffer, "-t", pane.id]),
       "tmux prompt paste",
@@ -61,25 +67,19 @@ export function deliverCodexWake(root, input, options = {}) {
     }
     if (!editorPending(current, marker, { before, promptLength: prompt.length }))
       throw new Error("Origin could not verify that the wake prompt reached the Codex editor.");
+    assertSuccess(run("tmux", ["send-keys", "-t", pane.id, "Enter"]), "tmux prompt submit");
     for (let attempt = 0; attempt < 12; attempt += 1) {
-      const key = attempt % 2 === 0 ? "C-m" : "Enter";
-      assertSuccess(run("tmux", ["send-keys", "-t", pane.id, key]), "tmux prompt submit");
       wait(250);
       current = capture(run, pane.id);
       if (
-        submissionAccepted({
-          value: current,
-          marker,
-          wasBusy,
-          before,
-          promptLength: prompt.length,
-        })
+        submissionAccepted({ value: current, marker, wasBusy, before, promptLength: prompt.length })
       )
         return Object.freeze({
           state: wasBusy ? "queued-without-interruption" : "submitted",
           transport: "tmux",
           pane: pane.id,
           session: pane.session,
+          evidence: "Unique marker observed with submission transition.",
         });
     }
     throw new Error("Origin pasted the wake prompt but could not verify its submission to Codex.");
@@ -109,9 +109,10 @@ export function editorPending(value, marker, options = {}) {
 export function submissionAccepted({ value, marker, wasBusy, before, promptLength }) {
   const queued = /Messages to be submitted after next tool call/i;
   return (
-    !editorPending(value, marker, { before, promptLength }) ||
-    (!wasBusy && codexIsBusy(value)) ||
-    (wasBusy && queued.test(String(value)) && !queued.test(String(before || "")))
+    String(value).includes(marker) &&
+    (!editorPending(value, marker, { before, promptLength }) ||
+      (!wasBusy && codexIsBusy(value)) ||
+      (wasBusy && queued.test(String(value)) && !queued.test(String(before || ""))))
   );
 }
 
@@ -196,7 +197,12 @@ function withWakeLease(root, operation) {
 function clearStaleLease(file) {
   try {
     const value = JSON.parse(fs.readFileSync(file, "utf8"));
-    if (Date.now() - Date.parse(value.at) > 30_000) fs.unlinkSync(file);
+    if (value.host !== os.hostname() || !Number.isInteger(value.pid)) return;
+    try {
+      process.kill(value.pid, 0);
+    } catch (error) {
+      if (error.code === "ESRCH") fs.unlinkSync(file);
+    }
   } catch {}
 }
 

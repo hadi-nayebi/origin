@@ -339,3 +339,82 @@ test("journal commit replay recovers a question after transport receipt loss", a
   assert.equal(getFeedback(scope, thread.id).messages.length, 2);
   assert.equal(readTransport(root).outbox[intent.id].committed, true);
 });
+
+test("review buttons require delivered packages, owner identity and unchanged versions", async (t) => {
+  const root = fixture(t);
+  const scope = scopeFor(root);
+  const thread = request(scope);
+  transitionFeedback(scope, thread.id, "in_progress");
+  const item = queueReply(
+    root,
+    thread.id,
+    "Verified the requested behavior with regression checks.",
+    "review",
+  );
+  const { commitReply } = await import("../lib/service.mjs");
+  commitReply(root, item.id);
+  const token = readTransport(root).outbox[item.id].buttons[0].callback_data;
+  const callback = (update_id, user = 200) => ({
+    update_id,
+    callback_query: {
+      id: String(update_id),
+      data: token,
+      from: { id: user },
+      message: { chat: { id: 100 }, message_id: 900 },
+    },
+  });
+  receiveUpdate(root, config, callback(910));
+  assert.equal(getFeedback(scope, thread.id).status, "ready_for_review");
+  await deliverReply(
+    root,
+    config,
+    { sendFile: async () => ({ message_id: 900 }) },
+    { render: async () => ({}) },
+    item,
+  );
+  receiveUpdate(root, config, callback(911, 201));
+  assert.equal(getFeedback(scope, thread.id).status, "ready_for_review");
+  receiveUpdate(root, config, callback(912));
+  assert.equal(getFeedback(scope, thread.id).status, "resolved");
+  addFeedbackMessage(scope, thread.id, { body: "Another request arrived." });
+  receiveUpdate(root, config, callback(913));
+  assert.equal(getFeedback(scope, thread.id).status, "open");
+});
+
+test("indeterminate delivery requires evidence and recovers without sending a confirmed part twice", async (t) => {
+  const { reconcileDelivery } = await import("../lib/service.mjs");
+  const root = fixture(t);
+  const thread = request(scopeFor(root));
+  const item = queueReply(root, thread.id, "Here is the result.");
+  await assert.rejects(
+    deliverReply(
+      root,
+      config,
+      {
+        sendFile: async () => {
+          throw Object.assign(new Error("unknown"), { uncertain: true });
+        },
+      },
+      { render: async () => ({}) },
+      item,
+    ),
+  );
+  assert.throws(() => reconcileDelivery(root, item.id, "voice", 0, "sent", 901, ""), /evidence/);
+  reconcileDelivery(
+    root,
+    item.id,
+    "voice",
+    0,
+    "sent",
+    901,
+    "Owner inspected the delivered Telegram message.",
+  );
+  await deliverReply(
+    root,
+    config,
+    { sendFile: async () => assert.fail("must not duplicate confirmed delivery") },
+    {},
+    item,
+  );
+  assert.equal(readTransport(root).outbox[item.id].status, "sent");
+});

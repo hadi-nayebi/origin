@@ -54,7 +54,7 @@ test("pane resolution is repository-scoped and requires exactly one Codex pane",
 test("idle Codex receives a verified prompt through a tmux buffer", () => {
   const root = fixture();
   const marker = "[ORIGIN DASHBOARD — NEW FEEDBACK]";
-  const run = fakeRun(root, { capture: ["Codex ready", marker, "Working (1)"] });
+  const run = fakeRun(root, { capture: ["Codex ready", marker, `${marker}\nWorking (1)`] });
   const result = deliverCodexWake(
     root,
     { marker, prompt: `${marker}\nRead feedback-001.` },
@@ -75,7 +75,7 @@ test("busy Codex queues a message without interruption", () => {
     capture: [
       "Working (42) · esc to interrupt",
       marker,
-      "Messages to be submitted after next tool call",
+      `${marker}\nMessages to be submitted after next tool call`,
     ],
   });
   const result = deliverCodexWake(
@@ -147,14 +147,14 @@ test("an existing queue banner cannot acknowledge a newly pending wake", () => {
   const run = fakeRun(root, { capture: [before, pending, pending, `${pending}\n› `] });
   const result = deliverCodexWake(root, { marker, prompt: marker }, { run, wait: () => {} });
   assert.equal(result.state, "queued-without-interruption");
-  assert.equal(run.calls.filter((call) => call.args[0] === "send-keys").length, 2);
+  assert.equal(run.calls.filter((call) => call.args[0] === "send-keys").length, 1);
   assert.equal(
     run.calls.some((call) => call.args.includes("C-c")),
     false,
   );
 });
 
-test("a pending paste behind an existing queue stays retryable in the outbox", async () => {
+test("a pending paste behind an existing queue becomes indeterminate in the outbox", async () => {
   const root = fixture();
   const record = createFeedback(root, {
     kind: "bug",
@@ -170,7 +170,7 @@ test("a pending paste behind an existing queue stays retryable in the outbox", a
     run: fakeRun(root, { capture: [before], captureFallback: pending }),
     wait: () => {},
   });
-  assert.equal(wakeStatus(root).last.status, "retrying");
+  assert.equal(wakeStatus(root).last.status, "indeterminate");
   assert.equal(wakeStatus(root).pending, 1);
   assert.match(wakeStatus(root).last.error, /could not verify its submission/);
 });
@@ -448,7 +448,7 @@ test("an interrupted outbox claim is recovered and delivered", async () => {
   const events = JSON.parse(fs.readFileSync(file, "utf8"));
   events[0].status = "delivering";
   events[0].claimedAt = "2026-09-03T10:00:00.000Z";
-  events[0].claimedBy = "dead-host:1";
+  events[0].claimedBy = `${os.hostname()}:2147483647`;
   fs.writeFileSync(file, `${JSON.stringify(events)}\n`);
   await deliverPendingWakes(root, {
     now: new Date("2026-09-03T10:01:00.000Z"),
@@ -691,3 +691,9 @@ function sourceFor(root) {
 function enqueueWake(root, input, now) {
   return enqueueFeedbackWake(root, { ...input, ...sourceFor(root) }, now);
 }
+
+test("blank screen and unrelated work are not submission evidence", () => {
+  const marker = "[ORIGIN WAKE unique-123]";
+  assert.equal(submissionAccepted({ value: "", marker, wasBusy: false }), false);
+  assert.equal(submissionAccepted({ value: "Working (12)", marker, wasBusy: false }), false);
+});

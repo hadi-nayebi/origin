@@ -42,3 +42,16 @@ invalidates prior acceptance and follows the parent on future replies. The sourc
 resolution follows the parent. Both channel CLIs can associate conversations. Stable outbound
 message IDs make question/review commits replayable without duplicated messages. Tests exercise
 source-to-parent resolution, further replies, repeated association and lost commit receipts.
+
+## Iteration 3 — side effects and delivery evidence
+
+Found: repeated Enter presses and age-based wake reclamation could submit a wake twice; editor
+clearing alone was too weak as acknowledgment. Attachment send uncertainty also lacked a supported
+operator recovery operation.
+
+Fixed: one Enter per attempt, unique-marker submission evidence, preservation of existing editor
+input, and a durable indeterminate boundary before paste. Dead owner recovery applies only before
+side effects. Both Telegram delivery parts and channel wake intents require recorded operator
+evidence to retry after an unknown outcome. Review acceptance is unavailable until the complete
+reply package is sent. Fake-transport tests cover uncertain outcomes; live Codex acceptance remains
+a separate requirement because terminal rendering varies by CLI version.

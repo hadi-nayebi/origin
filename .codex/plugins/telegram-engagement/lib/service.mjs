@@ -51,7 +51,12 @@ export function receiveUpdate(root, config, update) {
       const auth = { ...callback.message, from: callback.from };
       if (authorized(auth, config)) {
         const action = state.callbacks[callback.data];
-        if (action && !action.used && action.expiresAt > Date.now()) {
+        if (
+          action &&
+          !action.used &&
+          action.expiresAt > Date.now() &&
+          (!action.packageId || state.outbox[action.packageId]?.status === "sent")
+        ) {
           const current = getFeedback(scopeFor(root), action.threadId);
           if (recordVersion(current) === action.version) {
             reviewFeedbackMutation(scopeFor(root), action.threadId, action.status, {
@@ -208,6 +213,7 @@ export function commitReply(root, packageId) {
         const token = crypto.randomBytes(16).toString("hex");
         state.callbacks[token] = {
           threadId: item.threadId,
+          packageId: item.id,
           version: item.reviewVersion,
           status,
           expiresAt: Date.now() + 7 * 86400000,
@@ -232,4 +238,34 @@ export function channelStatus(root) {
     })),
     outbox: Object.values(state.outbox).map(({ id, status, error }) => ({ id, status, error })),
   };
+}
+
+export function reconcileDelivery(root, packageId, component, index, outcome, messageId, evidence) {
+  if (
+    !["voice", "material"].includes(component) ||
+    !["sent", "not-sent"].includes(outcome) ||
+    !Number.isInteger(index) ||
+    index < 0 ||
+    !evidence ||
+    evidence.length < 10
+  )
+    throw new Error("Specify the part, outcome and observed delivery evidence.");
+  if (outcome === "sent" && (!Number.isSafeInteger(messageId) || messageId < 1))
+    throw new Error("Confirmed delivery requires its Telegram message ID.");
+  return updateTransport(root, (state) => {
+    const item = state.outbox[packageId];
+    const part = item?.[component === "voice" ? "chunks" : "materials"][index];
+    if (!part || part.status !== "indeterminate")
+      throw new Error("This delivery part is not indeterminate.");
+    part.reconciliation = { outcome, evidence, at: new Date().toISOString() };
+    part.status = outcome === "sent" ? "sent" : component === "voice" ? "rendered" : "prepared";
+    if (outcome === "sent") {
+      part.messageId = messageId;
+      state.replies[String(messageId)] = item.threadId;
+    }
+    item.status = "sending";
+    item.nextAttemptAt = 0;
+    item.error = null;
+    return item;
+  });
 }

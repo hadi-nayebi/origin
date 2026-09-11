@@ -111,6 +111,19 @@ export async function retryWakeDelivery(root, options = {}) {
   const timer = timers.get(key);
   if (timer) clearTimeout(timer);
   timers.delete(key);
+  const now = options.clock ? options.clock() : options.now || new Date();
+  mutateOutbox(root, (events) => {
+    for (const event of events) {
+      if (
+        ["pending", "retrying"].includes(event.status) &&
+        event.nextAttemptAt > now.toISOString()
+      ) {
+        event.nextAttemptAt = now.toISOString();
+        event.updatedAt = now.toISOString();
+      }
+    }
+    return events;
+  });
   const status = await deliverPendingWakes(root, options);
   if (status.pending > 0) scheduleWakeDelivery(root, options);
   return status;
@@ -168,7 +181,19 @@ function claimNextWake(root, now) {
         event.nextAttemptAt > now.toISOString()
       )
         continue;
-      const guard = wakeGuard(root, event);
+      let guard;
+      try {
+        guard = wakeGuard(root, event);
+      } catch (error) {
+        event.status = "retrying";
+        event.attempts += 1;
+        event.updatedAt = now.toISOString();
+        event.error = safeError(`Wake validation deferred: ${safeError(error)}`);
+        event.nextAttemptAt = new Date(
+          now.getTime() + Math.min(60_000, 1_000 * 2 ** Math.min(event.attempts - 1, 6)),
+        ).toISOString();
+        continue;
+      }
       if (guard === "cancel") {
         event.status = "cancelled";
         event.updatedAt = now.toISOString();
@@ -198,9 +223,7 @@ function finishWake(root, id, outcome, now) {
     event.updatedAt = now.toISOString();
     if (outcome.error) {
       event.status = "retrying";
-      event.error = String(outcome.error)
-        .replace(/[\u0000-\u001f\u007f]/g, " ")
-        .slice(0, 500);
+      event.error = safeError(outcome.error);
       event.nextAttemptAt = new Date(
         now.getTime() + Math.min(60_000, 1_000 * 2 ** Math.min(event.attempts - 1, 6)),
       ).toISOString();
@@ -214,23 +237,24 @@ function finishWake(root, id, outcome, now) {
 }
 
 function wakeGuard(root, event) {
+  if (readAgentState(root).mode === "paused") return "paused";
+  let feedback;
   try {
-    if (readAgentState(root).mode === "paused") return "paused";
-    const feedback = getFeedback(root, event.reference);
-    if (event.kind === "feedback.accepted")
-      return feedback.status === "resolved" ? "deliver" : "cancel";
-    if (event.kind === "feedback.dismissed")
-      return feedback.status === "dismissed" ? "deliver" : "cancel";
-    if (event.kind === "feedback.reopened")
-      return feedback.status === "open" ? "deliver" : "cancel";
-    if (event.kind === "feedback.answer")
-      return ["open", "in_progress"].includes(feedback.status) ? "deliver" : "cancel";
-    return ["open", "in_progress", "waiting", "ready_for_review"].includes(feedback.status)
-      ? "deliver"
-      : "cancel";
-  } catch {
-    return "cancel";
+    feedback = getFeedback(root, event.reference);
+  } catch (error) {
+    if (error instanceof Error && error.message === "Feedback record not found.") return "cancel";
+    throw error;
   }
+  if (event.kind === "feedback.accepted")
+    return feedback.status === "resolved" ? "deliver" : "cancel";
+  if (event.kind === "feedback.dismissed")
+    return feedback.status === "dismissed" ? "deliver" : "cancel";
+  if (event.kind === "feedback.reopened") return feedback.status === "open" ? "deliver" : "cancel";
+  if (event.kind === "feedback.answer")
+    return ["open", "in_progress"].includes(feedback.status) ? "deliver" : "cancel";
+  return ["open", "in_progress", "waiting", "ready_for_review"].includes(feedback.status)
+    ? "deliver"
+    : "cancel";
 }
 
 function mutateOutbox(root, mutation) {
@@ -348,6 +372,11 @@ function positiveInteger(value, label) {
   const number = Number(value);
   if (!Number.isInteger(number) || number < 1) throw new Error(`${label} is invalid.`);
   return number;
+}
+function safeError(error) {
+  return String(error instanceof Error ? error.message : error)
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .slice(0, 500);
 }
 function compactOutbox(events) {
   const terminal = events.filter((event) => ["delivered", "cancelled"].includes(event.status));

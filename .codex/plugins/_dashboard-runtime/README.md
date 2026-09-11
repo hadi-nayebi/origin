@@ -6,6 +6,10 @@ before a wake is attempted, and the durable outbox survives terminal or server i
 startup, actionable feedback revisions without a corresponding wake record are reconstructed before
 delivery resumes, closing the persistence-to-notification crash window.
 
+Delivery validates the referenced feedback and global agent state before each attempt. If either
+source cannot be trusted, the wake remains retrying in the outbox until recovery succeeds. Only a
+validated lifecycle state that no longer requires the wake may cancel it.
+
 Every wake carries the owning feedback journal event's sequence and hash plus a unique delivery
 marker. Pending, retrying, and claimed events are retained without a count limit; only completed or
 cancelled delivery history is bounded. A manual retry cancels scheduled backoff and attempts

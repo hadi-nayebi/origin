@@ -636,3 +636,24 @@ summary:focus-visible {
     transition: none !important;
   }
 }
+
+/* Channel controls and file names must fit the narrow feedback panel. */
+.delivery-summary {
+  flex-wrap: wrap;
+}
+.delivery-summary > div {
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.feedback-record,
+.thread-message {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.feedback-panel input[type="file"] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 8px 0;
+}

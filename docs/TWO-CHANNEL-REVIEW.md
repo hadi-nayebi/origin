@@ -160,3 +160,7 @@ conversion asynchronous. Speech verification now rejects substantial content cha
 endings, with coverage for text without word spaces. A fresh local CPU Qwen render using the
 authorized private reference passed the stronger check at alignment 1.0 (2.88 seconds); no bot or
 network delivery was used.
+
+The final mobile check reproduced horizontal overflow from the expanded channel controls. The
+controls now wrap and file inputs/long material names stay inside the panel. Browser acceptance
+asserts the panel width after a complete file/question/rejection/acceptance sequence in both modes.

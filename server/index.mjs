@@ -207,7 +207,12 @@ export async function createOriginApp(options = {}) {
       try {
         if (!request.is("application/octet-stream"))
           throw new Error("Content-Type application/octet-stream is required.");
-        const name = decodeURIComponent(String(request.headers["x-origin-file-name"] || ""));
+        let name;
+        try {
+          name = decodeURIComponent(String(request.headers["x-origin-file-name"] || ""));
+        } catch {
+          throw new Error("Invalid material name encoding.");
+        }
         const { record, event } = attachMaterial(root, request.params.id, name, request.body);
         const wake = enqueueFeedbackWake(root, {
           kind: event.message.type === "answer" ? "feedback.answer" : "feedback.during-active",

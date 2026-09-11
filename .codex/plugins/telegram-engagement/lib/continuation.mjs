@@ -21,7 +21,7 @@ export function telegramMode(root) {
         "Run npm run telegram -- status; repair or reconcile the recorded item. Never blindly repeat an indeterminate send.",
       reference: {
         plugin: "telegram-engagement",
-        id: `transport-${pendingInput?.updateId || pendingOutput.id}`,
+        id: `transport-${pendingInput?.updateId ?? pendingOutput.id}`,
       },
     };
   return business;

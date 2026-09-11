@@ -89,9 +89,27 @@ try {
     transitionFeedback(root, record.id, "ready_for_review", {
       verification: "The isolated browser test verified page context, answer and lifecycle state.",
     });
-    await page.getByRole("button", { name: "Accept", exact: true }).click();
+    await card
+      .getByLabel("Acceptance note or reason to reopen")
+      .fill("Please verify the returned material as well.");
+    await card.getByRole("button", { name: "Reopen", exact: true }).click();
+    await card.getByText("Reopened and wake queued.").waitFor();
+    assert.equal(listFeedback(root).at(-1).status, "open");
+    transitionFeedback(root, record.id, "in_progress");
+    transitionFeedback(root, record.id, "ready_for_review", {
+      verification:
+        "Verified the returned material and the owner correction with browser evidence.",
+    });
+    await card.getByRole("button", { name: "Accept", exact: true }).click();
     await page.getByText("Acceptance saved and wake queued.").waitFor();
     assert.equal(listFeedback(root).at(-1).status, "resolved");
+    assert.equal(
+      await page
+        .locator(".feedback-panel")
+        .evaluate((panel) => panel.scrollWidth > panel.clientWidth),
+      false,
+      "Feedback panel must not overflow at mobile width",
+    );
     assert.deepEqual(errors, []);
     await page.keyboard.press("Escape");
     await page.getByRole("dialog").waitFor({ state: "hidden" });

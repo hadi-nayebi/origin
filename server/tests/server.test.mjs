@@ -398,6 +398,12 @@ test("dashboard materials survive restart, wake waiting work, and remain bound t
   const saved = await response.json();
   assert.equal(saved.record.status, "open");
   assert.equal(saved.wake.kind, "feedback.answer");
+  const malformed = await fetch(`${app.base}/api/feedback/${a.id}/materials`, {
+    method: "POST",
+    headers: { "content-type": "application/octet-stream", "x-origin-file-name": "%" },
+    body: "bad name",
+  });
+  assert.equal(malformed.status, 400);
   const material = saved.record.messages.at(-1).material;
   const download = await fetch(`${app.base}/api/feedback/${a.id}/materials/${material.id}`);
   assert.match(download.headers.get("content-disposition"), /^attachment/);

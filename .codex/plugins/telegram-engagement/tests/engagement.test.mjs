@@ -418,3 +418,45 @@ test("indeterminate delivery requires evidence and recovers without sending a co
   );
   assert.equal(readTransport(root).outbox[item.id].status, "sent");
 });
+
+test("owner sample enrollment preserves the sample and queues exactly one voice preview", async (t) => {
+  if (spawnSync("ffmpeg", ["-version"], { stdio: "ignore" }).status !== 0)
+    return t.skip("FFmpeg is required for the sample conversion integration check.");
+  const root = fixture(t);
+  receiveUpdate(root, config, input(920, "/voice-sample"));
+  receiveUpdate(
+    root,
+    config,
+    input(921, undefined, { text: undefined, voice: { file_id: "sample" } }),
+  );
+  const item = readTransport(root).inbox[921];
+  const api = {
+    download: async (_id, target) => {
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      const result = spawnSync("ffmpeg", [
+        "-y",
+        "-v",
+        "error",
+        "-f",
+        "lavfi",
+        "-i",
+        "sine=frequency=440:duration=1",
+        "-c:a",
+        "libopus",
+        target,
+      ]);
+      assert.equal(result.status, 0);
+    },
+  };
+  const voice = {
+    transcribe: async () => ({ text: "A synthetic fixture transcript." }),
+    close() {},
+  };
+  await prepareInput(root, config, api, voice, item);
+  await prepareInput(root, config, api, voice, item);
+  const state = readTransport(root);
+  assert.equal(state.inbox[921].status, "sample-ready");
+  assert.equal(Object.values(state.outbox).length, 1);
+  assert.match(Object.values(state.outbox)[0].text, /voice preview/);
+  assert.equal(fs.existsSync(path.join(directory(root), "voice/reference.wav")), true);
+});

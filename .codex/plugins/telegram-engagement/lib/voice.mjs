@@ -37,10 +37,10 @@ export class LocalVoice {
     if (!fs.existsSync(python))
       throw new Error("Local speech environment missing. Run npm run telegram -- install-voice.");
     const script = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../voice/worker.py");
-    this.child = spawn(python, ["-u", script, "serve", "--root", dir], {
+    const child = (this.child = spawn(python, ["-u", script, "serve", "--root", dir], {
       stdio: ["pipe", "pipe", "pipe"],
       shell: false,
-    });
+    }));
     this.child.stderr.on("data", () => {}); // provider diagnostics can contain private transcript/sample paths
     const lines = createInterface({ input: this.child.stdout });
     lines.on("line", (line) => {
@@ -58,6 +58,7 @@ export class LocalVoice {
       else item.reject(new Error(`Local voice processing failed: ${value.error}`));
     });
     const fail = () => {
+      if (this.child !== child) return;
       this.child = null;
       for (const p of this.pending.values()) {
         clearTimeout(p.timer);
@@ -65,6 +66,8 @@ export class LocalVoice {
       }
       this.pending.clear();
     };
+    this.fail = fail;
+    this.child.stdin.on("error", fail);
     this.child.once("error", fail);
     this.child.once("exit", fail);
   }
@@ -75,7 +78,7 @@ export class LocalVoice {
     const id = ++this.sequence;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
-        this.child?.kill("SIGTERM");
+        this.close();
       }, 15 * 60000);
       this.pending.set(id, { resolve, reject, timer });
       this.child.stdin.write(JSON.stringify({ id, operation, ...detail }) + "\n");
@@ -88,6 +91,14 @@ export class LocalVoice {
     return this.request("render", { text, output });
   }
   close() {
-    this.child?.kill("SIGTERM");
+    const child = this.child;
+    if (!child) return;
+    this.fail();
+    child.kill("SIGTERM");
+    const timer = setTimeout(() => {
+      if (child.exitCode === null) child.kill("SIGKILL");
+    }, 2000);
+    timer.unref();
+    child.once("exit", () => clearTimeout(timer));
   }
 }

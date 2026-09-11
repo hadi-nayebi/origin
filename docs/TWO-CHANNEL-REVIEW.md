@@ -55,3 +55,16 @@ side effects. Both Telegram delivery parts and channel wake intents require reco
 evidence to retry after an unknown outcome. Review acceptance is unavailable until the complete
 reply package is sent. Fake-transport tests cover uncertain outcomes; live Codex acceptance remains
 a separate requirement because terminal rendering varies by CLI version.
+
+## Iteration 4 — voice enrollment and worker lifecycle
+
+Found: enrollment saved the sample without queuing the promised preview; an old worker exit could
+clear a replacement worker; a hung worker could outlive its request timeout; model downloads lacked
+exact revision receipts.
+
+Fixed: sample enrollment durably queues one cloned-voice preview, with idempotent replay and a
+conversation for owner corrections. Worker shutdown rejects pending requests, isolates old exits and
+escalates termination. Downloads resolve and record exact model revisions; explicit pronunciation
+overrides retain canonical captions. Doctor fails when voice prerequisites are missing. The sample
+integration test runs real FFmpeg conversion with a synthetic fixture and mocked speech; it is not
+evidence of voice-clone perceptual quality or actual model inference.

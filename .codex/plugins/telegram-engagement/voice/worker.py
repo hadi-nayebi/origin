@@ -13,6 +13,7 @@ class Speech:
         self.root = root.resolve()
         self.config = json.loads((root / "config.json").read_text())
         self.tts = self.stt = self.prompt = None
+        self.pronunciation = self.config.get("pronunciation", {})
 
     def local(self, value):
         p = Path(value).resolve()
@@ -48,7 +49,11 @@ class Speech:
         target.parent.mkdir(parents=True, exist_ok=True)
         raw = target.with_suffix(".wav")
         language = self.config.get("language", "Auto")
-        waves, rate = self.tts.generate_voice_clone(text=text, language=language, voice_clone_prompt=self.prompt)
+        # The caption remains canonical; pronunciation is an explicit local override.
+        spoken = text
+        for written, pronunciation in sorted(self.pronunciation.items(), key=lambda item: -len(item[0])):
+            spoken = spoken.replace(written, pronunciation)
+        waves, rate = self.tts.generate_voice_clone(text=spoken, language=language, voice_clone_prompt=self.prompt, max_new_tokens=2048)
         audio = np.asarray(waves[0], dtype=np.float32)
         if not len(audio) or not np.isfinite(audio).all() or float(np.max(np.abs(audio))) < 0.0001:
             raise ValueError("Speech was empty, silent or invalid")
@@ -61,7 +66,7 @@ class Speech:
         import difflib
         import re
         normalize = lambda s: re.findall(r"\w+", s.casefold())
-        expected, actual = normalize(text), normalize(heard["text"])
+        expected, actual = normalize(spoken), normalize(heard["text"])
         score = difflib.SequenceMatcher(None, expected, actual).ratio()
         if score < 0.65 or (len(expected) >= 3 and not any(w in actual[-5:] for w in expected[-2:])):
             raise ValueError("Speech verification failed; preserve the reply and retry or inspect pronunciation")
@@ -75,10 +80,16 @@ def main():
     args = parser.parse_args()
     root = Path(args.root)
     if args.operation == "download":
-        from huggingface_hub import snapshot_download
+        from huggingface_hub import snapshot_download, model_info
         config = json.loads((root / "config.json").read_text())
+        receipts = []
         for model, folder in [(config.get("qwenModel", "Qwen/Qwen3-TTS-12Hz-0.6B-Base"), "qwen"), ("Systran/faster-whisper-" + config.get("sttModel", "base"), "stt")]:
-            snapshot_download(model, local_dir=root / "models" / folder)
+            requested = config.get(folder + "Revision", "main")
+            revision = model_info(model, revision=requested).sha
+            snapshot_download(model, revision=revision, local_dir=root / "models" / folder)
+            receipts.append({"model": model, "revision": revision, "folder": folder})
+        (root / "model-receipts.json").write_text(json.dumps(receipts, indent=2) + "\n")
+        os.chmod(root / "model-receipts.json", 0o600)
         return
     speech = Speech(root)
     for line in sys.stdin:

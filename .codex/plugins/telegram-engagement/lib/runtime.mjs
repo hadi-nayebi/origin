@@ -11,12 +11,13 @@ import {
   updateTransport,
   privateDirectory,
 } from "./storage.mjs";
-import { receiveUpdate, materializeThread, commitReply } from "./service.mjs";
+import { receiveUpdate, materializeThread, commitReply, queueReply } from "./service.mjs";
 import { loadConfig } from "./config.mjs";
 import { BotAPI } from "./api.mjs";
 import { LocalVoice, captionChunks } from "./voice.mjs";
 import {
   reconcileAgentState,
+  createFeedbackMutation,
   feedbackWakeIntents,
   getFeedback,
   recordVersion,
@@ -92,11 +93,30 @@ export async function prepareInput(root, config, api, voice, item, signal) {
     const reference = await voice.transcribe(path.join(voiceDir, "reference.wav"));
     fs.writeFileSync(path.join(voiceDir, "reference.txt"), reference.text + "\n", { mode: 0o600 });
     fs.chmodSync(path.join(voiceDir, "reference.wav"), 0o600);
-    updateTransport(root, (state) => {
-      state.inbox[String(item.updateId)].status = "sample-ready";
-      state.inbox[String(item.updateId)].materials = material;
-    });
     voice.close();
+    const thread = createFeedbackMutation(scopeFor(root), {
+      externalId: `telegram-${config.botId}-${item.updateId}`,
+      kind: "update",
+      body: "Voice sample enrollment. Review the local transcript and cloned-voice preview before confirming that this voice is ready.",
+      pagePath: "/telegram",
+      pageLabel: "Voice enrollment",
+    }).record;
+    queueReply(
+      root,
+      thread.id,
+      "This is your locally generated voice preview. Please listen and reply to this message with any correction or confirm that the voice sounds right.",
+      "progress",
+      [],
+      { packageId: `sample-preview-${item.updateId}` },
+    );
+    updateTransport(root, (state) => {
+      const input = state.inbox[String(item.updateId)];
+      input.status = "sample-ready";
+      input.threadId = thread.id;
+      input.materials = material;
+      input.referenceTranscript = reference.text;
+      state.replies[String(item.messageId)] = thread.id;
+    });
     return;
   }
   const text = [item.text, transcript].filter(Boolean).join("\n\n");

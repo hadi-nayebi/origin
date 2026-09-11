@@ -170,12 +170,13 @@ export function associateInput(root, updateId, targetId) {
   });
 }
 
-export function queueReply(root, id, text, kind = "progress", materials = []) {
+export function queueReply(root, id, text, kind = "progress", materials = [], options = {}) {
   const scope = scopeFor(root);
   // Prepare a durable intent before mutating the conversation. Recovery replays
   // the intent using its stable ID; the sender never invents acceptance.
-  const packageId = crypto.randomUUID();
+  const packageId = options.packageId || crypto.randomUUID();
   return updateTransport(root, (state) => {
+    if (state.outbox[packageId]) return state.outbox[packageId];
     const current = getFeedback(scope, id);
     if (!["progress", "question", "review", "preview"].includes(kind))
       throw new Error("Unknown reply kind.");

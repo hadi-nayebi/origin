@@ -18,6 +18,25 @@ export function loadConfig(root) {
   for (const key of ["botId", "chatId", "userId"])
     if (!/^-?\d+$/.test(config[key] || ""))
       throw new Error(`Missing or invalid ${key}; run Telegram setup.`);
+  if (
+    !Number.isSafeInteger(config.maxMediaBytes) ||
+    config.maxMediaBytes < 1 ||
+    config.maxMediaBytes > 20 * 1024 * 1024
+  )
+    throw new Error(
+      "maxMediaBytes must be between 1 and the cloud Bot API download cap of 20 MiB.",
+    );
+  if (!/^(cpu|cuda(?::\d+)?)$/.test(config.device))
+    throw new Error("Speech device must be cpu or cuda[:index].");
+  if (
+    config.pronunciation &&
+    (typeof config.pronunciation !== "object" ||
+      Array.isArray(config.pronunciation) ||
+      Object.entries(config.pronunciation).some(
+        ([key, value]) => !key || typeof value !== "string" || !value,
+      ))
+  )
+    throw new Error("Pronunciation overrides must map nonempty text to nonempty spoken text.");
   return { ...config, token };
 }
 export function validateToken(value) {

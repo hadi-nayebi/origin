@@ -15,7 +15,13 @@ import {
 import { loadConfig, validateToken, saveConfig, defaults } from "../lib/config.mjs";
 import { BotAPI } from "../lib/api.mjs";
 import { runTelegram } from "../lib/runtime.mjs";
-import { channelStatus, getThread, associateInput, queueReply } from "../lib/service.mjs";
+import {
+  channelStatus,
+  getThread,
+  associateInput,
+  queueReply,
+  reconcileDelivery,
+} from "../lib/service.mjs";
 import {
   nextFeedback,
   listFeedback,
@@ -62,6 +68,29 @@ try {
         materials,
       ),
     );
+  } else if (command === "reconcile-output")
+    print(
+      reconcileDelivery(
+        root,
+        id,
+        args[0],
+        Number(args[1]),
+        args[2],
+        Number(args[3]),
+        args.slice(4).join(" "),
+      ),
+    );
+  else if (command === "sample-text") {
+    const text = fs.readFileSync(path.resolve(id), "utf8").trim();
+    if (!text || text.length > 4000)
+      throw new Error("Sample transcript must contain 1 to 4000 characters.");
+    fs.writeFileSync(path.join(directory(root), "voice/reference.txt"), text + "\n", {
+      mode: 0o600,
+    });
+    print({
+      updated: true,
+      next: "Restart the listener to reload the corrected sample transcript, then queue a preview reply.",
+    });
   } else if (command === "associate") print(associateInput(root, Number(id), args[0]));
   else if (command === "pause") print(pauseAgent(scope, id || "User paused Telegram engagement."));
   else if (command === "resume") {
@@ -78,7 +107,7 @@ try {
     print({
       enabled: false,
       historyPreserved: true,
-      next: "Stop the Telegram listener with Ctrl-C; an enabled combined launcher will no longer start it.",
+      next: "The listener observes disable and stops. History is retained; the other channel is unaffected.",
     });
   } else if (command === "retry-input") {
     updateTransport(root, (s) => {
@@ -92,7 +121,7 @@ try {
   } else if (command === "doctor") {
     const config = loadConfig(root);
     const dir = directory(root);
-    print({
+    const report = {
       paired: true,
       enabled: fs.existsSync(path.join(dir, "enabled.json")),
       voiceModel: config.qwenModel,
@@ -108,7 +137,15 @@ try {
       transport: channelStatus(root),
       liveAcceptance:
         "Run the documented paired-bot, cloned-voice and trusted-hook acceptance sequence.",
-    });
+    };
+    print(report);
+    if (
+      !report.modelsPresent ||
+      !report.voiceSamplePresent ||
+      !report.ffmpeg ||
+      !report.lifecycle.valid
+    )
+      process.exitCode = 1;
   } else
     throw new Error(
       "Usage: telegram <setup|install-voice|run|doctor|enable|disable|status|list|next|get|start|reply|ask|review|material|associate|pause|resume|verify|retry-input> [id] [text or file]",
@@ -189,7 +226,12 @@ async function setup() {
       }
     }
     if (!paired) throw new Error("Pairing expired. No bot binding was saved.");
-    fs.writeFileSync(path.join(dir, "bot-token"), token + "\n", { mode: 0o600, flag: "wx" });
+    if (
+      fs.existsSync(path.join(dir, "bot-token")) &&
+      !fs.lstatSync(path.join(dir, "bot-token")).isFile()
+    )
+      throw new Error("Existing token path is not a regular file.");
+    fs.writeFileSync(path.join(dir, "bot-token"), token + "\n", { mode: 0o600, flag: "w" });
     saveConfig(root, {
       ...defaults(),
       botId: String(me.id),

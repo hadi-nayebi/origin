@@ -24,6 +24,7 @@
     "start": "node server/index.mjs",
     "origin": "node .codex/plugins/_dashboard-runtime/scripts/start-harness.mjs",
     "origin:resume": "node .codex/plugins/_dashboard-runtime/scripts/start-harness.mjs --resume-last",
+    "origin:new": "node .codex/plugins/_dashboard-runtime/scripts/start-harness.mjs --new-session",
     "dashboard": "node server/index.mjs --dev",
     "test": "node --test .codex/plugins/agent-stop-state/tests/*.test.mjs .codex/plugins/contextual-feedback/tests/*.test.mjs .codex/plugins/_dashboard-runtime/tests/*.test.mjs server/tests/*.test.mjs scripts/tests/*.test.mjs .codex/plugins/telegram-engagement/tests/*.test.mjs",
     "test:coverage": "node --experimental-test-coverage --test-coverage-lines=85 --test-coverage-branches=65 --test-coverage-functions=80 --test-coverage-include=.codex/plugins/_engagement-core/lib/**/*.mjs --test-coverage-include=.codex/plugins/agent-stop-state/hooks/**/*.mjs --test-coverage-include=.codex/plugins/contextual-feedback/lib/**/*.mjs --test-coverage-include=.codex/plugins/_dashboard-runtime/lib/**/*.mjs --test-coverage-include=server/**/*.mjs --test .codex/plugins/agent-stop-state/tests/*.test.mjs .codex/plugins/contextual-feedback/tests/*.test.mjs .codex/plugins/_dashboard-runtime/tests/*.test.mjs server/tests/*.test.mjs scripts/tests/*.test.mjs .codex/plugins/telegram-engagement/tests/*.test.mjs",

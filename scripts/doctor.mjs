@@ -7,6 +7,7 @@ import { ensureAgentState } from "../.codex/plugins/_engagement-core/lib/state.m
 import { verifyFeedback } from "../.codex/plugins/_engagement-core/lib/service.mjs";
 import { CHANNELS, pluginPresent } from "../.codex/plugins/_engagement-core/lib/scope.mjs";
 import { inspectMachine } from "../.codex/plugins/_dashboard-runtime/lib/machine.mjs";
+import { inspectGitHubRepositoryAccess } from "./github-repository-access.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const checks = [...inspectMachine().checks];
 for (const [name, args] of [
@@ -22,6 +23,7 @@ for (const [name, args] of [
       .slice(0, 500),
   });
 }
+checks.push(inspectGitHubRepositoryAccess({ cwd: root }));
 try {
   const hooks = JSON.parse(fs.readFileSync(path.join(root, ".codex/hooks.json"), "utf8"));
   const commands = hooks.hooks.Stop.flatMap((group) => group.hooks);

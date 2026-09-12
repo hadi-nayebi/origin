@@ -18,7 +18,9 @@ export async function startHarness(options = {}) {
   const repositoryRoot = path.resolve(options.root || root);
   assertMachineReady({ run, platform: options.platform, release: options.release });
   const feedbackEnabled =
-    !options.telegramOnly && !process.argv.includes("--telegram-only") && pluginPresent(root);
+    !options.telegramOnly &&
+    !process.argv.includes("--telegram-only") &&
+    pluginPresent(repositoryRoot);
   if (feedbackEnabled) {
     ensureAgentState(repositoryRoot);
     reconcileAgentState(repositoryRoot);
@@ -27,7 +29,10 @@ export async function startHarness(options = {}) {
     ? await ensureDashboardRuntime(repositoryRoot, options)
     : { state: "disabled", url: "dashboard channel disabled" };
   const session = sessionName(repositoryRoot);
-  const resume = options.resumeLast ?? process.argv.includes("--resume-last");
+  // Current Codex releases make `resume --last` start fresh when the current
+  // repository has no saved interactive session. Keep an explicit new-session
+  // escape hatch for owners who do not want to continue the prior conversation.
+  const resume = options.resumeLast ?? !process.argv.includes("--new-session");
   const command = resume ? ["codex", "resume", "--last"] : ["codex"];
   const hasSession = run("tmux", ["has-session", "-t", session]).status === 0;
   if (!hasSession) {

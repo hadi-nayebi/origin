@@ -14,7 +14,7 @@ defects.
 ## Acceptance still required
 
 - Dedicated-bot acceptance of automatic reply threading, the complete media matrix, and owner
-  callback rejection/acceptance. The authorized shared-bot test has ended.
+  callback or `/merge` PR acceptance. The authorized shared-bot test has ended.
 - Fresh-machine text pairing and live disconnect/restart recovery. Optional speech acceptance also
   requires model installation, owner sample enrollment and listening review. Existing local models
   and an authorized owner reference were used for the prior real inference test.
@@ -178,3 +178,24 @@ network delivery was used.
 The final mobile check reproduced horizontal overflow from the expanded channel controls. The
 controls now wrap and file inputs/long material names stay inside the panel. Browser acceptance
 asserts the panel width after a complete file/question/rejection/acceptance sequence in both modes.
+
+## PR-backed work-unit and owner-authority iteration
+
+Found: a thread could be marked resolved through local review without a repository publication
+boundary, and “agents cannot accept their own work” was partly an instruction rather than a hard
+tool-path refusal. Telegram's review callback represented acceptance without proving a merge.
+
+Fixed: each actionable parent thread receives an Origin-managed private worktree branch and exactly
+one matching GitHub PR. Review requires that PR. Dashboard **Merge PR**, Telegram **Merge PR**, and
+paired `/merge NUMBER` feed one owner broker; the broker verifies current version, repository,
+branch, PR state and GitHub's final merge before atomically recording resolution. Telegram stores
+owner actions durably so listener restart cannot turn an unobserved click into acceptance. A
+PreToolUse hook fails closed on malformed input and denies supported agent merge, direct-resolution,
+protected-base-push, and authority-control mutation paths while allowing feature branch push and PR
+creation.
+
+Regression evidence covers canonical/repository-bound PRs, exact branch binding, stale review,
+conflicts and drafts, retry after a remotely completed merge, dashboard and Telegram owner surfaces,
+hook denials, and text-only Telegram operation. Live GitHub merge and dedicated-bot acceptance
+remain explicit target-machine evidence; simulated boundaries do not certify credentials or branch
+rules.

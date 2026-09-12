@@ -15,12 +15,20 @@ exposed to a LAN or the public internet.
   buffer, resolves exactly one Codex pane in the repository, and verifies paste and submission.
 - Origin launches normal interactive Codex and does not bypass its sandbox or approval settings.
   Project hooks remain subject to Codex's explicit review-and-trust boundary.
+- Each reviewed work unit is bound to one Origin-managed worktree branch and one repository-matched
+  GitHub PR. The owner merge broker checks the current thread version and remote merge result before
+  resolution. Its `gh` calls use argument arrays without a shell.
+- The owner-authority PreToolUse hook denies supported agent PR-merge, local merge-broker,
+  direct-resolution, authority-control mutation, and protected-base-push paths. It permits feature
+  branch pushes and PR creation. This boundary applies only after the user inspects and trusts the
+  project hook.
 - Clone-local state is ignored by Git and created with owner-only permissions where the operating
   system supports POSIX modes.
 - Dashboard review and the agent CLI are separate capability surfaces, but both ultimately run under
   one operating-system account. This prevents accidental authority confusion and creates an audit
-  trail; it cannot defend against a malicious local process with the user's file and loopback
-  access.
+  trail; it cannot defend against a malicious local process, a user shell, or code with the user's
+  file, GitHub credential, and loopback access. Repository branch protection remains the appropriate
+  remote enforcement layer when stronger separation is required.
 - “Local” describes persistence and serving. When Codex retrieves a feedback thread, its content is
   processed under the user's configured Codex/OpenAI data path; Origin does not claim that model
   input remains on-device.

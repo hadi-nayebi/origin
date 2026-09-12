@@ -1,7 +1,8 @@
 # Install Origin
 
 Origin 1.0 requires one interactive Codex session connected to the dashboard through tmux. The
-required machine kit is Git, Node.js 22 or newer, npm, tmux, Codex CLI, and Codex authentication.
+required machine kit is Git, GitHub CLI, Node.js 22 or newer, npm, tmux, Codex CLI, and GitHub and
+Codex authentication.
 
 ## macOS, Linux, and WSL2
 
@@ -10,9 +11,9 @@ required machine kit is Git, Node.js 22 or newer, npm, tmux, Codex CLI, and Code
 ```
 
 The installer asks before installing system software. On supported package managers it installs
-missing Git, tmux, Node/npm, and the official `@openai/codex` package, then installs repository
-dependencies and runs the complete test/build/doctor contract. Authentication remains a user-owned
-security step.
+missing Git, GitHub CLI, tmux, Node/npm, and the official `@openai/codex` package, then installs
+repository dependencies and runs the complete test/build/doctor contract. It then offers the
+user-owned GitHub and Codex authentication steps; it never embeds credentials.
 
 If a Linux distribution's package manager provides Node older than 22, install the current Node.js
 LTS from [nodejs.org](https://nodejs.org/) and rerun the script.
@@ -31,7 +32,8 @@ After any required restart, open the WSL terminal, clone Origin inside the Linux
 
 ## Authenticate and inspect
 
-Authenticate Codex using the current Codex CLI login flow, then run:
+Authenticate Codex using the current Codex CLI login flow and authenticate GitHub with
+`gh auth login`, then run:
 
 ```bash
 npm run doctor
@@ -41,8 +43,10 @@ npm run origin
 The doctor treats every missing runtime component as blocking. The launcher never falls back to a
 headless worker or a dashboard-only mode.
 
-On first launch, use `/hooks` in Codex to inspect and trust the repository Stop hook. This is an
-intentional security boundary.
+On first launch, use `/hooks` in Codex to inspect and trust the two channel Stop hooks and the
+owner-authority PreToolUse hook. The latter permits branch work and PR creation but blocks supported
+agent merge paths; only the dashboard or paired Telegram owner action may merge and resolve a work
+unit. This is an intentional security boundary.
 
 ## Recovery
 
@@ -52,7 +56,10 @@ intentional security boundary.
 - `.origin/dashboard.log` contains dashboard startup diagnostics.
 - `.origin/wake-outbox.json` records wake attempts and outcomes.
 - `.origin/feedback.jsonl` is the authoritative feedback journal.
-- `.origin/agent-stop-state/data.json` is the current global continuation state.
+- `.origin/contextual-feedback/data.json` and `.origin/telegram-engagement/data.json` are the
+  independent channel projections.
+- `.origin/worktrees/` contains the private per-thread worktrees. GitHub PRs remain the reviewed
+  publication boundary.
 
 If feedback or agent state fails validation, pending wakes remain retryable rather than being
 cancelled. Recover the authoritative file first, then run `npm run wake`.

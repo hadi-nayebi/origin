@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { setAgentState } from "./state.mjs";
 import { bounded, normalizeCreateInput, normalizeId, normalizeMessage } from "./contracts.mjs";
 import { deriveFeedbackMode, orderedRecords, selectNext } from "./policy.mjs";
+import { requirePullRequestReference } from "./work-reference.mjs";
 import {
   appendFeedbackEvent,
   inspectFeedbackLedger,
@@ -156,6 +157,7 @@ export function transitionFeedback(root, id, status, detail = {}, now = new Date
   const result = appendFeedbackEvent(root, (records) => {
     const current = records.get(safeId);
     if (!current) throw new Error("Feedback record not found.");
+    if (status === "ready_for_review") requirePullRequestReference(current);
     if (status === "open" && ["ready_for_review", "resolved", "dismissed"].includes(current.status))
       throw new Error("User-owned reopening requires the dashboard review operation.");
     const event = { type: "feedback.status-changed", id: safeId, status, at: now.toISOString() };

@@ -13,6 +13,7 @@ import {
   recordVersion,
   reconcileAgentState,
   getFeedback,
+  linkFeedbackWork,
 } from "../../_engagement-core/lib/service.mjs";
 import { ensureAgentState, pauseAgent, readAgentState } from "../../_engagement-core/lib/state.mjs";
 import { inspectChannelStop } from "../../_engagement-core/lib/stop.mjs";
@@ -30,7 +31,7 @@ import {
   queueReply,
   getThread,
 } from "../lib/service.mjs";
-import { prepareInput, deliverReply, textChunks } from "../lib/runtime.mjs";
+import { prepareInput, deliverReply, processOwnerMerge, textChunks } from "../lib/runtime.mjs";
 import { captionChunks } from "../lib/voice.mjs";
 import { BotAPI } from "../lib/api.mjs";
 import { defaults, loadConfig, saveConfig } from "../lib/config.mjs";
@@ -72,6 +73,9 @@ const request = (root) =>
     pageLabel: "Canvas",
   });
 function ready(root, id) {
+  const current = getFeedback(root, id);
+  if (!current.linkedWork.some((value) => value.startsWith("pull-request:")))
+    linkFeedbackWork(root, id, "pull-request:https://github.com/example/origin/pull/42");
   transitionFeedback(root, id, "in_progress");
   return transitionFeedback(root, id, "ready_for_review", {
     verification: "Verified the requested behavior with focused regression checks.",
@@ -295,6 +299,11 @@ test("text-only replies retain threading, review controls and exact content", as
   receiveUpdate(root, textConfig, input(12, "Please make this change"));
   materializeThread(root, textConfig, 12, "Please make this change");
   const thread = getThread(root, readTransport(root).inbox[12].threadId);
+  linkFeedbackWork(
+    scopeFor(root),
+    thread.id,
+    "pull-request:https://github.com/example/origin/pull/42",
+  );
   transitionFeedback(scopeFor(root), thread.id, "in_progress");
   const reply = queueReply(
     root,
@@ -317,7 +326,7 @@ test("text-only replies retain threading, review controls and exact content", as
   );
   assert.equal(sent[0].text, reply.text);
   assert.equal(sent[0].extra.reply_parameters.message_id, 12);
-  assert.equal(sent[0].extra.reply_markup.inline_keyboard[0][0].text, "Accept");
+  assert.equal(sent[0].extra.reply_markup.inline_keyboard[0][0].text, "Merge PR");
   assert.equal(readTransport(root).outbox[reply.id].deliveryMode, "text");
   assert.equal(readTransport(root).outbox[reply.id].status, "sent");
 });
@@ -500,6 +509,7 @@ test("review buttons require delivered packages, owner identity and unchanged ve
   const root = fixture(t);
   const scope = scopeFor(root);
   const thread = request(scope);
+  linkFeedbackWork(scope, thread.id, "pull-request:https://github.com/example/origin/pull/42");
   transitionFeedback(scope, thread.id, "in_progress");
   const item = queueReply(
     root,
@@ -531,10 +541,51 @@ test("review buttons require delivered packages, owner identity and unchanged ve
   receiveUpdate(root, config, callback(911, 201));
   assert.equal(getFeedback(scope, thread.id).status, "ready_for_review");
   receiveUpdate(root, config, callback(912));
+  assert.equal(getFeedback(scope, thread.id).status, "ready_for_review");
+  const ownerAction = Object.values(readTransport(root).ownerActions)[0];
+  assert.equal(ownerAction.status, "pending");
+  await processOwnerMerge(
+    root,
+    config,
+    { sendText: async () => ({ message_id: 901 }) },
+    ownerAction,
+    {
+      merge: (_repositoryRoot, feedbackRoot, id) => ({
+        record: reviewFeedback(feedbackRoot, id, "resolved", {
+          acceptance: "User merged PR #42.",
+        }),
+      }),
+    },
+  );
   assert.equal(getFeedback(scope, thread.id).status, "resolved");
   addFeedbackMessage(scope, thread.id, { body: "Another request arrived." });
   receiveUpdate(root, config, callback(913));
   assert.equal(getFeedback(scope, thread.id).status, "open");
+});
+
+test("paired owner slash merge resolves the work unit and is not agent conversation", async (t) => {
+  const root = fixture(t);
+  const scope = scopeFor(root);
+  const thread = request(scope);
+  linkFeedbackWork(scope, thread.id, "pull-request:https://github.com/example/origin/pull/42");
+  transitionFeedback(scope, thread.id, "in_progress");
+  transitionFeedback(scope, thread.id, "ready_for_review", {
+    verification: "Verified the linked pull request with focused regression coverage.",
+  });
+  receiveUpdate(root, config, input(930, "/merge 42"));
+  const state = readTransport(root);
+  assert.equal(state.inbox[930], undefined);
+  const action = state.ownerActions["command-930"];
+  assert.equal(action.pullRequestNumber, 42);
+  await processOwnerMerge(root, config, { sendText: async () => ({ message_id: 931 }) }, action, {
+    merge: (_repositoryRoot, feedbackRoot, id) => ({
+      record: reviewFeedback(feedbackRoot, id, "resolved", {
+        acceptance: "User merged PR #42.",
+      }),
+    }),
+  });
+  assert.equal(getFeedback(scope, thread.id).status, "resolved");
+  assert.equal(readTransport(root).ownerActions["command-930"].status, "completed");
 });
 
 test("indeterminate delivery requires evidence and recovers without sending a confirmed part twice", async (t) => {

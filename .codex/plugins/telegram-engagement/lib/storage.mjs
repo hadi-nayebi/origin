@@ -85,6 +85,7 @@ const empty = () => ({
   outbox: {},
   replies: {},
   callbacks: {},
+  ownerActions: {},
   enrollment: null,
 });
 export function readTransport(root) {
@@ -98,6 +99,9 @@ export function readTransport(root) {
     )
   )
     throw new Error("Telegram transport state is invalid.");
+  value.ownerActions ||= {};
+  if (typeof value.ownerActions !== "object" || Array.isArray(value.ownerActions))
+    throw new Error("Telegram owner action state is invalid.");
   return value;
 }
 export function updateTransport(root, operation) {

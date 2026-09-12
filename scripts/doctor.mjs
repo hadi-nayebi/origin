@@ -2,12 +2,26 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
 import { ensureAgentState } from "../.codex/plugins/_engagement-core/lib/state.mjs";
 import { verifyFeedback } from "../.codex/plugins/_engagement-core/lib/service.mjs";
 import { CHANNELS, pluginPresent } from "../.codex/plugins/_engagement-core/lib/scope.mjs";
 import { inspectMachine } from "../.codex/plugins/_dashboard-runtime/lib/machine.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const checks = [...inspectMachine().checks];
+for (const [name, args] of [
+  ["GitHub CLI", ["--version"]],
+  ["GitHub authentication", ["auth", "status"]],
+]) {
+  const result = spawnSync("gh", args, { encoding: "utf8", shell: false });
+  checks.push({
+    name,
+    ok: result.status === 0,
+    detail: String(result.stdout || result.stderr || "gh is unavailable.")
+      .trim()
+      .slice(0, 500),
+  });
+}
 try {
   const hooks = JSON.parse(fs.readFileSync(path.join(root, ".codex/hooks.json"), "utf8"));
   const commands = hooks.hooks.Stop.flatMap((group) => group.hooks);
@@ -47,5 +61,5 @@ for (const check of checks)
 if (checks.some((c) => !c.ok)) process.exitCode = 1;
 else
   console.log(
-    "Local prerequisites and channel journals pass. Run Telegram doctor and the documented live acceptance separately; this does not prove hook trust or remote voice delivery.",
+    "Local prerequisites, GitHub work-unit access, and channel journals pass. Run Telegram doctor and the documented live acceptance separately; this does not prove hook trust or remote delivery.",
   );

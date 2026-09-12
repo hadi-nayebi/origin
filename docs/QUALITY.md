@@ -9,13 +9,13 @@ Unavailable live evidence is recorded as unavailable, never inferred from CI.
 | Academy alignment   | Origin is the Hadosh dashboard-plus-harness substrate for Phases 6–7 and continues an approved web-to-CLI handoff                                                | README, handoff template, Wiki, agent instructions              |
 | Session model       | Dashboard and terminal address one persistent interactive Codex tmux session                                                                                     | Launcher, pane resolver, local live acceptance                  |
 | Plugin anatomy      | Feedback cognition, independent channel Stop states, and runtime transport have separate ownership                                                               | Two plugin trees, runtime boundary, schemas, voice, docs, tests |
-| Feedback lifecycle  | Raw input survives interpretation, work, questions, answers, verification, acceptance, and reopening                                                             | Ledger/schema tests, API and UI tests                           |
+| Feedback lifecycle  | Raw input survives interpretation, isolated branch work, questions, answers, verification, PR merge acceptance, and reopening                                    | Ledger/schema/work-unit/API/UI tests                            |
 | Stop and waiting    | Runnable work blocks Stop; waiting is legitimate only when no other runnable work exists                                                                         | State/plugin/hook tests                                         |
 | Delivery durability | Events persist before wake; nonterminal events are never count-evicted; process-safe claims, busy queueing, immediate retry, and recovery prevent transport loss | Runtime and outbox tests                                        |
-| Security            | Loopback/same-origin server, bounded pointers, no feedback shell interpolation, no approval bypass                                                               | API tests, adapter tests, `SECURITY.md`                         |
-| Interface           | Empty canvas, Wiki, future-route context, feedback threads, red attention state, answer, acceptance, and reopening                                               | UI and accessibility tests                                      |
+| Security            | Loopback/same-origin server, bounded pointers, no feedback shell interpolation, repository-bound PR broker, and trusted agent merge denial                       | API, work-unit and hook tests, `SECURITY.md`                    |
+| Interface           | Empty canvas, Wiki, future-route context, feedback threads, linked PR, owner merge, answer, and reopening                                                        | UI and accessibility tests                                      |
 | Internal voices     | Event voices restate plugin objective, durable context, cognitive operation, authority, and next boundary while code retains enforcement                         | Voice catalog and instruction tests                             |
-| Installation        | macOS/Linux/WSL2 prerequisites are strict; missing Codex, auth, or tmux blocks launch                                                                            | Machine inspection, doctor, installer tests                     |
+| Installation        | macOS/Linux/WSL2 prerequisites are strict; Codex/tmux block launch and GitHub CLI/auth block the reviewed PR workflow                                            | Machine inspection, doctor, installer tests                     |
 | Recovery            | Durable ledger, backups, owning channel state, runtime record, and wake outbox are inspectable                                                                   | Corruption, backup/restore, stale work, retry tests             |
 
 `npm run check` is the reproducible deterministic evidence suite. GitHub Actions runs it on Linux,
@@ -32,5 +32,6 @@ not establish that the normal development dashboard renders in a browser.
 
 After `npm run build`, install Chromium with `npx playwright install chromium` and run
 `npm run test:browser`. This checks development and production rendering, Wiki navigation,
-page-aware feedback, question/answer, user acceptance and mobile width in isolated local state with
-tmux delivery disabled. Linux CI runs it. It does not replace authenticated Codex/hook acceptance.
+page-aware feedback, question/answer, PR-merge acceptance and mobile width in isolated local state
+with tmux delivery disabled and a simulated GitHub result. Linux CI runs it. It does not replace
+authenticated Codex/hook/GitHub acceptance.

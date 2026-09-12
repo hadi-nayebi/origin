@@ -36,7 +36,9 @@ Origin is a starting substrate, not a prefabricated agent or a finished domain s
   submission evidence.
 - Independent `idle`, `active`, `waiting`, and `paused` state and Stop decisions for each channel.
 - `contextual-feedback`: raw input, page context, thread messages, interpretation, linked work,
-  questions, answers, verification, user acceptance, dismissal, and reopening.
+  questions, answers, verification, PR-merge acceptance, dismissal, and reopening.
+- One isolated worktree and one GitHub PR per reviewed thread, with owner-only merge from dashboard
+  or paired Telegram and GitHub-confirmed resolution.
 - Sequence-numbered SHA-256 feedback history, atomic lifecycle actions, atomic writes, backups, and
   recovery.
 - Loopback-only server and local files under ignored `.origin/`.
@@ -54,8 +56,8 @@ Model/sample/token files stay under ignored `.origin/`; no speech model is shipp
 
 ## Start
 
-The full harness requires Git, Node.js 22+, tmux, Codex CLI, and an authenticated Codex session.
-Windows users run it inside WSL2.
+The full harness requires Git, GitHub CLI, Node.js 22+, tmux, Codex CLI, and authenticated GitHub
+and Codex sessions. Windows users run it inside WSL2.
 
 ```bash
 ./scripts/install.sh
@@ -70,7 +72,8 @@ Use `npm run origin:resume` to launch Codex with `codex resume --last`. `npm run
 only the development dashboard for diagnostics; it is not the complete Origin interaction model.
 
 The first time Codex opens the repository, use `/hooks`, inspect `.codex/hooks.json`, and trust the
-two channel Stop hooks. Origin does not bypass Codex's trust boundary.
+two channel Stop hooks plus the owner-authority PreToolUse hook. Origin does not bypass Codex's
+trust boundary.
 
 ## The feedback loop
 
@@ -90,18 +93,26 @@ npm run feedback -- next
 npm run feedback -- get <id>
 npm run feedback -- start <id>
 npm run feedback -- interpret <id> <classification> "Interpretation"
+npm run feedback -- worktree <id>
+npm run feedback -- link-pr <id> https://github.com/OWNER/REPO/pull/NUMBER
 npm run feedback -- comment <id> "Progress visible to the user"
 npm run feedback -- ask <id> "Question for the user"
 npm run feedback -- review <id> "What changed and how it was verified"
 npm run agent-state -- get
 ```
 
-The agent may mark work `ready_for_review`; the agent CLI does not expose acceptance, dismissal, or
-review-based reopening. Those actions live on the dashboard review surface, are recorded atomically
-with the user's review message, and wake the same Codex session. This is a deliberate capability and
-audit boundary inside one trusted local account—not a security boundary against a malicious process
-running as that operating-system user. Waiting permits Stop only when no other runnable feedback
-remains.
+The agent prepares each thread in its private `.origin/worktrees/` branch, opens a PR, links that
+PR, and may then mark the work `ready_for_review`. The agent CLI exposes no acceptance or merge
+action. The dashboard's **Merge PR** button and paired Telegram's button or `/merge NUMBER` command
+call the owner broker. The broker verifies that the PR belongs to this clone's `origin` repository,
+merges it through authenticated GitHub CLI arguments, re-reads GitHub, and only then records
+resolution. Reopening and withdrawal remain user review actions.
+
+The trusted PreToolUse hook deterministically blocks supported agent merge tools, direct merge API
+calls, protected-base pushes, calls to the local merge route, and agent edits to its authority
+files. Review and trust that hook in Codex. This is a strong workflow and audit boundary inside one
+trusted local account, not an adversarial sandbox against a malicious process already controlling
+that OS account. Waiting permits Stop only when no other runnable feedback remains.
 
 ## Other CLI agents
 

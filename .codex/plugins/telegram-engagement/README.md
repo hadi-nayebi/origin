@@ -56,8 +56,16 @@ The agent uses `npm run telegram -- list`, `next`, `get ID`, `start ID`, `reply 
 `ask ID "question"`, `review ID "verification evidence"`, and
 `material ID /path/to/file "description"`. Replies are readable text by default and longer replies
 are split without losing content. When cloned-voice replies are enabled, each voice message carries
-the exact readable caption. Review buttons belong to one version of a thread; a later contribution
-invalidates an older acceptance button. Agents cannot accept their own work.
+the exact readable caption.
+
+Each actionable parent thread is one PR-backed work unit. The agent runs `worktree ID`, implements
+and verifies on the returned isolated branch, opens a GitHub PR, and runs
+`link-pr ID https://github.com/OWNER/REPO/pull/NUMBER` before `review`. The PR head must be that
+exact managed branch. The owner can then use the thread's **Merge PR** button or send
+`/merge NUMBER` in the paired private chat. Review buttons belong to one displayed version; later
+input invalidates an older button. The owner broker confirms the remote GitHub merge before
+recording resolution. Agents have no merge command, and the trusted owner-authority hook blocks
+supported agent merge paths and protected-base pushes.
 
 `/pause` pauses only Telegram; `/resume` resumes it. Dashboard state is unaffected. `disable`
 preserves history and removes Telegram's continuation vote. A paused channel can still receive

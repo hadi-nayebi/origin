@@ -35,6 +35,7 @@ import {
   materialForThread,
   threadView,
 } from "../.codex/plugins/_engagement-core/lib/materials.mjs";
+import { mergePullRequest } from "../.codex/plugins/_engagement-core/lib/pull-request.mjs";
 
 const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -243,22 +244,17 @@ export async function createOriginApp(options = {}) {
   app.patch("/api/feedback/:id", (request, response, next) => {
     try {
       requireJson(request);
-      const { status, reason, acceptance, expectedVersion } = request.body || {};
+      const { status, reason, expectedVersion } = request.body || {};
       if (!/^[a-f0-9]{64}$/.test(expectedVersion || ""))
         throw new Error("A current thread version is required; refresh before reviewing.");
-      if (!["resolved", "open", "dismissed"].includes(status))
-        throw new Error("Dashboard may only accept, reopen, or dismiss feedback.");
-      const detail = { expectedVersion, ...(status === "resolved" ? { acceptance } : { reason }) };
+      if (!["open", "dismissed"].includes(status))
+        throw new Error("Dashboard may only reopen or dismiss feedback on this route.");
+      const detail = { expectedVersion, reason };
       const { record, event } = reviewFeedbackMutation(root, request.params.id, status, detail);
       let wake = null;
-      if (["resolved", "open", "dismissed"].includes(status)) {
+      if (["open", "dismissed"].includes(status)) {
         wake = enqueueFeedbackWake(root, {
-          kind:
-            status === "resolved"
-              ? "feedback.accepted"
-              : status === "dismissed"
-                ? "feedback.dismissed"
-                : "feedback.reopened",
+          kind: status === "dismissed" ? "feedback.dismissed" : "feedback.reopened",
           reference: record.id,
           route: record.pagePath,
           activeReference: stopOutcome(root).reference?.id || record.id,
@@ -267,6 +263,31 @@ export async function createOriginApp(options = {}) {
         });
         if (options.deliverWakes !== false) scheduleWakeDelivery(root, options.wakeOptions);
       }
+      response.json({ record, wake, delivery: wakeStatus(root) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/feedback/:id/merge", async (request, response, next) => {
+    try {
+      requireJson(request);
+      const merge = options.mergePullRequest || mergePullRequest;
+      const { record, event } = await merge(
+        root,
+        root,
+        request.params.id,
+        request.body?.expectedVersion,
+      );
+      const wake = enqueueFeedbackWake(root, {
+        kind: "feedback.accepted",
+        reference: record.id,
+        route: record.pagePath,
+        activeReference: stopOutcome(root).reference?.id || record.id,
+        sourceEventHash: event.hash,
+        sourceSequence: event.sequence,
+      });
+      if (options.deliverWakes !== false) scheduleWakeDelivery(root, options.wakeOptions);
       response.json({ record, wake, delivery: wakeStatus(root) });
     } catch (error) {
       next(error);
@@ -326,7 +347,7 @@ export async function createOriginApp(options = {}) {
       return response.status(400).json({ error: "Invalid JSON body." });
     const message = error instanceof Error ? error.message : "Origin request failed.";
     const expected =
-      /required|invalid|between|unknown|not found|corrupt|transition|json|focused|busy|version|integrity|sequence|hash|dashboard|acceptance|review|closed|reopened/i.test(
+      /required|invalid|between|unknown|not found|corrupt|transition|json|focused|busy|version|integrity|sequence|hash|dashboard|acceptance|review|closed|reopened|pull request|github|merge|origin remote/i.test(
         message,
       );
     if (!expected) console.error(error);

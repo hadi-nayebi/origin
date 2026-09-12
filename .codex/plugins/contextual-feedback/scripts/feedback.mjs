@@ -24,6 +24,7 @@ import {
   transitionFeedback,
   verifyFeedback,
 } from "../lib/service.mjs";
+import { linkPullRequest, prepareWorktree } from "../../_engagement-core/lib/pull-request.mjs";
 
 const root = path.resolve(
   process.env.ORIGIN_REPOSITORY_ROOT ||
@@ -69,6 +70,8 @@ try {
     });
   } else if (command === "link-work")
     result = linkFeedbackWork(root, required(id), required(words.join(" ")));
+  else if (command === "link-pr") result = linkPullRequest(root, required(id), required(words[0]));
+  else if (command === "worktree") result = prepareWorktree(root, required(id));
   else if (command === "ask")
     result = askFeedbackQuestion(root, required(id), required(words.join(" ")));
   else if (command === "review")
@@ -83,7 +86,7 @@ try {
   else if (command === "restore") result = restoreFeedback(root, required(id));
   else
     throw new Error(
-      "Usage: feedback.mjs <list|get|next|mode|start|comment|material|associate|interpret|link-work|ask|review|heartbeat|recover|verify|backups|restore> [id] [value]",
+      "Usage: feedback.mjs <list|get|next|mode|start|comment|material|associate|interpret|worktree|link-pr|link-work|ask|review|heartbeat|recover|verify|backups|restore> [id] [value]",
     );
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 } catch (error) {

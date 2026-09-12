@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
 import {
   ensureTmuxCodex,
   sessionName,
@@ -24,6 +25,53 @@ test("Stop hooks independently dispatch both removable channels", () => {
   assert.equal(commands.length, 2);
   assert.match(commands[0], /channel-hook.mjs.*contextual-feedback/);
   assert.match(commands[1], /channel-hook.mjs.*telegram-engagement/);
+});
+
+test("PreToolUse deterministically blocks agent merge paths and protects its control files", () => {
+  const hooks = JSON.parse(fs.readFileSync(path.join(root, ".codex", "hooks.json"), "utf8"));
+  assert.equal(hooks.hooks.PreToolUse[0].matcher, "*");
+  assert.match(hooks.hooks.PreToolUse[0].hooks[0].command, /owner-authority-hook\.mjs/);
+  const inspect = (tool_name, tool_input) => {
+    const run = spawnSync(process.execPath, [path.join(root, "scripts/owner-authority-hook.mjs")], {
+      input: JSON.stringify({ tool_name, tool_input }),
+      encoding: "utf8",
+    });
+    assert.equal(run.status, 0, run.stderr);
+    return run.stdout ? JSON.parse(run.stdout) : null;
+  };
+  assert.equal(inspect("Bash", { command: "gh pr create --fill" }), null);
+  assert.equal(inspect("Bash", { command: "git push origin feature/useful-page" }), null);
+  assert.equal(
+    inspect("Bash", { command: "gh pr merge 42 --merge" }).hookSpecificOutput.permissionDecision,
+    "deny",
+  );
+  assert.equal(
+    inspect("Bash", { command: "git push origin HEAD:main" }).hookSpecificOutput.permissionDecision,
+    "deny",
+  );
+  {
+    const blocked = inspect("mcp__codex_apps__github_merge_pull_request", {
+      repository_full_name: "owner/repo",
+      pr_number: 42,
+    });
+    assert.equal(blocked.hookSpecificOutput.permissionDecision, "deny");
+  }
+  assert.equal(
+    inspect("apply_patch", { patch: "*** Update File: .codex/hooks.json" }).hookSpecificOutput
+      .permissionDecision,
+    "deny",
+  );
+  assert.equal(
+    inspect("apply_patch", "*** Update File: scripts/owner-authority-hook.mjs").hookSpecificOutput
+      .permissionDecision,
+    "deny",
+  );
+  assert.equal(
+    inspect("Bash", {
+      command: `node -e 'reviewFeedbackMutation(root, id, "resolved")'`,
+    }).hookSpecificOutput.permissionDecision,
+    "deny",
+  );
 });
 
 test("repository-scoped tmux session names are stable and separated", () => {
@@ -96,6 +144,7 @@ test("installers require consent and Windows routes to WSL2", () => {
   const windows = fs.readFileSync(path.join(root, "scripts", "install.ps1"), "utf8");
   assert.match(unix, /Continue\? \[y\/N\]/);
   assert.match(unix, /npm install --global @openai\/codex/);
+  assert.match(unix, /gh auth login/);
   assert.match(unix, /tmux/);
   assert.match(windows, /wsl --install/);
   assert.match(windows, /does not run.*native PowerShell/i);

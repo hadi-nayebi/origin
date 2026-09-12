@@ -55,15 +55,19 @@ export const api = {
   transitionFeedback: (
     id: string,
     input: {
-      status: Extract<FeedbackStatus, "resolved" | "open" | "dismissed">;
+      status: Extract<FeedbackStatus, "open" | "dismissed">;
       reason?: string;
-      acceptance?: string;
       expectedVersion?: string;
     },
   ) =>
     request<{ record: FeedbackRecord; delivery: DeliveryStatus }>(
       `/api/feedback/${encodeURIComponent(id)}`,
       { method: "PATCH", body: JSON.stringify(input) },
+    ),
+  mergeFeedback: (id: string, expectedVersion?: string) =>
+    request<{ record: FeedbackRecord; delivery: DeliveryStatus }>(
+      `/api/feedback/${encodeURIComponent(id)}/merge`,
+      { method: "POST", body: JSON.stringify({ expectedVersion }) },
     ),
   controlFeedback: (action: "pause" | "resume") =>
     request<{ outcome: AgentState; delivery: DeliveryStatus }>("/api/feedback/control", {

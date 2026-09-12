@@ -22,11 +22,15 @@ permissions, verification, or user-owned decisions. Agent wake/context surfaces 
 identifiers; the agent reads the full body through the plugin's validated public command.
 
 An actionable open or in-progress record keeps the agent active while useful progress remains
-possible. Waiting is valid only when no other runnable responsibility remains. The agent marks work
-ready for review with concrete evidence; only the user accepts final resolution or reopens it.
-Continue an in-progress record first; otherwise take the oldest actionable open record. Inspect both
-enabled channels at safe work boundaries so neither starves. A merge associates responsibility and
-history; it is not user acceptance.
+possible. Waiting is valid only when no other runnable responsibility remains. Every actionable
+thread is one PR-backed work unit. Use the channel's `worktree` command for an isolated branch, open
+the PR, and link its full URL with `link-pr` before review. The agent marks work ready with concrete
+evidence; only a user action may merge the linked PR, and only a GitHub-confirmed merge resolves the
+thread. The agent may create or update a PR but must not invoke a merge tool, call the owner merge
+endpoint, push to a protected base branch, or weaken the authority hook. Continue an in-progress
+record first; otherwise take the oldest actionable open record. Inspect both enabled channels at
+safe work boundaries so neither starves. A thread association combines responsibility and history;
+it is not PR merge or user acceptance.
 
 Origin is the public Hadosh Academy dashboard-plus-harness substrate for onboarding Phases 6 and 7.
 If `ONBOARDING_HANDOFF.md` exists, verify it with the user and record a receipt before

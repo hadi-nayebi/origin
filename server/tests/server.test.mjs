@@ -9,6 +9,7 @@ import {
   askFeedbackQuestion,
   addFeedbackMessage,
   getFeedback,
+  linkFeedbackWork,
   recordVersion,
   createFeedback,
   reviewFeedbackMutation,
@@ -18,7 +19,7 @@ import { startOriginServer } from "../index.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
-async function fixtureServer() {
+async function fixtureServer(options = {}) {
   const base = path.join(repositoryRoot, ".origin", "server-fixtures");
   fs.mkdirSync(base, { recursive: true });
   const root = fs.mkdtempSync(path.join(base, "origin-server-"));
@@ -32,6 +33,7 @@ async function fixtureServer() {
     host: "127.0.0.1",
     serveUi: false,
     deliverWakes: false,
+    ...options,
   });
   const address = server.address();
   return { root, server, base: `http://127.0.0.1:${address.port}` };
@@ -145,6 +147,7 @@ test("server startup repairs an accepted-review-to-wake crash window", async (co
     pageLabel: "Projects",
   });
   transitionFeedback(root, record.id, "in_progress");
+  linkFeedbackWork(root, record.id, "pull-request:https://github.com/example/origin/pull/42");
   transitionFeedback(root, record.id, "ready_for_review", {
     verification: "Verified the projects route and the complete browser interaction contract.",
   });
@@ -196,8 +199,14 @@ test("agent question and user answer form one thread and reactivate work", async
   assert.equal((await (await fetch(`${app.base}/api/feedback`)).json()).outcome.mode, "active");
 });
 
-test("dashboard accepts verified work or reopens it but cannot impersonate agent work", async (context) => {
-  const app = await fixtureServer();
+test("dashboard merges verified PR work or reopens it but cannot impersonate agent work", async (context) => {
+  const app = await fixtureServer({
+    mergePullRequest: (_repositoryRoot, feedbackRoot, id, expectedVersion) =>
+      reviewFeedbackMutation(feedbackRoot, id, "resolved", {
+        expectedVersion,
+        acceptance: "User merged PR #42 at 2026-09-12T20:00:00Z.",
+      }),
+  });
   context.after(() => app.server.close());
   const created = await (
     await fetch(`${app.base}/api/feedback`, {
@@ -218,15 +227,27 @@ test("dashboard accepts verified work or reopens it but cannot impersonate agent
   });
   assert.equal(denied.status, 400);
   transitionFeedback(app.root, created.record.id, "in_progress");
+  linkFeedbackWork(
+    app.root,
+    created.record.id,
+    "pull-request:https://github.com/example/origin/pull/42",
+  );
   transitionFeedback(app.root, created.record.id, "ready_for_review", {
     verification: "Repaired the control and verified the browser interaction test passes.",
   });
-  const accepted = await fetch(`${app.base}/api/feedback/${created.record.id}`, {
+  const deniedAcceptance = await fetch(`${app.base}/api/feedback/${created.record.id}`, {
     method: "PATCH",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       status: "resolved",
-      acceptance: "Accepted by user.",
+      expectedVersion: recordVersion(getFeedback(app.root, created.record.id)),
+    }),
+  });
+  assert.equal(deniedAcceptance.status, 400);
+  const accepted = await fetch(`${app.base}/api/feedback/${created.record.id}/merge`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
       expectedVersion: recordVersion(getFeedback(app.root, created.record.id)),
     }),
   });
@@ -349,6 +370,7 @@ test("dashboard review rejects stale and missing versions after a later contribu
     pageLabel: "Canvas",
   });
   transitionFeedback(app.root, record.id, "in_progress");
+  linkFeedbackWork(app.root, record.id, "pull-request:https://github.com/example/origin/pull/42");
   transitionFeedback(app.root, record.id, "ready_for_review", {
     verification: "Initial behavior was verified with regression evidence.",
   });
@@ -359,10 +381,10 @@ test("dashboard review rejects stale and missing versions after a later contribu
     verification: "The later correction was verified with new evidence.",
   });
   for (const expectedVersion of [undefined, stale]) {
-    const r = await fetch(`${app.base}/api/feedback/${record.id}`, {
-      method: "PATCH",
+    const r = await fetch(`${app.base}/api/feedback/${record.id}/merge`, {
+      method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status: "resolved", acceptance: "Looks fine", expectedVersion }),
+      body: JSON.stringify({ expectedVersion }),
     });
     assert.equal(r.status, 400);
     assert.equal(getFeedback(app.root, record.id).status, "ready_for_review");

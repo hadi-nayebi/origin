@@ -33,6 +33,10 @@ import {
   hasFeedbackWakeForEvent,
   deliverPendingWakes,
 } from "../../_dashboard-runtime/lib/wake-outbox.mjs";
+import {
+  findFeedbackByPullRequest,
+  mergePullRequest,
+} from "../../_engagement-core/lib/pull-request.mjs";
 
 export function failure(root, lane, id, error) {
   updateTransport(root, (state) => {
@@ -375,6 +379,13 @@ export async function runTelegram(root, options = {}) {
         }
         reconcileTelegram(root);
         const state = readTransport(root);
+        const ownerAction = Object.values(state.ownerActions).find(
+          (item) => item.status === "pending",
+        );
+        if (ownerAction)
+          await processOwnerMerge(root, config, api, ownerAction, {
+            merge: options.mergePullRequest,
+          });
         for (const item of Object.values(state.inbox)) {
           if (workingInputs.size >= 2) break;
           if (
@@ -444,6 +455,52 @@ export async function runTelegram(root, options = {}) {
     release();
     process.removeListener("SIGTERM", shutdown);
     process.removeListener("SIGINT", shutdown);
+  }
+}
+
+export async function processOwnerMerge(root, config, api, action, options = {}) {
+  const scope = scopeFor(root);
+  try {
+    const record = action.threadId
+      ? getFeedback(scope, action.threadId)
+      : findFeedbackByPullRequest(scope, action.pullRequestNumber);
+    const expectedVersion = action.expectedVersion || recordVersion(record);
+    const merge = options.merge || mergePullRequest;
+    const result = await merge(root, scope, record.id, expectedVersion);
+    updateTransport(root, (state) => {
+      const current = state.ownerActions[action.id];
+      current.status = "completed";
+      current.threadId = result.record.id;
+      current.completedAt = new Date().toISOString();
+      current.error = null;
+    });
+    await api
+      .sendText(
+        `Merged the linked pull request. Work unit ${result.record.id} is now resolved.`,
+        config,
+        {
+          reply_parameters: action.replyToMessageId
+            ? { message_id: action.replyToMessageId, allow_sending_without_reply: true }
+            : undefined,
+        },
+      )
+      .catch(() => {});
+    return result;
+  } catch (error) {
+    updateTransport(root, (state) => {
+      const current = state.ownerActions[action.id];
+      current.status = "failed";
+      current.error = error.message;
+      current.completedAt = new Date().toISOString();
+    });
+    await api
+      .sendText(`Could not merge that pull request: ${error.message}`, config, {
+        reply_parameters: action.replyToMessageId
+          ? { message_id: action.replyToMessageId, allow_sending_without_reply: true }
+          : undefined,
+      })
+      .catch(() => {});
+    return null;
   }
 }
 

@@ -13,6 +13,8 @@ const waitArray = new Int32Array(new SharedArrayBuffer(4));
 const activeDeliveries = new Set();
 const timers = new Map();
 const TERMINAL_HISTORY_LIMIT = 200;
+const LEASE_MAX_AGE_MS = 60_000;
+const CLAIM_MAX_AGE_MS = 60_000;
 const voiceFile = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../contextual-feedback/voice.xml",
@@ -190,7 +192,10 @@ function claimNextWake(root, now) {
   let claimed = null;
   mutateOutbox(root, (events) => {
     for (const event of events) {
-      if (event.status === "delivering" && claimOwnerDead(event.claimedBy)) {
+      if (
+        event.status === "delivering" &&
+        (claimOwnerDead(event.claimedBy) || claimExpired(event.claimedAt, now))
+      ) {
         event.status = "retrying";
         event.error = "Recovered an interrupted wake delivery claim.";
         event.nextAttemptAt = now.toISOString();
@@ -327,8 +332,25 @@ function withOutboxLease(root, operation) {
 function clearStaleLease(file) {
   try {
     const value = JSON.parse(fs.readFileSync(file, "utf8"));
-    if (claimOwnerDead(`${value.host}:${value.pid}`)) fs.unlinkSync(file);
-  } catch {}
+    if (leaseExpired(file, value.at) || claimOwnerDead(`${value.host}:${value.pid}`))
+      fs.unlinkSync(file);
+  } catch {
+    try {
+      if (Date.now() - fs.statSync(file).mtimeMs > LEASE_MAX_AGE_MS) fs.unlinkSync(file);
+    } catch {}
+  }
+}
+
+function claimExpired(value, now) {
+  const claimedAt = Date.parse(value);
+  return !Number.isFinite(claimedAt) || now.getTime() - claimedAt > CLAIM_MAX_AGE_MS;
+}
+
+function leaseExpired(file, value) {
+  const parsed = Date.parse(value);
+  const timestamp =
+    Number.isFinite(parsed) && parsed <= Date.now() ? parsed : fs.statSync(file).mtimeMs;
+  return Date.now() - timestamp > LEASE_MAX_AGE_MS;
 }
 
 function nextWakeDelay(root) {

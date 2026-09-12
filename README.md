@@ -29,11 +29,12 @@ Origin is a starting substrate, not a prefabricated agent or a finished domain s
 
 ## What Origin includes
 
-- Empty responsive canvas with floating Admin and Feedback controls.
+- Empty responsive canvas with a replayable four-step first-run guide and floating Admin and
+  Feedback controls.
 - Read-only Admin with the general Wiki and docs-sourced references for the two example engagement
   plugins.
 - One foreground interactive Codex relationship shared by terminal and dashboard.
-- Repository-scoped tmux session creation, reuse, attachment, and `--resume-last` support.
+- Repository-scoped tmux session creation, reuse, attachment, and resume-last-by-default startup.
 - Durable, serialized dashboard-to-Codex wake delivery with per-event markers and verified paste and
   submission evidence.
 - Independent `idle`, `active`, `waiting`, and `paused` state and Stop decisions for each channel.
@@ -53,15 +54,17 @@ dependencies, recognition and Qwen3-TTS voice cloning are optional additions. Ea
 when the other plugin is removed. Accounts for multiple users, synchronization and team authority
 remain outside this version.
 
-Read the [five-pass review record](docs/TWO-CHANNEL-REVIEW.md) before enabling the preview.
+Read the [two-channel review record](docs/TWO-CHANNEL-REVIEW.md) before enabling the preview.
 Model/sample/token files stay under ignored `.origin/`; no speech model is shipped in Git.
 
 ## Start
 
-The full harness requires Git, GitHub CLI, Node.js 22+, tmux, Codex CLI, and authenticated GitHub
-and Codex sessions. Windows users run it inside WSL2.
+The full harness supports Linux, macOS, and Windows through WSL2. It requires Git, GitHub CLI,
+Node.js 22+, tmux, Codex CLI, and authenticated GitHub and Codex sessions.
 
 ```bash
+git clone https://github.com/hadi-nayebi/origin.git
+cd origin
 ./scripts/install.sh
 npm run origin
 ```
@@ -70,8 +73,15 @@ npm run origin
 creates or reuses a repository-scoped tmux session, launches interactive Codex, and attaches the
 terminal. It stops with exact remediation when any required layer is missing.
 
-Use `npm run origin:resume` to launch Codex with `codex resume --last`. `npm run dashboard` starts
-only the development dashboard for diagnostics; it is not the complete Origin interaction model.
+The first visit explains the empty-canvas premise, points to Feedback and Admin, and presents
+Telegram as an optional text-first remote channel. Finishing or skipping is stored only in that
+browser; **Show the quick guide** makes the sequence available again.
+
+`npm run origin` asks Codex to resume the newest saved interactive chat for this repository. Current
+Codex releases start a fresh chat automatically when none exists. Use `npm run origin:new` when you
+deliberately want a separate chat; `npm run origin:resume` remains an explicit compatibility alias.
+`npm run dashboard` starts only the development dashboard for diagnostics; it is not the complete
+Origin interaction model.
 
 The first time Codex opens the repository, use `/hooks`, inspect `.codex/hooks.json`, and trust the
 two channel Stop hooks plus the owner-authority PreToolUse hook. Origin does not bypass Codex's

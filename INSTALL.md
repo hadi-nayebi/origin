@@ -43,21 +43,32 @@ npm run origin
 The doctor treats every missing runtime component as blocking. The launcher never falls back to a
 headless worker or a dashboard-only mode.
 
+`npm run origin` starts or reuses the dashboard, opens the default browser, attaches the
+repository-scoped terminal session, and runs `codex resume --last`. Codex starts fresh when that
+repository has no saved interactive chat. Use `npm run origin:new` only when you intentionally want
+a separate chat.
+
 On first launch, use `/hooks` in Codex to inspect and trust the two channel Stop hooks and the
 owner-authority PreToolUse hook. The latter permits branch work and PR creation but blocks supported
 agent merge paths; only the dashboard or paired Telegram owner action may merge and resolve a work
 unit. This is an intentional security boundary.
 
+The browser's four-step guide introduces the empty canvas, Feedback, Admin, and optional Telegram.
+Finish or skip it after inspection; **Show the quick guide** on the canvas reopens it later.
+
 ## Recovery
 
-- `npm run origin` reuses the healthy dashboard and repository-scoped tmux session.
-- `npm run origin:resume` asks Codex to resume its last saved session when a new session is needed.
+- `npm run origin` reuses the healthy dashboard and repository-scoped tmux session and resumes the
+  repository's newest saved Codex chat by default.
+- `npm run origin:new` explicitly starts a separate Codex chat.
 - `npm run wake` retries durable pending dashboard wake events.
 - `.origin/dashboard.log` contains dashboard startup diagnostics.
 - `.origin/wake-outbox.json` records wake attempts and outcomes.
 - `.origin/feedback.jsonl` is the authoritative feedback journal.
-- `.origin/contextual-feedback/data.json` and `.origin/telegram-engagement/data.json` are the
-  independent channel projections.
+- `.origin/contextual-feedback/data.json` is the dashboard channel's continuation state.
+- `.origin/telegram-engagement/data.json` is the optional Telegram channel's continuation state.
+- `.origin/agent-stop-state/data.json`, when present, is legacy input imported once into dashboard
+  state; it is not the current global source of truth.
 - `.origin/worktrees/` contains the private per-thread worktrees. GitHub PRs remain the reviewed
   publication boundary.
 

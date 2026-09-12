@@ -1,14 +1,16 @@
-# Agent Stop State
+# Agent Stop State compatibility
 
-Origin separates a responsibility's lifecycle from the agent's global ability to stop. A feedback
-thread knows whether it is open, being implemented, blocked, awaiting review, accepted, or reopened.
-`agent-stop-state` knows only whether Origin as a whole is idle, active, waiting, or paused.
+Origin now gives each engagement channel its own continuation state and Stop decision. Dashboard
+feedback lives at `.origin/contextual-feedback/data.json`; Telegram lives at
+`.origin/telegram-engagement/data.json`. The registered hooks compose those decisions: any active
+channel blocks Stop, while a passive channel abstains.
 
-This compartment prevents one waiting thread from hiding another runnable request and lets future
-plugins participate in the same Stop contract without rewriting feedback policy.
+This `agent-stop-state` package is a compatibility adapter for the older dashboard commands and
+state file. A legacy `.origin/agent-stop-state/data.json` is imported once into dashboard state. It
+does not own a global queue and is no longer a registered hook.
 
 The Stop voice reorients rather than merely refuses. Active identifies the owning responsibility and
 the evidence needed to leave it. Waiting explains why further generation would be futile. Paused
 preserves human interruption while its resume snapshot continues receiving validated reconciliation.
-Idle is derived from the complete queue. The hook exit code enforces; the voice teaches the reason
-and the next valid boundary.
+Idle is derived from the owning channel's complete queue. Each channel hook enforces its own vote;
+its voice teaches the reason and the next valid boundary.

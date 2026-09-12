@@ -20,7 +20,9 @@ whether Codex accepted it immediately or queued it behind active work.
 
 ## Complete lifecycle check
 
-1. Run `npm run origin`; confirm the browser opens and the terminal attaches to interactive Codex.
+1. Run `npm run origin`; confirm the browser opens, the terminal attaches to interactive Codex, and
+   an existing repository chat resumes. On a clean Codex home, confirm the same command starts a
+   fresh chat. Use `npm run origin:new` to verify the explicit separate-chat path.
 2. In Codex, use `/hooks`, inspect `.codex/hooks.json`, and trust both channel Stop hooks plus the
    owner-authority PreToolUse hook.
 3. Leave one dashboard comment while Codex is idle. Confirm it appears in that same terminal session

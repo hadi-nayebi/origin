@@ -1,7 +1,9 @@
 # Security model
 
-Origin 1.0 is a single-user, clone-local application. It is not a network service and must not be
-exposed to a LAN or the public internet.
+Origin 1.0 is a single-user, clone-local application. Its dashboard is a loopback-only HTTP service
+and must not be exposed to a LAN or the public internet. The optional Telegram channel is a network
+client: it uses outbound HTTPS to Telegram's Bot API and downloads the owner's paired messages and
+media. Voice-model installation also downloads the selected model revisions.
 
 ## Trust boundaries
 
@@ -32,6 +34,9 @@ exposed to a LAN or the public internet.
 - “Local” describes persistence and serving. When Codex retrieves a feedback thread, its content is
   processed under the user's configured Codex/OpenAI data path; Origin does not claim that model
   input remains on-device.
+- Telegram bot tokens, paired identities, media, voice samples, models, transcripts, and delivery
+  state remain under ignored `.origin/`. Speech recognition and synthesis run locally, but Telegram
+  necessarily receives the sent text captions, generated audio, and returned attachments.
 
 ## Integrity and recovery
 

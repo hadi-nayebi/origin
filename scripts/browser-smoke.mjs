@@ -66,6 +66,15 @@ try {
     });
     await page.goto(base);
     await page.getByRole("heading", { name: "Ready to become yours." }).waitFor();
+    await page.getByRole("heading", { name: "Start with an empty canvas." }).waitFor();
+    await page.getByRole("button", { name: "Next" }).click();
+    await page.getByRole("heading", { name: "Ask from anywhere on the dashboard." }).waitFor();
+    await page.getByRole("button", { name: "Next" }).click();
+    await page.getByRole("heading", { name: "Learn the foundation in Admin." }).waitFor();
+    await page.getByRole("button", { name: "Next" }).click();
+    await page.getByRole("heading", { name: "Add Telegram only when you want it." }).waitFor();
+    await page.getByRole("button", { name: "Start shaping Origin" }).click();
+    await page.getByRole("button", { name: "Show the quick guide" }).waitFor();
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
       false,
@@ -137,7 +146,7 @@ try {
     await new Promise((resolve) => server.close(resolve));
     server = null;
     console.log(
-      `PASS ${dev ? "Development" : "Production"}: render, Admin Wiki/Plugins, page-aware feedback, answer, bidirectional materials, PR merge acceptance and mobile width`,
+      `PASS ${dev ? "Development" : "Production"}: onboarding, Admin Wiki/Plugins, page-aware feedback, answer, bidirectional materials, PR merge acceptance and mobile width`,
     );
   }
 } finally {

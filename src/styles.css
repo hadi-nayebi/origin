@@ -92,7 +92,8 @@ summary:focus-visible {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  padding: 100px 24px;
+  gap: 28px;
+  padding: 100px 24px 120px;
 }
 .empty-message {
   max-width: 650px;
@@ -116,6 +117,106 @@ summary:focus-visible {
 .empty-message > p:last-child {
   color: var(--muted);
   font-size: 1.05rem;
+}
+.guide-button {
+  margin-top: 8px;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #c8ccc4;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+.onboarding {
+  position: relative;
+  width: min(620px, calc(100vw - 40px));
+  min-height: 310px;
+  margin-top: -40px;
+  padding: 28px;
+  border: 1px solid rgba(201, 242, 123, 0.24);
+  border-radius: 18px;
+  color: #e8e8e5;
+  background: rgba(22, 26, 22, 0.94);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.36);
+  animation: rise 0.5s ease-out both;
+}
+.onboarding h2 {
+  margin: 10px 0 12px;
+  font:
+    500 clamp(1.75rem, 4vw, 2.7rem) / 1.08 Georgia,
+    serif;
+  letter-spacing: -0.025em;
+}
+.onboarding > p:not(.eyebrow, .onboarding-pointer) {
+  max-width: 54ch;
+  color: #abb2a7;
+  line-height: 1.6;
+}
+.onboarding-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 22px;
+}
+.onboarding-progress span {
+  width: 24px;
+  height: 3px;
+  border-radius: 999px;
+  background: #414740;
+}
+.onboarding-progress span.active {
+  background: var(--green);
+}
+.onboarding-progress small {
+  margin-left: 6px;
+  color: #858d82;
+}
+.onboarding-pointer {
+  position: fixed;
+  z-index: 7;
+  bottom: 82px;
+  margin: 0;
+  color: var(--green);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.onboarding-pointer b {
+  font-size: 1.8rem;
+  vertical-align: middle;
+}
+.onboarding-pointer.left {
+  left: 31px;
+}
+.onboarding-pointer.right {
+  right: 31px;
+}
+.onboarding-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 28px;
+}
+.onboarding-actions button {
+  min-height: 40px;
+  padding: 0 13px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.onboarding-actions .quiet {
+  border: 0;
+  color: #aeb5aa;
+  background: transparent;
+}
+.onboarding-actions .secondary {
+  border: 1px solid #65705f;
+  background: #282d27;
+}
+.onboarding-actions .primary {
+  margin-top: 0;
+  border: 0;
 }
 .floating-control {
   position: fixed;
@@ -720,6 +821,24 @@ summary:focus-visible {
   }
 }
 @media (max-width: 760px) {
+  .empty-canvas {
+    align-content: center;
+    padding-inline: 16px;
+  }
+  .onboarding {
+    width: 100%;
+    min-height: 340px;
+    padding: 22px;
+  }
+  .onboarding-pointer.left {
+    left: 14px;
+  }
+  .onboarding-pointer.right {
+    right: 14px;
+  }
+  .onboarding-actions {
+    justify-content: flex-start;
+  }
   .admin-surface {
     display: block;
   }

@@ -5,8 +5,10 @@ outbox live under `.origin/telegram-engagement/`, independently of dashboard fee
 use the neutral `_engagement-core` library. Deleting either channel's plugin leaves the other
 available. Keep the neutral core and runtime when removing a channel.
 
-This branch is under implementation and review. See `docs/TWO-CHANNEL-REVIEW.md` for tested evidence
-and remaining acceptance work. Do not enable it on a bot already owned by another application.
+The plugin is merged as an optional preview with extensive automated and bounded private-test
+evidence. Dedicated-bot, fresh-machine, and owner listening acceptance remain before a general
+availability claim. See `docs/TWO-CHANNEL-REVIEW.md`. Do not enable it on a bot already owned by
+another application.
 
 Text is the baseline transport. Local transcription and cloned-voice output are optional and can be
 added later without repairing or re-pairing the bot.

@@ -45,6 +45,7 @@ const idleView = {
 
 beforeEach(() => {
   window.history.replaceState({}, "", "/");
+  window.localStorage.clear();
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -99,6 +100,36 @@ describe("Origin dashboard", () => {
     expect(
       results.violations.filter((item) => ["serious", "critical"].includes(item.impact || "")),
     ).toEqual([]);
+  });
+
+  test("guides a first visit through Feedback, Admin and optional Telegram", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "Start with an empty canvas." })).toBeTruthy();
+    expect(screen.getByLabelText("Step 1 of 4")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(
+      screen.getByRole("heading", { name: "Ask from anywhere on the dashboard." }),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Open Feedback" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByRole("heading", { name: "Learn the foundation in Admin." })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Open Admin" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(
+      screen.getByRole("heading", { name: "Add Telegram only when you want it." }),
+    ).toBeTruthy();
+    expect(screen.getByText(/text channel works without them/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Start shaping Origin" }));
+    expect(screen.queryByLabelText("Origin quick guide")).toBeNull();
+    expect(screen.getByRole("button", { name: "Show the quick guide" })).toBeTruthy();
+    expect(window.localStorage.getItem("origin:onboarding:v1")).toBe("complete");
+    await user.click(screen.getByRole("button", { name: "Show the quick guide" }));
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: "Open Admin" }));
+    expect(await screen.findByRole("heading", { name: "Origin Admin" })).toBeTruthy();
+    expect(window.location.pathname).toBe("/admin/wiki/");
   });
 
   test("renders repository Markdown and Academy framing", async () => {

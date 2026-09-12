@@ -52,7 +52,8 @@ has been executed or inspected on the current revision. No partial credit or ext
 
 ## Interface and security
 
-1. The shipped canvas contains no domain page or workflow.
+1. The shipped canvas contains no domain page or workflow and gives first-time users a replayable,
+   local-only introduction.
 2. Admin (Wiki and Plugins) and Feedback remain available across routes, including routes added
    after Origin ships.
 3. Feedback captures kind, body, actual browser pathname, and a derived or page-provided label.

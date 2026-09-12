@@ -15,7 +15,7 @@ Unavailable live evidence is recorded as unavailable, never inferred from CI.
 | Security            | Loopback/same-origin server, bounded pointers, no feedback shell interpolation, repository-bound PR broker, and trusted agent merge denial                       | API, work-unit and hook tests, `SECURITY.md`                    |
 | Interface           | Empty canvas, replayable first-run guide, Admin Wiki/Plugins, future-route feedback, linked PR, owner merge, answer, and reopening                               | UI, accessibility and browser tests                             |
 | Internal voices     | Event voices restate plugin objective, durable context, cognitive operation, authority, and next boundary while code retains enforcement                         | Voice catalog and instruction tests                             |
-| Installation        | macOS/Linux/WSL2 prerequisites are strict; Codex/tmux block launch and GitHub CLI/auth block the reviewed PR workflow                                            | Machine inspection, doctor, installer tests                     |
+| Installation        | macOS/Linux/WSL2 prerequisites are strict; Codex/tmux block launch and GitHub CLI/auth plus repository write access block the reviewed PR workflow               | Machine inspection, doctor, installer tests                     |
 | Recovery            | Durable ledger, backups, owning channel state, runtime record, and wake outbox are inspectable                                                                   | Corruption, backup/restore, stale work, retry tests             |
 
 `npm run check` is the reproducible deterministic evidence suite. GitHub Actions runs it on Linux,

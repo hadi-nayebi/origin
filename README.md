@@ -62,12 +62,23 @@ Model/sample/token files stay under ignored `.origin/`; no speech model is shipp
 The full harness supports Linux, macOS, and Windows through WSL2. It requires Git, GitHub CLI,
 Node.js 22+, tmux, Codex CLI, and authenticated GitHub and Codex sessions.
 
+First, use **Use this template → Create a new repository** on GitHub. Create the repository under
+your own account or organization and do not include the template's other branches. Origin's feedback
+workflow must be able to push managed feature branches and open and merge PRs in the repository you
+own; cloning Hadosh Academy's source repository directly does not give another user those
+permissions.
+
 ```bash
-git clone https://github.com/hadi-nayebi/origin.git
-cd origin
+git clone https://github.com/YOUR-ACCOUNT/YOUR-PROJECT.git
+cd YOUR-PROJECT
 ./scripts/install.sh
 npm run origin
 ```
+
+Directly clone `hadi-nayebi/origin` only when contributing a change back to Origin itself. For a
+personal harness or a clean acceptance test, create and clone your own repository from the template.
+Then apply the `main` branch ruleset described in [installation](INSTALL.md); repository settings
+are not carried into a repository created from a template.
 
 `npm run origin` performs strict preflight, starts or reuses the live dashboard, opens the browser,
 creates or reuses a repository-scoped tmux session, launches interactive Codex, and attaches the

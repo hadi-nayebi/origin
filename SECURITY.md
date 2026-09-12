@@ -20,6 +20,8 @@ media. Voice-model installation also downloads the selected model revisions.
 - Each reviewed work unit is bound to one Origin-managed worktree branch and one repository-matched
   GitHub PR. The owner merge broker checks the current thread version and remote merge result before
   resolution. Its `gh` calls use argument arrays without a shell.
+- A working installation therefore requires a GitHub repository the user controls. The doctor
+  rejects read-only upstream clones before they can masquerade as a healthy PR workflow.
 - The owner-authority PreToolUse hook denies supported agent PR-merge, local merge-broker,
   direct-resolution, authority-control mutation, and protected-base-push paths. It permits feature
   branch pushes and PR creation. This boundary applies only after the user inspects and trusts the

@@ -8,6 +8,7 @@ import {
   ensureTmuxCodex,
   sessionName,
 } from "../../.codex/plugins/_dashboard-runtime/scripts/start-harness.mjs";
+import { inspectGitHubRepositoryAccess } from "../github-repository-access.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -148,6 +149,25 @@ test("installers require consent and Windows routes to WSL2", () => {
   assert.match(unix, /tmux/);
   assert.match(windows, /wsl --install/);
   assert.match(windows, /does not run.*native PowerShell/i);
+  assert.match(windows, /repository from the Origin template/i);
+});
+
+test("doctor requires a user-writable GitHub repository", () => {
+  const inspect = (payload, status = 0) =>
+    inspectGitHubRepositoryAccess({
+      cwd: root,
+      run: () => ({
+        status,
+        stdout: status === 0 ? JSON.stringify(payload) : "",
+        stderr: "denied",
+      }),
+    });
+  assert.equal(inspect({ nameWithOwner: "person/harness", viewerPermission: "ADMIN" }).ok, true);
+  assert.equal(inspect({ nameWithOwner: "team/harness", viewerPermission: "WRITE" }).ok, true);
+  const readOnly = inspect({ nameWithOwner: "hadi-nayebi/origin", viewerPermission: "READ" });
+  assert.equal(readOnly.ok, false);
+  assert.match(readOnly.detail, /Origin template/);
+  assert.equal(inspect({}, 1).ok, false);
 });
 
 test("README is agent-first and contains no headless fallback", () => {
@@ -156,6 +176,9 @@ test("README is agent-first and contains no headless fallback", () => {
   assert.match(readme, /ONBOARDING_HANDOFF\.md/);
   assert.match(readme, /Hadosh Academy Origin project/);
   assert.match(readme, /same interactive Codex session/i);
+  assert.match(readme, /Use this template/);
+  assert.match(readme, /main.*branch ruleset/);
+  assert.doesNotMatch(readme, /git clone https:\/\/github\.com\/hadi-nayebi\/origin\.git/);
   assert.doesNotMatch(readme, /headless worker|dashboard still works without/i);
 });
 

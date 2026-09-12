@@ -4,6 +4,30 @@ Origin 1.0 requires one interactive Codex session connected to the dashboard thr
 required machine kit is Git, GitHub CLI, Node.js 22 or newer, npm, tmux, Codex CLI, and GitHub and
 Codex authentication.
 
+## Create a repository you control
+
+On the public Origin repository, select **Use this template → Create a new repository**. Choose your
+account or organization, choose public or private visibility, and leave **Include all branches**
+off. Clone that new repository into an empty local directory. Do not use a direct clone of
+`hadi-nayebi/origin` as a personal harness: another user can read it but cannot push the managed
+branches or merge the PRs required by the feedback lifecycle.
+
+The repository may use any name. The local Git remote must remain named `origin`, and the
+authenticated GitHub account must have write and merge permission there. `npm run doctor` checks
+this before reporting the GitHub work-unit path healthy.
+
+## Protect the repository's main branch
+
+GitHub template creation copies the tracked project, not the source repository's settings. In the
+new repository, create an active branch ruleset targeting the default branch. Leave the bypass list
+empty, require changes through a pull request, require the three `Node 22 / ubuntu-latest`,
+`Node 22 / macos-latest`, and `Node 22 / windows-latest` checks, require the branch to be up to
+date, restrict deletion, and block force pushes. Keep required approvals at zero for a single-owner
+repository unless a separate reviewer identity is available.
+
+This remote rule complements the trusted local hook. The rule blocks direct or unverified changes to
+`main`; the hook prevents supported Codex tool calls from exercising the owner's merge path.
+
 ## macOS, Linux, and WSL2
 
 ```bash
@@ -27,8 +51,8 @@ transport contract. Install WSL2:
 powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -InstallWsl
 ```
 
-After any required restart, open the WSL terminal, clone Origin inside the Linux filesystem, and run
-`./scripts/install.sh` there.
+After any required restart, open the WSL terminal, clone the repository you created from the Origin
+template inside the Linux filesystem, and run `./scripts/install.sh` there.
 
 ## Authenticate and inspect
 

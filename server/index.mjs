@@ -44,7 +44,7 @@ export async function createOriginApp(options = {}) {
   const serveUi = options.serveUi !== false;
   const devNonce = isDev && serveUi ? randomBytes(24).toString("base64") : null;
   const app = express();
-  const feedbackEnabled = pluginPresent(sourceRoot);
+  const feedbackEnabled = options.feedbackEnabled ?? pluginPresent(sourceRoot);
 
   app.disable("x-powered-by");
   app.use((request, response, next) => securityHeaders(request, response, next, devNonce));
@@ -53,7 +53,7 @@ export async function createOriginApp(options = {}) {
 
   app.use("/api/feedback", (request, response, next) => {
     if (feedbackEnabled) return next();
-    if (request.method === "GET")
+    if (request.method === "GET" && request.path === "/")
       return response.json({
         records: [],
         disabled: true,

@@ -15,9 +15,9 @@ defects.
 
 - Dedicated-bot acceptance of automatic reply threading, the complete media matrix, and owner
   callback rejection/acceptance. The authorized shared-bot test has ended.
-- Fresh-machine model installation, owner sample enrollment and listening review, and live
-  disconnect/restart recovery. Existing local models and an authorized owner reference were used for
-  the real inference test.
+- Fresh-machine text pairing and live disconnect/restart recovery. Optional speech acceptance also
+  requires model installation, owner sample enrollment and listening review. Existing local models
+  and an authorized owner reference were used for the prior real inference test.
 - The full dashboard question/answer/review/reopen sequence in `CODEX-ACCEPTANCE.md`, plus live
   independent pauses and physical removal. Hook OR behavior and idle wake were tested interactively;
   removal, pauses and lifecycle transitions also have deterministic regression tests.
@@ -124,6 +124,20 @@ then for Telegram alone with dashboard waiting, then dashboard alone with Telegr
 both waiting, the next bounded prompt completed without a Stop block. The isolated session was
 closed and its synthetic Telegram activation removed. This is bounded host acceptance, not
 certification of every onboarding, media or operating-system scenario.
+
+## Text-first capability iteration
+
+Found: pairing was not useful until a Python environment, two local models, FFmpeg and a voice
+sample were ready. The listener always created a speech worker, every outbound reply required
+synthesis, and `doctor` treated optional speech absence as a broken Telegram channel.
+
+Fixed: paired text transport is now independently ready and sends threaded messages, review controls
+and materials without loading speech. Transcription and cloned-voice replies have separate explicit
+capability state; voice enrollment enables cloned-voice output, while the owner can return to text.
+Audio received without transcription is downloaded and remains actionable preserved material. Doctor
+reports text and speech separately and fails only when an enabled capability is unhealthy. Once
+voice replies are enabled, synthesis failure remains pending and never silently falls back to text.
+Regression tests cover text output, controls, Unicode chunking and speech-free audio ingress.
 
 ## Renewed review — conversation parity and recoverability
 

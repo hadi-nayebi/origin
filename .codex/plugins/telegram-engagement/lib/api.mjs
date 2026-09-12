@@ -110,4 +110,11 @@ export class BotAPI {
     form.set(field, new Blob([fs.readFileSync(file)]), path.basename(file));
     return this.call(method, form, { multipart: true, timeout: 180000, signal: options.signal });
   }
+  sendText(text, config, extra = {}, options = {}) {
+    return this.call(
+      "sendMessage",
+      { chat_id: config.chatId, text, ...extra },
+      { signal: options.signal },
+    );
+  }
 }

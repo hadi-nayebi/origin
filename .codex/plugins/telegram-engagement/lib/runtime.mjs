@@ -15,7 +15,7 @@ import {
   readJSON,
 } from "./storage.mjs";
 import { receiveUpdate, materializeThread, commitReply, queueReply } from "./service.mjs";
-import { loadConfig } from "./config.mjs";
+import { loadConfig, saveConfig } from "./config.mjs";
 import { BotAPI } from "./api.mjs";
 import { LocalVoice, captionChunks } from "./voice.mjs";
 import {
@@ -73,15 +73,32 @@ export async function prepareInput(root, config, api, voice, item, signal) {
       await api.download(file.file_id, target, config.maxMediaBytes, signal);
     const metadata = { ...file, localPath: target };
     if (["voice", "audio"].includes(file.kind)) {
-      const result = await voice.transcribe(target);
-      if (!result.text.trim())
-        throw new Error("Voice has no recognizable speech; source audio is preserved for review.");
-      metadata.transcription = result;
-      transcript += `${transcript ? "\n" : ""}${result.text}`;
+      if (config.transcriptionEnabled) {
+        if (!voice)
+          throw new Error(
+            "Speech transcription is enabled but unavailable. Run Telegram doctor; the source audio is preserved.",
+          );
+        const result = await voice.transcribe(target);
+        if (!result.text.trim())
+          throw new Error(
+            "Voice has no recognizable speech; source audio is preserved for review.",
+          );
+        metadata.transcription = result;
+        transcript += `${transcript ? "\n" : ""}${result.text}`;
+      } else {
+        metadata.processing = {
+          status: "not-enabled",
+          reason: "Optional speech transcription is not enabled; inspect the preserved audio.",
+        };
+      }
     }
     material.push(metadata);
   }
   if (item.kind === "voice-sample") {
+    if (!config.transcriptionEnabled || !voice)
+      throw new Error(
+        "Voice enrollment needs the optional speech capability. Run npm run telegram -- install-voice; the source audio is preserved.",
+      );
     const voiceDir = path.join(directory(root), "voice");
     privateDirectory(voiceDir);
     await convertSample(
@@ -108,6 +125,8 @@ export async function prepareInput(root, config, api, voice, item, signal) {
     fs.writeFileSync(path.join(voiceDir, "reference.txt"), reference.text + "\n", { mode: 0o600 });
     fs.chmodSync(path.join(voiceDir, "reference.wav"), 0o600);
     voice.close();
+    config.voiceRepliesEnabled = true;
+    saveConfig(root, config);
     const thread = createFeedbackMutation(scopeFor(root), {
       externalId: `telegram-${config.botId}-${item.updateId}`,
       kind: "update",
@@ -161,26 +180,48 @@ export async function deliverReply(root, config, api, voice, original, options =
     return;
   }
   if (!item.chunks.length) {
-    const chunks = captionChunks(item.text, config.speechChunkChars || 300).map(
-      (caption, index) => ({
-        caption,
-        index,
-        status: "prepared",
-        file: path.join(directory(root), "outbound", item.id, `${index}.ogg`),
-      }),
-    );
+    const deliveryMode = config.voiceRepliesEnabled ? "voice" : "text";
+    const chunks = (
+      deliveryMode === "voice"
+        ? captionChunks(item.text, config.speechChunkChars || 300)
+        : textChunks(item.text)
+    ).map((text, index) => ({
+      ...(deliveryMode === "voice"
+        ? {
+            caption: text,
+            file: path.join(directory(root), "outbound", item.id, `${index}.ogg`),
+          }
+        : { text }),
+      index,
+      status: "prepared",
+    }));
     updateTransport(root, (s) => {
       s.outbox[item.id].chunks = chunks;
+      s.outbox[item.id].deliveryMode = deliveryMode;
+    });
+    item = readTransport(root).outbox[item.id];
+  } else if (!item.deliveryMode) {
+    // In-flight packages created by the voice-only preview predate this field.
+    updateTransport(root, (s) => {
+      s.outbox[item.id].deliveryMode = item.chunks.some((chunk) => chunk.file || chunk.caption)
+        ? "voice"
+        : "text";
     });
     item = readTransport(root).outbox[item.id];
   }
-  for (const chunk of item.chunks) {
-    if (chunk.status !== "prepared") continue;
-    assertActive();
-    await voice.render(chunk.caption, chunk.file);
-    updateTransport(root, (s) => {
-      s.outbox[item.id].chunks[chunk.index].status = "rendered";
-    });
+  if (item.deliveryMode === "voice") {
+    if (!voice)
+      throw new Error(
+        "Cloned-voice replies are enabled but local speech is unavailable. Run Telegram doctor; the reply remains queued.",
+      );
+    for (const chunk of item.chunks) {
+      if (chunk.status !== "prepared") continue;
+      assertActive();
+      await voice.render(chunk.caption, chunk.file);
+      updateTransport(root, (s) => {
+        s.outbox[item.id].chunks[chunk.index].status = "rendered";
+      });
+    }
   }
   assertActive();
   commitReply(root, item.id);
@@ -195,25 +236,29 @@ export async function deliverReply(root, config, api, voice, original, options =
     });
     const last = chunk.index === item.chunks.length - 1;
     let result;
+    const extra = {
+      reply_parameters: item.replyToMessageId
+        ? { message_id: item.replyToMessageId, allow_sending_without_reply: true }
+        : undefined,
+      reply_markup: last && item.buttons ? { inline_keyboard: [item.buttons] } : undefined,
+    };
     try {
-      result = await api.sendFile(
-        "sendVoice",
-        "voice",
-        chunk.file,
-        config,
-        {
-          caption: chunk.caption,
-          reply_parameters: item.replyToMessageId
-            ? { message_id: item.replyToMessageId, allow_sending_without_reply: true }
-            : undefined,
-          reply_markup: last && item.buttons ? { inline_keyboard: [item.buttons] } : undefined,
-        },
-        { signal: options.signal },
-      );
+      result =
+        item.deliveryMode === "voice"
+          ? await api.sendFile(
+              "sendVoice",
+              "voice",
+              chunk.file,
+              config,
+              { caption: chunk.caption, ...extra },
+              { signal: options.signal },
+            )
+          : await api.sendText(chunk.text, config, extra, { signal: options.signal });
     } catch (error) {
       if (!error.uncertain)
         updateTransport(root, (s) => {
-          s.outbox[item.id].chunks[chunk.index].status = "rendered";
+          s.outbox[item.id].chunks[chunk.index].status =
+            item.deliveryMode === "voice" ? "rendered" : "prepared";
         });
       throw error;
     }
@@ -269,7 +314,8 @@ export async function deliverReply(root, config, api, voice, original, options =
 export async function runTelegram(root, options = {}) {
   const config = options.config || loadConfig(root);
   const api = options.api || new BotAPI(config.token);
-  const voice = options.voice || new LocalVoice(root, config);
+  const speechEnabled = config.transcriptionEnabled || config.voiceRepliesEnabled;
+  const voice = options.voice ?? (speechEnabled ? new LocalVoice(root, config) : null);
   const release = acquireLease(directory(root), "listener");
   const controller = new AbortController();
   const signal = options.signal
@@ -393,12 +439,29 @@ export async function runTelegram(root, options = {}) {
       status: "stopped",
       at: new Date().toISOString(),
     });
-    voice.close();
+    voice?.close();
     await Promise.allSettled([...jobs]);
     release();
     process.removeListener("SIGTERM", shutdown);
     process.removeListener("SIGINT", shutdown);
   }
+}
+
+export function textChunks(value, limit = 4096) {
+  const source = Array.from(String(value));
+  const chunks = [];
+  while (source.length > limit) {
+    const window = source.slice(0, limit);
+    let end = window.lastIndexOf("\n") + 1;
+    if (end < Math.floor(limit / 2)) {
+      const whitespace = window.findLastIndex((character) => /\s/u.test(character));
+      end = whitespace + 1;
+    }
+    if (end < 1) end = limit;
+    chunks.push(source.splice(0, end).join(""));
+  }
+  if (source.length || !chunks.length) chunks.push(source.join(""));
+  return chunks;
 }
 
 function convertSample(command, args, signal) {

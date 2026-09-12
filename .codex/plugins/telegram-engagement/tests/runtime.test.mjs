@@ -23,7 +23,14 @@ test("listener handles the media matrix, survives wake errors, and shuts down wi
   );
   const controller = new AbortController();
   t.after(() => controller.abort());
-  const config = { botId: "42", chatId: "100", userId: "200", maxMediaBytes: 1024 };
+  const config = {
+    botId: "42",
+    chatId: "100",
+    userId: "200",
+    maxMediaBytes: 1024,
+    transcriptionEnabled: true,
+    voiceRepliesEnabled: true,
+  };
   const forms = [
     "voice",
     "audio",

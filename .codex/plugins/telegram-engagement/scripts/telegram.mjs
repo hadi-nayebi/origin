@@ -127,31 +127,51 @@ try {
     const report = {
       paired: true,
       enabled: fs.existsSync(path.join(dir, "enabled.json")),
-      voiceModel: config.qwenModel,
-      device: config.device,
-      modelsPresent: ["models/qwen/config.json", "models/stt/config.json"].every((p) =>
-        fs.existsSync(path.join(dir, p)),
-      ),
-      voiceSamplePresent: ["voice/reference.wav", "voice/reference.txt"].every((p) =>
-        fs.existsSync(path.join(dir, p)),
-      ),
-      ffmpeg: spawnSync("ffmpeg", ["-version"], { stdio: "ignore" }).status === 0,
+      text: { ready: true },
+      speech: {
+        transcriptionEnabled: config.transcriptionEnabled,
+        voiceRepliesEnabled: config.voiceRepliesEnabled,
+        voiceModel: config.qwenModel,
+        device: config.device,
+        modelsPresent: ["models/qwen/config.json", "models/stt/config.json"].every((p) =>
+          fs.existsSync(path.join(dir, p)),
+        ),
+        voiceSamplePresent: ["voice/reference.wav", "voice/reference.txt"].every((p) =>
+          fs.existsSync(path.join(dir, p)),
+        ),
+        ffmpeg: spawnSync("ffmpeg", ["-version"], { stdio: "ignore" }).status === 0,
+      },
       lifecycle: verifyFeedback(scope),
       transport: channelStatus(root),
       liveAcceptance:
-        "Run the documented paired-bot, cloned-voice and trusted-hook acceptance sequence.",
+        "Run the documented paired-bot text acceptance; run speech acceptance only when enabled.",
     };
     print(report);
-    if (
-      !report.modelsPresent ||
-      !report.voiceSamplePresent ||
-      !report.ffmpeg ||
-      !report.lifecycle.valid
-    )
-      process.exitCode = 1;
+    const speechBroken =
+      config.transcriptionEnabled && (!report.speech.modelsPresent || !report.speech.ffmpeg);
+    const voiceBroken = config.voiceRepliesEnabled && !report.speech.voiceSamplePresent;
+    if (speechBroken || voiceBroken || !report.lifecycle.valid) process.exitCode = 1;
+  } else if (command === "voice-replies") {
+    const config = loadConfig(root);
+    const enabled = id === "on";
+    if (!enabled && id !== "off") throw new Error("Usage: telegram voice-replies <on|off>");
+    if (enabled) {
+      const dir = directory(root);
+      if (!config.transcriptionEnabled)
+        throw new Error("Install the optional speech capability before enabling voice replies.");
+      if (
+        !["voice/reference.wav", "voice/reference.txt"].every((p) =>
+          fs.existsSync(path.join(dir, p)),
+        )
+      )
+        throw new Error("Enroll and verify a local voice sample before enabling voice replies.");
+    }
+    config.voiceRepliesEnabled = enabled;
+    saveConfig(root, config);
+    print({ voiceRepliesEnabled: enabled, textTransportReady: true });
   } else
     throw new Error(
-      "Usage: telegram <setup|install-voice|run|doctor|enable|disable|status|list|next|get|start|reply|ask|review|material|associate|pause|resume|verify|retry-input|retry-output|reconcile-output|sample-text> [id] [text or file]",
+      "Usage: telegram <setup|install-voice|voice-replies|run|doctor|enable|disable|status|list|next|get|start|reply|ask|review|material|associate|pause|resume|verify|retry-input|retry-output|reconcile-output|sample-text> [id] [text or file]",
     );
 } catch (error) {
   process.stderr.write(error.message + "\n");
@@ -249,14 +269,14 @@ async function setup() {
     reconcileAgentState(scope);
     atomicJSON(path.join(dir, "enabled.json"), { enabled: true });
     process.stdout.write(
-      "Paired. Next: npm run telegram -- install-voice\nThen run npm run telegram -- run; send /voice-sample followed by a clear voice note in Telegram. Your sample stays local. Read this plugin's README for the preview and acceptance checks.\n",
+      "Paired for text. Run npm run telegram -- run and send a message to the bot. Optional: run npm run telegram -- install-voice to add local transcription and cloned-voice replies.\n",
     );
   } finally {
     release();
   }
 }
 function installVoice() {
-  loadConfig(root);
+  const config = loadConfig(root);
   const dir = directory(root);
   const venv = path.join(dir, "venv");
   const python = path.join(
@@ -278,7 +298,9 @@ function installVoice() {
         "Local voice installation failed; inspect the reported dependency or download error.",
       );
   }
+  config.transcriptionEnabled = true;
+  saveConfig(root, config);
   process.stdout.write(
-    "Local models installed. Install FFmpeg if missing, then capture your sample using /voice-sample in the paired Telegram chat.\n",
+    "Optional local speech installed. Text remains available. Install FFmpeg if missing, restart the listener, then send /voice-sample followed by a clear voice note to enable cloned-voice replies.\n",
   );
 }

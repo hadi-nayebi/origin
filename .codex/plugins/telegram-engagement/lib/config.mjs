@@ -4,7 +4,15 @@ import { directory, readJSON, atomicJSON } from "./storage.mjs";
 
 export function loadConfig(root) {
   const dir = directory(root);
-  const config = readJSON(path.join(dir, "config.json"));
+  const stored = readJSON(path.join(dir, "config.json"));
+  const config = {
+    ...defaults(),
+    ...stored,
+    // Preserve the behavior of clones paired before text-first Telegram shipped.
+    transcriptionEnabled: stored.transcriptionEnabled ?? stored.voiceRequired === true,
+    voiceRepliesEnabled: stored.voiceRepliesEnabled ?? stored.voiceRequired === true,
+  };
+  delete config.voiceRequired;
   const tokenFile = path.join(dir, "bot-token");
   const stat = fs.lstatSync(tokenFile);
   if (
@@ -30,6 +38,10 @@ export function loadConfig(root) {
     );
   if (!/^(cpu|cuda(?::\d+)?)$/.test(config.device))
     throw new Error("Speech device must be cpu or cuda[:index].");
+  for (const key of ["transcriptionEnabled", "voiceRepliesEnabled"])
+    if (typeof config[key] !== "boolean") throw new Error(`${key} must be true or false.`);
+  if (config.voiceRepliesEnabled && !config.transcriptionEnabled)
+    throw new Error("Cloned-voice replies require the optional speech capability.");
   if (
     config.pronunciation &&
     (typeof config.pronunciation !== "object" ||
@@ -54,17 +66,19 @@ export function validateToken(value) {
 }
 export function saveConfig(root, config) {
   const { token: _secret, ...publicConfig } = config;
-  atomicJSON(path.join(directory(root), "config.json"), publicConfig);
+  delete publicConfig.voiceRequired;
+  atomicJSON(path.join(directory(root), "config.json"), { ...publicConfig, version: 2 });
 }
 export function defaults() {
   return {
-    version: 1,
+    version: 2,
     language: "Auto",
     sttModel: "base",
     qwenModel: "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
     device: "cpu",
     maxMediaBytes: 20 * 1024 * 1024,
-    voiceRequired: true,
+    transcriptionEnabled: false,
+    voiceRepliesEnabled: false,
     speechChunkChars: 300,
   };
 }

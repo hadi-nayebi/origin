@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process";
 
 const waitArray = new Int32Array(new SharedArrayBuffer(4));
 const LEASE_MAX_AGE_MS = 60_000;
+const COMMAND_TIMEOUT_MS = 5_000;
 
 export function resolveCodexPane(root, options = {}) {
   const run = options.run || runCommand;
@@ -289,8 +290,16 @@ function bounded(value, label, minimum, maximum) {
 }
 function assertSuccess(result, label) {
   if (result.status !== 0)
-    throw new Error(`${label} failed: ${String(result.stderr || "unknown error").trim()}`);
+    throw new Error(
+      `${label} failed: ${String(result.stderr || result.error?.message || "unknown error").trim()}`,
+    );
 }
 function runCommand(command, args) {
-  return spawnSync(command, args, { encoding: "utf8", shell: false, windowsHide: true });
+  return spawnSync(command, args, {
+    encoding: "utf8",
+    shell: false,
+    windowsHide: true,
+    timeout: COMMAND_TIMEOUT_MS,
+    killSignal: "SIGKILL",
+  });
 }

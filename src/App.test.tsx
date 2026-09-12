@@ -11,6 +11,24 @@ const chapter = {
   summary: "Start here.",
   status: "included",
 };
+const plugin = {
+  id: "contextual-feedback",
+  name: "Origin Contextual Feedback",
+  version: "1.0.0",
+  description: "Turns page-aware feedback into durable user-agent conversation and reviewed work.",
+  objective: "Turn page-aware comments into durable reviewed responsibility.",
+  capabilities: ["Read", "Write", "Hooks"],
+  anatomy: [
+    { key: "manifest", label: "Manifest", present: true },
+    { key: "state", label: "State schemas", present: true },
+    { key: "operations", label: "Public operations", present: true },
+    { key: "hooks", label: "Hooks", present: true },
+    { key: "voice", label: "Voice", present: true },
+    { key: "documentation", label: "Documentation", present: true },
+    { key: "tests", label: "Tests", present: true },
+  ],
+  complete: true,
+};
 const idleView = {
   records: [],
   outcome: {
@@ -39,6 +57,18 @@ beforeEach(() => {
           content:
             "# Welcome\n\n| Layer | Owner |\n| --- | --- |\n| State | Plugin |\n\n[Origin](https://example.com)",
         });
+      if (url === "/api/plugins") return response({ plugins: [plugin] });
+      if (url === "/api/plugins/contextual-feedback")
+        return response({
+          ...plugin,
+          documents: [
+            {
+              name: "README.md",
+              label: "Plugin contract",
+              content: "# Contextual Feedback\n\nThe complete plugin contract.",
+            },
+          ],
+        });
       if (url === "/api/feedback" && init?.method === "POST")
         return response(
           {
@@ -61,7 +91,7 @@ describe("Origin dashboard", () => {
   test("preserves the empty canvas and accessible floating controls", async () => {
     render(<App />);
     expect(screen.getByRole("heading", { name: "Ready to become yours." })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Open Origin wiki" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Open Origin admin" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Give feedback" })).toBeTruthy();
     const results = await axe.run(document.body, {
       rules: { "color-contrast": { enabled: false } },
@@ -74,13 +104,29 @@ describe("Origin dashboard", () => {
   test("renders repository Markdown and Academy framing", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole("button", { name: "Open Origin wiki" }));
+    await user.click(screen.getByRole("button", { name: "Open Origin admin" }));
+    expect(await screen.findByRole("heading", { name: "Origin Admin" })).toBeTruthy();
     expect(
       await screen.findByText(/public Hadosh Academy dashboard-plus-harness substrate/),
     ).toBeTruthy();
     await user.click((await screen.findAllByRole("button", { name: /Welcome to Origin/ }))[0]);
     expect(await screen.findByRole("table")).toBeTruthy();
-    expect(window.location.pathname).toBe("/wiki/01-welcome");
+    expect(window.location.pathname).toBe("/admin/wiki/01-welcome");
+  });
+
+  test("shows the two public plugin references inside Admin", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Open Origin admin" }));
+    await user.click(await screen.findByRole("tab", { name: "Plugins" }));
+    expect(
+      await screen.findByRole("heading", { name: "Two plugins show how Origin grows." }),
+    ).toBeTruthy();
+    expect(screen.getByText("Complete reference anatomy")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: /Origin Contextual Feedback/ }));
+    expect(await screen.findByRole("heading", { name: "Anatomy" })).toBeTruthy();
+    expect(await screen.findByText("The complete plugin contract.")).toBeTruthy();
+    expect(window.location.pathname).toBe("/admin/plugins/contextual-feedback");
   });
 
   test("captures page-aware feedback for the interactive tmux session", async () => {
@@ -129,7 +175,7 @@ describe("Origin dashboard", () => {
     render(<App />);
     expect(await screen.findByRole("table")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: /Next chapter/ }));
-    expect(window.location.pathname).toBe("/wiki/02-next");
+    expect(window.location.pathname).toBe("/admin/wiki/02-next");
     expect(screen.queryByRole("table")).toBeNull();
     expect(screen.getByText("Loading chapter…")).toBeTruthy();
     finishChapter(response({ ...chapter, slug: "02-next", content: "# The next chapter" }));

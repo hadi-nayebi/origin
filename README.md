@@ -5,9 +5,9 @@ Origin is the Codex implementation of the
 local dashboard-and-harness substrate through which a user and their agent can grow a distinct
 operational world.
 
-The shipped dashboard is intentionally empty. It contains a repository-native Wiki, a page-aware
-feedback control, one persistent interactive Codex session, and the minimum plugin anatomy needed to
-turn comments into durable, bounded, verifiable responsibility.
+The shipped dashboard is intentionally empty. It contains a repository-native Admin guide with Wiki
+and Plugins sections, a page-aware feedback control, one persistent interactive Codex session, and
+the minimum plugin anatomy needed to turn comments into durable, bounded, verifiable responsibility.
 
 ## Visiting agent: begin here
 
@@ -29,7 +29,9 @@ Origin is a starting substrate, not a prefabricated agent or a finished domain s
 
 ## What Origin includes
 
-- Empty responsive canvas with floating Wiki and Feedback controls.
+- Empty responsive canvas with floating Admin and Feedback controls.
+- Read-only Admin with the general Wiki and docs-sourced references for the two example engagement
+  plugins.
 - One foreground interactive Codex relationship shared by terminal and dashboard.
 - Repository-scoped tmux session creation, reuse, attachment, and `--resume-last` support.
 - Durable, serialized dashboard-to-Codex wake delivery with per-event markers and verified paste and
@@ -43,7 +45,7 @@ Origin is a starting substrate, not a prefabricated agent or a finished domain s
   recovery.
 - Loopback-only server and local files under ignored `.origin/`.
 - Ten Wiki chapters explaining how dashboards, jobs, OPEVC, plugins, authority, and verification
-  grow.
+  grow. Existing `/wiki` links remain compatible and open the Wiki inside Admin.
 
 Optional [Telegram engagement](.codex/plugins/telegram-engagement/README.md) adds text-first remote
 conversations and preserved media. A dedicated bot and owner pairing are required; local speech

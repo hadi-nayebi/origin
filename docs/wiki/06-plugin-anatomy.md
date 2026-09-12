@@ -56,3 +56,9 @@ conversation and `.origin/telegram-engagement/data.json`. They share tested rule
 not break the other. Each active hook blocks Stop; passive hooks abstain. The old `agent-stop-state`
 directory is a dashboard compatibility adapter. See the Telegram plugin README for per-feature
 activation and the review record for verified limits.
+
+The dashboard's **Admin → Plugins** section renders these two examples from their tracked manifests,
+README files, agent boundaries, schemas, operations, hooks, voices, and tests. It is intentionally
+read-only: the repository remains the canonical plugin source, while Admin makes the pattern
+inspectable. Compatibility adapters and underscore-prefixed shared infrastructure are excluded from
+the example collection because they do not own one of the two cognitive objectives.

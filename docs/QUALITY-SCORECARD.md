@@ -13,11 +13,13 @@ has been executed or inspected on the current revision. No partial credit or ext
 3. One persistent interactive Codex session is the default.
 4. tmux transport is required rather than silently bypassed.
 5. `contextual-feedback` has objective, boundary, manifest, schema, service, voice, docs, and tests.
-6. `agent-stop-state` has objective, state schema, service, voice, hook, docs, and tests.
+6. `telegram-engagement` has objective, state schema, service, voice, hook, docs, and tests;
+   `agent-stop-state` remains a dashboard compatibility adapter.
 7. Runtime transport is marked infrastructure and owns no cognitive policy.
 8. Server and UI use public service boundaries rather than raw files.
 9. Clone-local runtime state remains under ignored `.origin/`.
-10. Included and future capabilities are distinguished in the Wiki.
+10. Included and future capabilities are distinguished in the Wiki inside Admin, and Admin renders
+    only the two cognitive example plugins rather than compatibility or shared-infrastructure code.
 
 ## Interactive delivery
 
@@ -51,7 +53,8 @@ has been executed or inspected on the current revision. No partial credit or ext
 ## Interface and security
 
 1. The shipped canvas contains no domain page or workflow.
-2. Wiki and Feedback remain available across routes, including routes added after Origin ships.
+2. Admin (Wiki and Plugins) and Feedback remain available across routes, including routes added
+   after Origin ships.
 3. Feedback captures kind, body, actual browser pathname, and a derived or page-provided label.
 4. Threads show raw messages, interpretation, verification, and lifecycle.
 5. Waiting questions and review requests display an attention indicator.

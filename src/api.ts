@@ -4,6 +4,8 @@ import type {
   FeedbackKind,
   FeedbackRecord,
   FeedbackStatus,
+  PluginReference,
+  PluginSummary,
   WikiChapter,
 } from "./types";
 
@@ -81,4 +83,6 @@ export const api = {
     }),
   wiki: () => request<{ chapters: WikiChapter[] }>("/api/wiki"),
   chapter: (slug: string) => request<WikiChapter & { content: string }>(`/api/wiki/${slug}`),
+  plugins: () => request<{ plugins: PluginSummary[] }>("/api/plugins"),
+  plugin: (id: string) => request<PluginReference>(`/api/plugins/${encodeURIComponent(id)}`),
 };

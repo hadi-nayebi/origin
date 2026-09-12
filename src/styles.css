@@ -149,7 +149,7 @@ summary:focus-visible {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.wiki-control {
+.admin-control {
   left: 24px;
 }
 .feedback-control {
@@ -169,14 +169,14 @@ summary:focus-visible {
   background: #b83924;
   font-size: 0.68rem;
 }
-.wiki-surface {
+.admin-surface {
   min-height: 100vh;
   display: grid;
   grid-template-columns: minmax(260px, 340px) 1fr;
   background: var(--paper);
   color: var(--ink);
 }
-.wiki-nav {
+.admin-nav {
   position: sticky;
   top: 0;
   height: 100vh;
@@ -193,23 +193,46 @@ summary:focus-visible {
   padding: 0 0 38px;
   cursor: pointer;
 }
-.wiki-nav h1 {
+.admin-nav h1 {
   margin: 7px 0 12px;
   font:
     500 2.25rem/1 Georgia,
     serif;
 }
-.wiki-intro {
+.admin-intro {
   color: #aeb5aa;
   line-height: 1.55;
   font-size: 0.92rem;
 }
-.wiki-nav nav {
+.admin-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 28px;
+  padding: 4px;
+  border: 1px solid #343a33;
+  border-radius: 11px;
+  background: #111411;
+}
+.admin-tabs button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 8px;
+  color: #aeb5aa;
+  background: transparent;
+  cursor: pointer;
+}
+.admin-tabs button:hover,
+.admin-tabs button.active {
+  color: #111311;
+  background: var(--green);
+}
+.admin-nav nav {
   margin-top: 28px;
   display: grid;
   gap: 5px;
 }
-.chapter-link {
+.admin-link {
   border: 0;
   border-radius: 10px;
   text-align: left;
@@ -219,87 +242,87 @@ summary:focus-visible {
   background: transparent;
   cursor: pointer;
 }
-.chapter-link:hover,
-.chapter-link.active {
+.admin-link:hover,
+.admin-link.active {
   background: #272c26;
 }
-.chapter-link small {
+.admin-link small {
   color: #899184;
   text-transform: uppercase;
   letter-spacing: 0.09em;
   font-size: 0.58rem;
 }
-.wiki-article {
+.admin-article {
   width: min(800px, calc(100vw - 48px));
   margin: 0 auto;
   padding: 100px 36px 140px;
 }
-.wiki-article h2 {
+.admin-article h2 {
   margin: 12px 0 22px;
   font:
     500 clamp(2.2rem, 5vw, 4.4rem)/1.04 Georgia,
     serif;
   letter-spacing: -0.035em;
 }
-.wiki-article h3 {
+.admin-article h3 {
   margin-top: 42px;
   font:
     600 1.55rem Georgia,
     serif;
 }
-.wiki-article h4 {
+.admin-article h4 {
   margin-top: 28px;
   font-size: 1rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
-.wiki-article p,
-.wiki-article li {
+.admin-article p,
+.admin-article li {
   line-height: 1.72;
   color: #41463f;
 }
-.wiki-article .lead {
+.admin-article .lead {
   font-size: 1.2rem;
   color: #555c52;
 }
-.wiki-article code {
+.admin-article code {
   background: #e4dfd2;
   border-radius: 4px;
   padding: 2px 5px;
 }
-.wiki-article pre {
+.admin-article pre {
   overflow: auto;
   padding: 18px;
   border-radius: 10px;
   background: #20241f;
   color: #edf2e8;
 }
-.wiki-article pre code {
+.admin-article pre code {
   padding: 0;
   background: transparent;
 }
-.wiki-article a {
+.admin-article a {
   color: #405d13;
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
 }
-.wiki-article table {
+.admin-article table {
   width: 100%;
   border-collapse: collapse;
   margin: 24px 0;
   font-size: 0.92rem;
 }
-.wiki-article th,
-.wiki-article td {
+.admin-article th,
+.admin-article td {
   padding: 10px 12px;
   border: 1px solid #cec8ba;
   text-align: left;
   vertical-align: top;
 }
-.wiki-article th {
+.admin-article th {
   background: #e7e1d4;
 }
-.wiki-article blockquote {
+.admin-article blockquote {
   margin: 28px 0;
   padding: 2px 0 2px 20px;
   border-left: 3px solid #698138;
@@ -341,6 +364,111 @@ summary:focus-visible {
 .chapter-grid span {
   color: #656b62;
   line-height: 1.45;
+}
+.plugin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 40px;
+}
+.plugin-grid button {
+  min-width: 0;
+  padding: 22px;
+  display: grid;
+  gap: 10px;
+  text-align: left;
+  border: 1px solid #d4cec0;
+  border-radius: 14px;
+  color: var(--ink);
+  background: #faf7ef;
+  cursor: pointer;
+}
+.plugin-grid button:hover {
+  border-color: #7e9360;
+}
+.plugin-grid small,
+.plugin-grid b {
+  color: #718053;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.62rem;
+}
+.plugin-grid strong {
+  font:
+    500 1.35rem Georgia,
+    serif;
+}
+.plugin-grid span {
+  color: #5d645a;
+  line-height: 1.5;
+}
+.plugin-metadata {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 28px 0;
+}
+.plugin-metadata div {
+  padding: 14px;
+  border: 1px solid #d4cec0;
+  border-radius: 10px;
+  background: #faf7ef;
+}
+.plugin-metadata dt {
+  color: #718053;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.65rem;
+}
+.plugin-metadata dd {
+  margin: 6px 0 0;
+  overflow-wrap: anywhere;
+}
+.plugin-anatomy {
+  margin: 36px 0;
+}
+.plugin-anatomy ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+.plugin-anatomy li {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid #c9c3b5;
+  border-radius: 999px;
+  background: #faf7ef;
+  font-size: 0.78rem;
+}
+.plugin-anatomy li.present span {
+  color: #405d13;
+}
+.plugin-anatomy li.missing {
+  color: #8a321f;
+  border-color: #c9998e;
+}
+.plugin-document {
+  margin-top: 56px;
+  padding-top: 26px;
+  border-top: 1px solid #cec8ba;
+}
+.plugin-document > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: baseline;
+  margin-bottom: 24px;
+}
+.plugin-document > header p {
+  margin: 0;
+}
+.plugin-document > header code {
+  overflow-wrap: anywhere;
 }
 .modal-backdrop {
   position: fixed;
@@ -592,19 +720,21 @@ summary:focus-visible {
   }
 }
 @media (max-width: 760px) {
-  .wiki-surface {
+  .admin-surface {
     display: block;
   }
-  .wiki-nav {
+  .admin-nav {
     position: relative;
     height: auto;
     padding: 30px 20px;
   }
-  .wiki-article {
+  .admin-article {
     width: 100%;
     padding: 50px 20px 130px;
   }
-  .chapter-grid {
+  .chapter-grid,
+  .plugin-grid,
+  .plugin-metadata {
     grid-template-columns: 1fr;
   }
   .floating-control span {
@@ -623,8 +753,8 @@ summary:focus-visible {
   :root {
     --line: rgba(255, 255, 255, 0.45);
   }
-  .wiki-article p,
-  .wiki-article li {
+  .admin-article p,
+  .admin-article li {
     color: #20251f;
   }
 }

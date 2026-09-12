@@ -66,3 +66,24 @@ export interface WikiChapter {
   summary: string;
   status: "included" | "growth-pattern" | "reference" | "future";
 }
+
+export interface PluginAnatomyPart {
+  key: "manifest" | "state" | "operations" | "hooks" | "voice" | "documentation" | "tests";
+  label: string;
+  present: boolean;
+}
+
+export interface PluginSummary {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  objective: string;
+  capabilities: string[];
+  anatomy: PluginAnatomyPart[];
+  complete: boolean;
+}
+
+export interface PluginReference extends PluginSummary {
+  documents: Array<{ name: string; label: string; content: string }>;
+}

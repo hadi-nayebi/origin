@@ -37,8 +37,9 @@ If `ONBOARDING_HANDOFF.md` exists, verify it with the user and record a receipt 
 implementation. Do not restart discovery or silently inherit another project's domain.
 
 The Markdown files under `docs/wiki/` are the canonical Origin growth guide. The dashboard renders
-them, and agents read them directly. Each capability must distinguish what Origin includes now from
-a growth pattern, reference architecture, or future possibility.
+them inside Admin, beside docs-sourced references for the two example engagement plugins, and agents
+read them directly. Each capability must distinguish what Origin includes now from a growth pattern,
+reference architecture, or future possibility.
 
 ## Instructions and internal voices
 

@@ -25,6 +25,11 @@ try {
   for (const name of ["index.html", "src", "docs", "vite.config.ts", "tsconfig.json", "dist"]) {
     fs.cpSync(path.join(sourceRoot, name), path.join(root, name), { recursive: true });
   }
+  for (const plugin of ["contextual-feedback", "telegram-engagement"]) {
+    const target = path.join(root, ".codex", "plugins", plugin);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.cpSync(path.join(sourceRoot, ".codex", "plugins", plugin), target, { recursive: true });
+  }
   fs.symlinkSync(
     path.join(sourceRoot, "node_modules"),
     path.join(root, "node_modules"),
@@ -65,9 +70,12 @@ try {
       await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
       false,
     );
-    await page.getByRole("button", { name: "Open Origin wiki" }).click();
-    await page.locator(".chapter-link").first().click();
-    await page.locator(".wiki-article h1").waitFor();
+    await page.getByRole("button", { name: "Open Origin admin" }).click();
+    await page.getByRole("tab", { name: "Plugins" }).click();
+    await page.getByRole("heading", { name: "Two plugins show how Origin grows." }).waitFor();
+    await page.getByRole("tab", { name: "Wiki" }).click();
+    await page.locator(".admin-link").first().click();
+    await page.locator(".admin-article h1").waitFor();
     const pagePath = new URL(page.url()).pathname;
     await page.getByRole("button", { name: /^Give feedback/ }).click();
     await page
@@ -129,7 +137,7 @@ try {
     await new Promise((resolve) => server.close(resolve));
     server = null;
     console.log(
-      `PASS ${dev ? "Development" : "Production"}: render, Wiki, page-aware feedback, answer, bidirectional materials, PR merge acceptance and mobile width`,
+      `PASS ${dev ? "Development" : "Production"}: render, Admin Wiki/Plugins, page-aware feedback, answer, bidirectional materials, PR merge acceptance and mobile width`,
     );
   }
 } finally {

@@ -27,6 +27,12 @@ async function fixtureServer(options = {}) {
   fs.cpSync(path.join(repositoryRoot, "docs", "wiki"), path.join(root, "docs", "wiki"), {
     recursive: true,
   });
+  for (const plugin of ["contextual-feedback", "telegram-engagement"]) {
+    const source = path.join(repositoryRoot, ".codex", "plugins", plugin);
+    const target = path.join(root, ".codex", "plugins", plugin);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.cpSync(source, target, { recursive: true });
+  }
   const server = await startOriginServer({
     root,
     port: 0,
@@ -345,6 +351,26 @@ test("wiki index and chapters come from tracked Markdown", async (context) => {
   assert.equal((await fetch(`${app.base}/api/wiki/BAD!`)).status, 400);
 });
 
+test("Admin plugin references come from the two installed engagement plugins", async (context) => {
+  const app = await fixtureServer();
+  context.after(() => app.server.close());
+  const index = await (await fetch(`${app.base}/api/plugins`)).json();
+  assert.deepEqual(
+    index.plugins.map((plugin) => plugin.id),
+    ["contextual-feedback", "telegram-engagement"],
+  );
+  assert.ok(index.plugins.every((plugin) => plugin.complete));
+  const plugin = await (await fetch(`${app.base}/api/plugins/${index.plugins[0].id}`)).json();
+  assert.equal(plugin.version, "1.0.0");
+  assert.deepEqual(
+    plugin.documents.map((document) => document.name),
+    ["README.md", "AGENTS.md", "docs/wiki.md"],
+  );
+  assert.match(plugin.documents[0].content, /^# Contextual Feedback/);
+  assert.equal((await fetch(`${app.base}/api/plugins/agent-stop-state`)).status, 404);
+  assert.equal((await fetch(`${app.base}/api/plugins/..%2Fcontextual-feedback`)).status, 404);
+});
+
 function requestWithHost(base, host) {
   const target = new URL("/api/feedback", base);
   return new Promise((resolve, reject) => {
@@ -508,4 +534,6 @@ test("a removed dashboard plugin exposes only the disabled collection route", as
   const material = await fetch(`${base}/api/feedback/thread/materials/file`);
   assert.equal(material.status, 404);
   assert.equal((await material.json()).error, "Dashboard engagement plugin is not installed.");
+  const plugins = await (await fetch(`${base}/api/plugins`)).json();
+  assert.deepEqual(plugins.plugins, []);
 });

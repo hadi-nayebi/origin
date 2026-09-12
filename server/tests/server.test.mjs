@@ -467,3 +467,23 @@ test("dashboard pause and resume retain later inputs without altering Telegram s
   assert.equal((await control("resume")).outcome.mode, "active");
   assert.deepEqual(readAgentState(remote), before);
 });
+
+test("a removed dashboard plugin exposes only the disabled collection route", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "origin-server-disabled-"));
+  const server = await startOriginServer({
+    root,
+    port: 0,
+    host: "127.0.0.1",
+    serveUi: false,
+    deliverWakes: false,
+    feedbackEnabled: false,
+  });
+  t.after(() => server.close());
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const listing = await fetch(`${base}/api/feedback`);
+  assert.equal(listing.status, 200);
+  assert.equal((await listing.json()).disabled, true);
+  const material = await fetch(`${base}/api/feedback/thread/materials/file`);
+  assert.equal(material.status, 404);
+  assert.equal((await material.json()).error, "Dashboard engagement plugin is not installed.");
+});

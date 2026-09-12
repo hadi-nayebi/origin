@@ -5,6 +5,8 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 
 const waitArray = new Int32Array(new SharedArrayBuffer(4));
+const LEASE_MAX_AGE_MS = 60_000;
+const COMMAND_TIMEOUT_MS = 5_000;
 
 export function resolveCodexPane(root, options = {}) {
   const run = options.run || runCommand;
@@ -245,13 +247,28 @@ function withWakeLease(root, operation) {
 function clearStaleLease(file) {
   try {
     const value = JSON.parse(fs.readFileSync(file, "utf8"));
+    if (leaseExpired(file, value.at)) {
+      fs.unlinkSync(file);
+      return;
+    }
     if (value.host !== os.hostname() || !Number.isInteger(value.pid)) return;
     try {
       process.kill(value.pid, 0);
     } catch (error) {
       if (error.code === "ESRCH") fs.unlinkSync(file);
     }
-  } catch {}
+  } catch {
+    try {
+      if (Date.now() - fs.statSync(file).mtimeMs > LEASE_MAX_AGE_MS) fs.unlinkSync(file);
+    } catch {}
+  }
+}
+
+function leaseExpired(file, value) {
+  const parsed = Date.parse(value);
+  const timestamp =
+    Number.isFinite(parsed) && parsed <= Date.now() ? parsed : fs.statSync(file).mtimeMs;
+  return Date.now() - timestamp > LEASE_MAX_AGE_MS;
 }
 
 function canonical(value) {
@@ -273,8 +290,16 @@ function bounded(value, label, minimum, maximum) {
 }
 function assertSuccess(result, label) {
   if (result.status !== 0)
-    throw new Error(`${label} failed: ${String(result.stderr || "unknown error").trim()}`);
+    throw new Error(
+      `${label} failed: ${String(result.stderr || result.error?.message || "unknown error").trim()}`,
+    );
 }
 function runCommand(command, args) {
-  return spawnSync(command, args, { encoding: "utf8", shell: false, windowsHide: true });
+  return spawnSync(command, args, {
+    encoding: "utf8",
+    shell: false,
+    windowsHide: true,
+    timeout: COMMAND_TIMEOUT_MS,
+    killSignal: "SIGKILL",
+  });
 }

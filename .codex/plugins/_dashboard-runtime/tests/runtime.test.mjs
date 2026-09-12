@@ -18,6 +18,7 @@ import {
   resolveCodexPane,
   submissionAccepted,
 } from "../lib/codex-wake-v1.mjs";
+import { deliverAsyncWake } from "../lib/async-wake.mjs";
 import { inspectMachine } from "../lib/machine.mjs";
 import { ensureDashboardRuntime, runtimeInstanceId } from "../lib/runtime-control.mjs";
 import {
@@ -67,6 +68,34 @@ test("idle Codex receives a verified prompt through a tmux buffer", () => {
     run.calls.some((call) => call.command === "tmux" && call.args[0] === "set-buffer"),
     true,
   );
+});
+
+test("an expired wake lease owned by the live server process is recovered", () => {
+  const root = fixture();
+  fs.mkdirSync(path.join(root, ".origin"), { recursive: true });
+  fs.writeFileSync(
+    path.join(root, ".origin", "wake.lock"),
+    JSON.stringify({
+      token: "interrupted-worker",
+      pid: process.pid,
+      host: os.hostname(),
+      at: "2000-01-01T00:00:00.000Z",
+    }),
+  );
+  const marker = "[ORIGIN WAKE recovered-lease]";
+  const run = fakeRun(root, { capture: ["idle\n› ", marker, `${marker}\nWorking (1)`] });
+  assert.equal(
+    deliverCodexWake(root, { marker, prompt: marker }, { run, wait: () => {} }).state,
+    "submitted",
+  );
+  assert.equal(fs.existsSync(path.join(root, ".origin", "wake.lock")), false);
+});
+
+test("async wake worker returns durable status without blocking the caller", async () => {
+  const root = fixture();
+  const status = await deliverAsyncWake({ root });
+  assert.equal(status.state, "idle");
+  assert.equal(status.pending, 0);
 });
 
 test("busy Codex queues a message without interruption", () => {
@@ -459,6 +488,39 @@ test("an interrupted outbox claim is recovered and delivered", async () => {
   assert.equal(wakeStatus(root).last.attempts, 1);
 });
 
+test("an expired live-process claim and outbox lease recover after worker termination", async () => {
+  const root = fixture();
+  const record = createFeedback(root, {
+    kind: "feature",
+    body: "Recover a worker claim without restarting the server",
+    pagePath: "/",
+    pageLabel: "Origin canvas",
+  });
+  enqueueWake(root, { kind: "feedback.new", reference: record.id, route: "/" });
+  const directory = path.join(root, ".origin");
+  const file = path.join(directory, "wake-outbox.json");
+  const events = JSON.parse(fs.readFileSync(file, "utf8"));
+  events[0].status = "delivering";
+  events[0].claimedAt = "2026-09-03T10:00:00.000Z";
+  events[0].claimedBy = `${os.hostname()}:${process.pid}`;
+  fs.writeFileSync(file, `${JSON.stringify(events)}\n`);
+  fs.writeFileSync(
+    path.join(directory, "wake-outbox.lock"),
+    JSON.stringify({
+      token: "interrupted-worker",
+      pid: process.pid,
+      host: os.hostname(),
+      at: "2000-01-01T00:00:00.000Z",
+    }),
+  );
+  await deliverPendingWakes(root, {
+    now: new Date("2026-09-03T10:01:01.000Z"),
+    deliver: async () => ({ state: "submitted", transport: "tmux" }),
+  });
+  assert.equal(wakeStatus(root).last.status, "delivered");
+  assert.equal(fs.existsSync(path.join(directory, "wake-outbox.lock")), false);
+});
+
 test("stale wake is cancelled after user acceptance", async () => {
   const root = fixture();
   const record = createFeedback(root, {
@@ -594,6 +656,7 @@ test("dashboard runtime does not reuse another Origin clone on the same port", a
 
 test("combined launcher validates, creates one repo session, starts Codex, and attaches", async () => {
   const root = fixture();
+  enableFeedbackPlugin(root);
   const calls = [];
   const run = (command, args) => {
     calls.push({ command, args });
@@ -623,9 +686,34 @@ test("combined launcher validates, creates one repo session, starts Codex, and a
   );
   assert.deepEqual(
     calls.find(({ command, args }) => command === "tmux" && args[0] === "send-keys")?.args,
-    ["send-keys", "-t", session, "codex", "C-m"],
+    ["send-keys", "-t", session, "codex resume --last", "C-m"],
   );
   assert.deepEqual(calls.at(-1).args, ["attach-session", "-t", session]);
+});
+
+test("combined launcher keeps an explicit fresh-session escape hatch", async () => {
+  const root = fixture();
+  const calls = [];
+  const run = (command, args) => {
+    calls.push({ command, args });
+    if (command === "tmux" && args[0] === "has-session")
+      return { status: 1, stdout: "", stderr: "missing" };
+    if (command === "tmux" && args[0] === "list-panes")
+      return { status: 0, stdout: `bash\t${root}\n`, stderr: "" };
+    return { status: 0, stdout: "ready", stderr: "" };
+  };
+  await startHarness({
+    root,
+    run,
+    resumeLast: false,
+    platform: "linux",
+    release: { name: "node" },
+    openBrowser: false,
+  });
+  assert.deepEqual(
+    calls.find(({ command, args }) => command === "tmux" && args[0] === "send-keys")?.args,
+    ["send-keys", "-t", sessionName(root), "codex", "C-m"],
+  );
 });
 
 test("combined launcher switches an existing tmux client into the repository session", async () => {
@@ -682,6 +770,12 @@ function fakeRun(root, options = {}) {
   };
   run.calls = calls;
   return run;
+}
+
+function enableFeedbackPlugin(root) {
+  const directory = path.join(root, ".codex", "plugins", "contextual-feedback", ".codex-plugin");
+  fs.mkdirSync(directory, { recursive: true });
+  fs.writeFileSync(path.join(directory, "plugin.json"), "{}\n");
 }
 
 function sourceFor(root) {

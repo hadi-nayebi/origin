@@ -35,9 +35,11 @@ The agent should not ask the user to confirm routine next steps that are already
 accepted objective. Evidence gathering, implementation judgment, and ordinary verification remain
 agent responsibilities.
 
-Origin 1.0 separates the dashboard review surface from the agent CLI: the agent can provide
-verification and request review, while acceptance, withdrawal, and review-based reopening are absent
-from its public command list. The journal makes that distinction inspectable. Because the dashboard
-and Codex run as the same operating-system user, this prevents accidental authority confusion but is
-not a security defense against a malicious local process. Stronger identity and role enforcement
-belongs to a future multi-user architecture.
+Origin 1.0 separates owner review from the agent CLI: the agent can create an isolated worktree,
+open and link its exact PR, provide verification, and request review. Merge, withdrawal, and
+review-based reopening are absent from its public command list. The trusted owner-authority hook
+also denies supported agent merge and protected-base paths. Resolution is recorded only after the
+owner broker observes the linked PR merged on GitHub. Because the dashboard and Codex run as the
+same operating-system user, this prevents accidental authority confusion but is not a security
+defense against a malicious local process. Repository branch protection or future multi-user
+identity boundaries provide stronger enforcement.

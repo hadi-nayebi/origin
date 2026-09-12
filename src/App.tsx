@@ -20,6 +20,9 @@ type Surface =
 export default function App() {
   const [surface, setSurface] = useState<Surface>(() => surfaceFromPath(window.location.pathname));
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(
+    () => window.location.pathname === "/" && !onboardingComplete(),
+  );
   const [feedbackEnabled, setFeedbackEnabled] = useState(true);
   const [attention, setAttention] = useState(0);
   const refreshAttention = async () => {
@@ -47,6 +50,14 @@ export default function App() {
   }, []);
   const pagePath = normalizePagePath(window.location.pathname);
   const pageLabel = pageLabelForSurface(surface, pagePath);
+  const finishOnboarding = () => {
+    try {
+      window.localStorage.setItem("origin:onboarding:v1", "complete");
+    } catch {
+      // The guide still works when a hardened browser disables persistent storage.
+    }
+    setOnboardingOpen(false);
+  };
   return (
     <div className="origin-shell">
       <a className="skip-link" href="#origin-main">
@@ -60,7 +71,19 @@ export default function App() {
       </header>
       <main id="origin-main">
         {surface.kind === "canvas" ? (
-          <EmptyCanvas />
+          <EmptyCanvas
+            onboardingOpen={onboardingOpen}
+            onOpenGuide={() => setOnboardingOpen(true)}
+            onFinishGuide={finishOnboarding}
+            onOpenAdmin={() => {
+              finishOnboarding();
+              navigate({ kind: "admin", section: "wiki" });
+            }}
+            onOpenFeedback={() => {
+              finishOnboarding();
+              setFeedbackOpen(true);
+            }}
+          />
         ) : (
           <Admin surface={surface} navigate={navigate} />
         )}
@@ -102,15 +125,148 @@ export default function App() {
   );
 }
 
-function EmptyCanvas() {
+function onboardingComplete() {
+  try {
+    return window.localStorage.getItem("origin:onboarding:v1") === "complete";
+  } catch {
+    return false;
+  }
+}
+
+function EmptyCanvas({
+  onboardingOpen,
+  onOpenGuide,
+  onFinishGuide,
+  onOpenAdmin,
+  onOpenFeedback,
+}: {
+  onboardingOpen: boolean;
+  onOpenGuide: () => void;
+  onFinishGuide: () => void;
+  onOpenAdmin: () => void;
+  onOpenFeedback: () => void;
+}) {
   return (
     <section className="empty-canvas" aria-labelledby="canvas-title">
       <div className="empty-message">
         <p className="eyebrow">Hadosh Academy Origin</p>
         <h1 id="canvas-title">Ready to become yours.</h1>
         <p>Ask your agent to shape the first page, or leave feedback to begin.</p>
+        {!onboardingOpen && (
+          <button className="guide-button" type="button" onClick={onOpenGuide}>
+            Show the quick guide
+          </button>
+        )}
       </div>
+      {onboardingOpen && (
+        <Onboarding
+          onFinish={onFinishGuide}
+          onOpenAdmin={onOpenAdmin}
+          onOpenFeedback={onOpenFeedback}
+        />
+      )}
     </section>
+  );
+}
+
+const onboardingSteps = [
+  {
+    eyebrow: "Welcome",
+    title: "Start with an empty canvas.",
+    body: "Origin starts without someone else’s pages or vocabulary. Keep talking to Codex in the terminal, then grow this dashboard around the work that is actually yours.",
+    direction: null,
+    action: null,
+  },
+  {
+    eyebrow: "Dashboard channel",
+    title: "Ask from anywhere on the dashboard.",
+    body: "Feedback creates a durable thread for a request, bug, or update and wakes the same interactive Codex session. Questions, files, verification, and the final PR stay together.",
+    direction: "right",
+    action: "feedback",
+  },
+  {
+    eyebrow: "Repository guide",
+    title: "Learn the foundation in Admin.",
+    body: "Admin contains the Wiki and the two installed reference plugins. Their manifests, operations, hooks, voices, documentation, and tests show how a new plugin should be shaped.",
+    direction: "left",
+    action: "admin",
+  },
+  {
+    eyebrow: "Optional remote channel",
+    title: "Add Telegram only when you want it.",
+    body: "Run npm run telegram -- setup for paired private text messaging. Audio, transcription, and cloned-voice replies are optional; the text channel works without them.",
+    direction: null,
+    action: null,
+  },
+] as const;
+
+function Onboarding({
+  onFinish,
+  onOpenAdmin,
+  onOpenFeedback,
+}: {
+  onFinish: () => void;
+  onOpenAdmin: () => void;
+  onOpenFeedback: () => void;
+}) {
+  const [step, setStep] = useState(0);
+  const current = onboardingSteps[step];
+  return (
+    <aside className="onboarding" aria-label="Origin quick guide" aria-live="polite">
+      <div
+        className="onboarding-progress"
+        aria-label={`Step ${step + 1} of ${onboardingSteps.length}`}
+      >
+        {onboardingSteps.map((item, index) => (
+          <span className={index === step ? "active" : ""} key={item.eyebrow} aria-hidden="true" />
+        ))}
+        <small>
+          {step + 1} of {onboardingSteps.length}
+        </small>
+      </div>
+      <p className="eyebrow">{current.eyebrow}</p>
+      <h2>{current.title}</h2>
+      <p>{current.body}</p>
+      {current.direction === "right" && (
+        <p className="onboarding-pointer right" aria-hidden="true">
+          Feedback lives here <b>↘</b>
+        </p>
+      )}
+      {current.direction === "left" && (
+        <p className="onboarding-pointer left" aria-hidden="true">
+          <b>↙</b> Admin lives here
+        </p>
+      )}
+      <div className="onboarding-actions">
+        <button className="quiet" type="button" onClick={onFinish}>
+          Skip guide
+        </button>
+        {step > 0 && (
+          <button className="quiet" type="button" onClick={() => setStep(step - 1)}>
+            Back
+          </button>
+        )}
+        {current.action === "feedback" && (
+          <button className="secondary" type="button" onClick={onOpenFeedback}>
+            Open Feedback
+          </button>
+        )}
+        {current.action === "admin" && (
+          <button className="secondary" type="button" onClick={onOpenAdmin}>
+            Open Admin
+          </button>
+        )}
+        {step < onboardingSteps.length - 1 ? (
+          <button className="primary" type="button" onClick={() => setStep(step + 1)}>
+            Next
+          </button>
+        ) : (
+          <button className="primary" type="button" onClick={onFinish}>
+            Start shaping Origin
+          </button>
+        )}
+      </div>
+    </aside>
   );
 }
 

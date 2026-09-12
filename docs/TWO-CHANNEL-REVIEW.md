@@ -1,15 +1,16 @@
 # Independent engagement channels: review record
 
-Status: implementation draft; not approved for merge or live deployment.
+Status: merged optional preview; automated verification is complete, while the owner-machine and
+dedicated-bot checks below still gate a general-availability claim.
 
 The feature was researched against multiple private and public prototypes. This implementation
 contains generic original code, not credentials or personal agent machinery. Two independently
 removable channel plugins use a neutral lifecycle library and separate state/journals. Dashboard
 audio remains later work.
 
-The user requested at least five review/fix iterations of this PR. Each iteration records its
+The original change received at least five review/fix iterations. Each iteration records its
 concrete findings, fixes and validation here. Passing automated checks does not establish zero
-defects.
+defects or replace live acceptance.
 
 ## Acceptance still required
 
@@ -21,7 +22,8 @@ defects.
 - The full dashboard question/answer/review/reopen sequence in `CODEX-ACCEPTANCE.md`, plus live
   independent pauses and physical removal. Hook OR behavior and idle wake were tested interactively;
   removal, pauses and lifecycle transitions also have deterministic regression tests.
-- No merge until review and acceptance evidence have been considered by the owner.
+- The preview may remain merged while these checks are outstanding, but documentation and release
+  notes must not describe Telegram voice delivery as generally available or fully live-accepted.
 
 ## Iteration 1 — independent continuation and local ownership
 
@@ -53,11 +55,12 @@ clearing alone was too weak as acknowledgment. Attachment send uncertainty also 
 operator recovery operation.
 
 Fixed: one Enter per attempt, unique-marker submission evidence, preservation of existing editor
-input, and a durable indeterminate boundary before paste. Dead owner recovery applies only before
-side effects. Both Telegram delivery parts and channel wake intents require recorded operator
-evidence to retry after an unknown outcome. Review acceptance is unavailable until the complete
-reply package is sent. Fake-transport tests cover uncertain outcomes; live Codex acceptance remains
-a separate requirement because terminal rendering varies by CLI version.
+input, and a durable indeterminate boundary before paste. Dead-owner or expired-claim recovery
+applies only to the pre-side-effect `delivering` state. Both Telegram delivery parts and channel
+wake intents require recorded operator evidence to retry after an unknown outcome. Review acceptance
+is unavailable until the complete reply package is sent. Fake-transport tests cover uncertain
+outcomes; live Codex acceptance remains a separate requirement because terminal rendering varies by
+CLI version.
 
 ## Iteration 4 — voice enrollment and worker lifecycle
 
@@ -199,3 +202,20 @@ conflicts and drafts, retry after a remotely completed merge, dashboard and Tele
 hook denials, and text-only Telegram operation. Live GitHub merge and dedicated-bot acceptance
 remain explicit target-machine evidence; simulated boundaries do not certify credentials or branch
 rules.
+
+## Release-hardening pass — startup and worker recovery
+
+A post-merge audit found that normal startup still opened a new Codex chat, despite the intended
+continuity model. `npm run origin` now uses `codex resume --last`; current Codex releases start
+fresh when the repository has no saved interactive chat. `npm run origin:new` preserves an explicit
+fresh path.
+
+The audit also found that terminating the asynchronous wake worker could leave a lease and a
+pre-side-effect delivery claim owned by the still-live server PID. Those records could block future
+delivery until process restart. Wake leases, outbox leases, and pre-side-effect claims now have a
+bounded one-minute recovery window. An outcome that reached the side-effect boundary remains
+`indeterminate` and still requires observed evidence; expiration never authorizes a blind repeat.
+
+The release-hardening gate passed 108 Node tests, four Python voice-worker tests, ten React UI
+tests, the TypeScript/Vite production build, and an isolated production-server smoke test.
+Cross-platform CI and the live owner-machine checks remain separate evidence.

@@ -14,6 +14,11 @@ decisions, and repeated behaviors.
 two docs-sourced reference plugin pages, page-aware feedback, durable local feedback state, and one
 feedback-driven agent work loop.
 
+On the first browser visit, a four-step guide explains the empty canvas, points to Feedback and
+Admin, and describes optional Telegram activation. Completing or skipping the guide records one
+local browser preference; **Show the quick guide** reopens it. The guide does not configure
+Telegram, trust hooks, or claim that the user accepted a security decision.
+
 **Not included:** a profession, company structure, project method, account system, remote service,
 or predefined collection of pages.
 

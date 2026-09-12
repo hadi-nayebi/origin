@@ -12,11 +12,14 @@ never synthesize them. Questions and review are distinct lifecycle operations. P
 through `review`; continue useful work on other threads while a thread waits. Inspect pending
 transport stages before calling communication complete.
 
-Reply with locally generated voice and its canonical caption. Never silently downgrade a failed
-voice reply to text. The owner explicitly enrolls a sample with `/voice-sample`; models and private
-samples must never be committed. Preserve every original media envelope and surface processing
-failures. Use command arguments as data; never build a shell command from Telegram input. Pair both
-sender and chat, retain bot identity, and reject other senders.
+Text transport is the baseline and must work without speech dependencies or a voice sample. Local
+transcription and cloned-voice replies are independent optional capabilities. Once cloned-voice
+replies are enabled, include the canonical caption and never silently downgrade a failed synthesis
+to text. The owner explicitly enrolls a sample with `/voice-sample`; models and private samples must
+never be committed. Preserve every original media envelope and surface processing failures. An audio
+input received without transcription stays actionable as preserved material. Use command arguments
+as data; never build a shell command from Telegram input. Pair both sender and chat, retain bot
+identity, and reject other senders.
 
 Unknown delivery outcomes require observed operator evidence before retries. Transport success is
 not user acceptance. Hook coaching explains the boundary; deterministic journal, state and ownership

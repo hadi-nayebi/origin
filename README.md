@@ -43,11 +43,11 @@ Origin is a starting substrate, not a prefabricated agent or a finished domain s
 - Ten Wiki chapters explaining how dashboards, jobs, OPEVC, plugins, authority, and verification
   grow.
 
-Optional [Telegram engagement](.codex/plugins/telegram-engagement/README.md) adds remote
-conversations with local Qwen3-TTS voice cloning, local recognition and preserved media. Each
-channel works when the other plugin is removed. Telegram requires a dedicated bot, owner pairing,
-local speech dependencies/models and an owner voice sample. Accounts for multiple users,
-synchronization and team authority remain outside this version.
+Optional [Telegram engagement](.codex/plugins/telegram-engagement/README.md) adds text-first remote
+conversations and preserved media. A dedicated bot and owner pairing are required; local speech
+dependencies, recognition and Qwen3-TTS voice cloning are optional additions. Each channel works
+when the other plugin is removed. Accounts for multiple users, synchronization and team authority
+remain outside this version.
 
 Read the [five-pass review record](docs/TWO-CHANNEL-REVIEW.md) before enabling the preview.
 Model/sample/token files stay under ignored `.origin/`; no speech model is shipped in Git.

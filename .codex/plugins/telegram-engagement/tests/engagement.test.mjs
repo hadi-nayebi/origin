@@ -30,12 +30,21 @@ import {
   queueReply,
   getThread,
 } from "../lib/service.mjs";
-import { prepareInput, deliverReply } from "../lib/runtime.mjs";
+import { prepareInput, deliverReply, textChunks } from "../lib/runtime.mjs";
 import { captionChunks } from "../lib/voice.mjs";
 import { BotAPI } from "../lib/api.mjs";
+import { defaults, loadConfig, saveConfig } from "../lib/config.mjs";
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
-const config = { botId: "42", chatId: "100", userId: "200", maxMediaBytes: 1024 };
+const config = {
+  botId: "42",
+  chatId: "100",
+  userId: "200",
+  maxMediaBytes: 1024,
+  transcriptionEnabled: true,
+  voiceRepliesEnabled: true,
+};
+const textConfig = { ...config, transcriptionEnabled: false, voiceRepliesEnabled: false };
 function fixture(t) {
   const base = path.join(repo, ".origin", "test-fixtures");
   fs.mkdirSync(base, { recursive: true });
@@ -68,6 +77,62 @@ function ready(root, id) {
     verification: "Verified the requested behavior with focused regression checks.",
   });
 }
+
+test("new pairings default to text while legacy voice pairings retain their behavior", (t) => {
+  const root = fixture(t);
+  const dir = directory(root);
+  fs.writeFileSync(path.join(dir, "bot-token"), `42:${"a".repeat(24)}\n`, { mode: 0o600 });
+  saveConfig(root, {
+    ...defaults(),
+    botId: "42",
+    chatId: "100",
+    userId: "200",
+  });
+  let loaded = loadConfig(root);
+  assert.equal(loaded.transcriptionEnabled, false);
+  assert.equal(loaded.voiceRepliesEnabled, false);
+
+  atomicJSON(path.join(dir, "config.json"), {
+    ...defaults(),
+    version: 1,
+    botId: "42",
+    chatId: "100",
+    userId: "200",
+    voiceRequired: true,
+    transcriptionEnabled: undefined,
+    voiceRepliesEnabled: undefined,
+  });
+  loaded = loadConfig(root);
+  assert.equal(loaded.transcriptionEnabled, true);
+  assert.equal(loaded.voiceRepliesEnabled, true);
+  assert.equal("voiceRequired" in loaded, false);
+});
+
+test("doctor treats absent optional speech as healthy for a text-only pairing", (t) => {
+  const root = fixture(t);
+  const dir = directory(root);
+  fs.writeFileSync(path.join(dir, "bot-token"), `42:${"a".repeat(24)}\n`, { mode: 0o600 });
+  saveConfig(root, {
+    ...defaults(),
+    botId: "42",
+    chatId: "100",
+    userId: "200",
+  });
+  const run = spawnSync(
+    process.execPath,
+    [path.join(repo, ".codex/plugins/telegram-engagement/scripts/telegram.mjs"), "doctor"],
+    {
+      env: { ...process.env, ORIGIN_REPOSITORY_ROOT: root },
+      encoding: "utf8",
+    },
+  );
+  assert.equal(run.status, 0, run.stderr);
+  const report = JSON.parse(run.stdout);
+  assert.equal(report.text.ready, true);
+  assert.equal(report.speech.transcriptionEnabled, false);
+  assert.equal(report.speech.voiceRepliesEnabled, false);
+  assert.equal(report.speech.modelsPresent, false);
+});
 
 test("each channel keeps Stop blocked after the other is resolved", (t) => {
   const root = fixture(t);
@@ -206,6 +271,88 @@ test("media preparation does not drop caption and preserves exact file metadata"
   assert.equal(item.materials[0].file_name, "notes.txt");
   assert.equal(getThread(root, item.threadId).body, "Read this file");
 });
+test("text-only pairing receives audio as preserved material without loading speech", async (t) => {
+  const root = fixture(t);
+  receiveUpdate(
+    root,
+    textConfig,
+    input(11, undefined, { text: undefined, voice: { file_id: "voice" } }),
+  );
+  const api = {
+    download: async (_id, file) => {
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, "preserved audio");
+    },
+  };
+  await prepareInput(root, textConfig, api, null, readTransport(root).inbox[11]);
+  const item = readTransport(root).inbox[11];
+  assert.equal(item.status, "ready");
+  assert.equal(item.materials[0].processing.status, "not-enabled");
+  assert.match(getThread(root, item.threadId).body, /Media input received/);
+});
+test("text-only replies retain threading, review controls and exact content", async (t) => {
+  const root = fixture(t);
+  receiveUpdate(root, textConfig, input(12, "Please make this change"));
+  materializeThread(root, textConfig, 12, "Please make this change");
+  const thread = getThread(root, readTransport(root).inbox[12].threadId);
+  transitionFeedback(scopeFor(root), thread.id, "in_progress");
+  const reply = queueReply(
+    root,
+    thread.id,
+    "Verified the requested text-only behavior with focused regression coverage.",
+    "review",
+  );
+  const sent = [];
+  await deliverReply(
+    root,
+    textConfig,
+    {
+      sendText: async (text, _config, extra) => {
+        sent.push({ text, extra });
+        return { message_id: 812 };
+      },
+    },
+    null,
+    reply,
+  );
+  assert.equal(sent[0].text, reply.text);
+  assert.equal(sent[0].extra.reply_parameters.message_id, 12);
+  assert.equal(sent[0].extra.reply_markup.inline_keyboard[0][0].text, "Accept");
+  assert.equal(readTransport(root).outbox[reply.id].deliveryMode, "text");
+  assert.equal(readTransport(root).outbox[reply.id].status, "sent");
+});
+test("an in-flight package from the voice-only release resumes as voice", async (t) => {
+  const root = fixture(t);
+  const thread = request(scopeFor(root));
+  const reply = queueReply(root, thread.id, "Resume the prepared voice response.");
+  updateTransport(root, (state) => {
+    state.outbox[reply.id].chunks = [
+      {
+        caption: reply.text,
+        file: path.join(directory(root), "outbound", reply.id, "0.ogg"),
+        index: 0,
+        status: "rendered",
+      },
+    ];
+  });
+  let voiceSends = 0;
+  await deliverReply(
+    root,
+    textConfig,
+    {
+      sendText: async () => assert.fail("legacy voice package must not change transport"),
+      sendFile: async (method) => {
+        assert.equal(method, "sendVoice");
+        voiceSends++;
+        return { message_id: 813 };
+      },
+    },
+    { render: async () => assert.fail("rendered chunk must not render twice") },
+    reply,
+  );
+  assert.equal(voiceSends, 1);
+  assert.equal(readTransport(root).outbox[reply.id].deliveryMode, "voice");
+});
 test("voice failure preserves an unsent reply; successful voice and captions stay paired", async (t) => {
   const root = fixture(t);
   const thread = request(scopeFor(root));
@@ -269,6 +416,13 @@ test("long unicode speech splits into bounded complete captions", () => {
   assert.ok(chunks.length > 1);
   assert.ok(chunks.every((c) => Array.from(c).length <= 900));
   assert.equal(chunks.join(" ").replace(/\s/g, ""), words.replace(/\s/g, ""));
+});
+test("long text replies split within Telegram limits without losing content", () => {
+  const value = `${"one two three four\n".repeat(1000)}${"🙂".repeat(100)}`;
+  const chunks = textChunks(value);
+  assert.ok(chunks.length > 1);
+  assert.ok(chunks.every((chunk) => Array.from(chunk).length <= 4096));
+  assert.equal(chunks.join(""), value);
 });
 test("legacy global pause migrates only into dashboard state", (t) => {
   const root = fixture(t);

@@ -344,7 +344,7 @@ export function channelStatus(root) {
 
 export function reconcileDelivery(root, packageId, component, index, outcome, messageId, evidence) {
   if (
-    !["voice", "material"].includes(component) ||
+    !["text", "voice", "material"].includes(component) ||
     !["sent", "not-sent"].includes(outcome) ||
     !Number.isInteger(index) ||
     index < 0 ||
@@ -356,7 +356,7 @@ export function reconcileDelivery(root, packageId, component, index, outcome, me
     throw new Error("Confirmed delivery requires its Telegram message ID.");
   return updateTransport(root, (state) => {
     const item = state.outbox[packageId];
-    const part = item?.[component === "voice" ? "chunks" : "materials"][index];
+    const part = item?.[component === "material" ? "materials" : "chunks"][index];
     if (!part || part.status !== "indeterminate")
       throw new Error("This delivery part is not indeterminate.");
     part.reconciliation = { outcome, evidence, at: new Date().toISOString() };

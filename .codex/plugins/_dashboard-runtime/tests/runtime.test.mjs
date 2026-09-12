@@ -18,6 +18,7 @@ import {
   resolveCodexPane,
   submissionAccepted,
 } from "../lib/codex-wake-v1.mjs";
+import { deliverAsyncWake } from "../lib/async-wake.mjs";
 import { inspectMachine } from "../lib/machine.mjs";
 import { ensureDashboardRuntime, runtimeInstanceId } from "../lib/runtime-control.mjs";
 import {
@@ -88,6 +89,13 @@ test("an expired wake lease owned by the live server process is recovered", () =
     "submitted",
   );
   assert.equal(fs.existsSync(path.join(root, ".origin", "wake.lock")), false);
+});
+
+test("async wake worker returns durable status without blocking the caller", async () => {
+  const root = fixture();
+  const status = await deliverAsyncWake({ root });
+  assert.equal(status.state, "idle");
+  assert.equal(status.pending, 0);
 });
 
 test("busy Codex queues a message without interruption", () => {

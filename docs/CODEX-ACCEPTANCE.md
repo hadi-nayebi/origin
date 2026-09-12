@@ -2,7 +2,8 @@
 
 Repository tests prove deterministic state, tmux command construction, pane scoping, queueing,
 delivery claims, retry, API, UI, hooks, and recovery. They cannot prove a particular user's Codex
-authentication, terminal behavior, hook trust, browser opening, or operating-system integration.
+authentication, GitHub authorization, terminal behavior, hook trust, browser opening, or
+operating-system integration.
 
 ## Machine and transport check
 
@@ -20,7 +21,8 @@ whether Codex accepted it immediately or queued it behind active work.
 ## Complete lifecycle check
 
 1. Run `npm run origin`; confirm the browser opens and the terminal attaches to interactive Codex.
-2. In Codex, use `/hooks`, inspect `.codex/hooks.json`, and trust both channel Stop hooks.
+2. In Codex, use `/hooks`, inspect `.codex/hooks.json`, and trust both channel Stop hooks plus the
+   owner-authority PreToolUse hook.
 3. Leave one dashboard comment while Codex is idle. Confirm it appears in that same terminal session
    with a unique wake marker, the plugin's reason for firing, the validated retrieval command, and a
    concrete next boundary.
@@ -33,10 +35,12 @@ whether Codex accepted it immediately or queued it behind active work.
    work is exhausted, confirm it may become waiting.
 8. Answer in the dashboard. Confirm the answer enters the same Codex session and state becomes
    active. Confirm the answer and transition out of waiting are one journal event.
-9. Have Codex mark the work ready for review with verification evidence. Confirm Codex may wait but
-   the thread is not resolved.
-10. Reject/reopen once, confirm Codex wakes and prior history remains, then accept the corrected
-    work.
+9. Have Codex create the thread worktree, implement on its managed branch, push that branch, open
+   exactly one GitHub PR, link it, and mark the work ready with verification evidence. Confirm Codex
+   may wait but the thread is not resolved.
+10. Reject/reopen once and confirm Codex wakes with prior history. After correction, confirm an
+    attempted agent `gh pr merge` is denied, then click **Merge PR** in the dashboard. Confirm
+    GitHub merged that exact PR and only then the thread became resolved.
 11. Confirm the next runnable thread becomes active; after all accepted work closes, confirm state
     is idle and Stop is allowed.
 12. Create another comment, stop the dashboard before delivery, restart `npm run origin`, and
@@ -46,7 +50,9 @@ whether Codex accepted it immediately or queued it behind active work.
     pre-pause snapshot.
 14. Open a non-Wiki route such as `/projects/roadmap`, submit feedback, and confirm the journal
     preserves that pathname and a useful derived label rather than `/` and `Origin canvas`.
-15. Start a fresh interactive session with runnable feedback but no pending wake. Confirm Origin
+15. In paired Telegram, repeat with a text-only request and use `/merge NUMBER`; confirm no speech
+    dependencies are loaded and the same owner-merge invariant holds.
+16. Start a fresh interactive session with runnable feedback but no pending wake. Confirm Origin
     injects the session-resume voice and orients Codex from durable state.
 
 Record operating system, WSL/macOS/Linux details, Node/tmux/Codex versions, commit SHA, timestamps,

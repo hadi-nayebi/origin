@@ -12,6 +12,11 @@ never synthesize them. Questions and review are distinct lifecycle operations. P
 through `review`; continue useful work on other threads while a thread waits. Inspect pending
 transport stages before calling communication complete.
 
+Treat every actionable thread as one PR-backed work unit. Create its isolated worktree, open and
+link the PR, then offer review. The paired owner's **Merge PR** callback or `/merge PR_NUMBER`
+command enters the owner broker; never invoke that merge path from the agent CLI or a shell tool.
+Only GitHub-confirmed merge resolves the responsibility.
+
 Text transport is the baseline and must work without speech dependencies or a voice sample. Local
 transcription and cloned-voice replies are independent optional capabilities. Once cloned-voice
 replies are enabled, include the canonical caption and never silently downgrade a failed synthesis

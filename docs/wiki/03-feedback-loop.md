@@ -14,8 +14,9 @@ the transport into the same interactive session the user sees in the terminal.
 - `open` — actionable and ordered.
 - `in_progress` — the one current focus.
 - `waiting` — blocked on recorded input while no other runnable work remains.
-- `ready_for_review` — implemented and verified by the agent, awaiting the user.
-- `resolved` — accepted by the user.
+- `ready_for_review` — implemented and verified by the agent, with exactly one linked PR awaiting
+  the user.
+- `resolved` — the linked PR was merged through an owner action and GitHub confirmed the merge.
 - `dismissed` — explicitly withdrawn, not silently erased.
 
 Every state transition remains in the journal. User answers, agent questions, interpretations,
@@ -24,8 +25,26 @@ summary.
 
 Actions that change both conversation and lifecycle are one journal event: asking records the
 question and waiting state together; answering records the answer and runnable state together;
-review records the user's note and acceptance, reopening, or withdrawal together. Atomic file writes
-alone are not enough if one human action could still be split into contradictory business events.
+review records the user's note and reopening or withdrawal together. Merge acceptance records the
+confirmed PR and resolution together. Atomic file writes alone are not enough if one human action
+could still be split into contradictory business events.
+
+## One thread, one worktree, one PR
+
+An actionable parent thread gets one private `.origin/worktrees/` branch and exactly one GitHub PR.
+Related inputs are associated into the existing parent rather than creating competing PRs. The PR
+head must match the recorded Origin-managed branch, and the agent must provide verification before
+the thread can enter review.
+
+The dashboard's **Merge PR** button and Telegram's paired **Merge PR** button or `/merge NUMBER`
+command invoke the same owner broker. It checks the displayed thread version, repository identity,
+PR state, draft/conflict status, and GitHub's final merged state. A failed or interrupted merge
+leaves the thread open; an already-confirmed remote merge makes retry safe.
+
+There is no agent merge command. A trusted PreToolUse hook denies supported CLI, API, MCP, local
+broker, direct-resolution and protected-base-push paths while still allowing branch pushes and PR
+creation. Because all local processes run as the same operating-system user, this is deterministic
+within the trusted Codex tool path—not an operating-system sandbox against malicious local code.
 
 ## Same-session delivery
 

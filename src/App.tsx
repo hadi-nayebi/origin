@@ -451,15 +451,13 @@ function FeedbackRecordCard({
         ? "Answer saved and wake queued."
         : "Comment saved and wake queued.",
     );
-  const accept = () =>
+  const pullRequest = record.linkedWork
+    .find((reference) => reference.startsWith("pull-request:https://github.com/"))
+    ?.slice("pull-request:".length);
+  const merge = () =>
     run(
-      () =>
-        api.transitionFeedback(record.id, {
-          status: "resolved",
-          acceptance: detail.trim() || "Accepted by user.",
-          expectedVersion: record.version,
-        }),
-      "Acceptance saved and wake queued.",
+      () => api.mergeFeedback(record.id, record.version),
+      "Pull request merged; acceptance saved and wake queued.",
     );
   const reopen = () =>
     run(
@@ -509,6 +507,18 @@ function FeedbackRecordCard({
           <strong>Verification:</strong> {record.verification}
         </p>
       )}
+      {pullRequest ? (
+        <p className="linked-work">
+          <strong>Work unit:</strong>{" "}
+          <a href={pullRequest} target="_blank" rel="noreferrer">
+            {pullRequest}
+          </a>
+        </p>
+      ) : record.status === "ready_for_review" ? (
+        <p className="error" role="alert">
+          The agent must link exactly one GitHub pull request before this work can be merged.
+        </p>
+      ) : null}
       <details open={expanded} onToggle={(event) => setExpanded(event.currentTarget.open)}>
         <summary>Thread and review</summary>
         <div className="thread">
@@ -540,7 +550,7 @@ function FeedbackRecordCard({
         )}
         {record.status === "ready_for_review" && (
           <label>
-            Acceptance note or reason to reopen
+            Reason to reopen
             <textarea value={detail} onChange={(event) => setDetail(event.target.value)} />
           </label>
         )}
@@ -581,8 +591,8 @@ function FeedbackRecordCard({
           )}
           {record.status === "ready_for_review" && (
             <>
-              <button type="button" disabled={updating} onClick={accept}>
-                Accept
+              <button type="button" disabled={updating || !pullRequest} onClick={merge}>
+                Merge PR
               </button>
               <button type="button" disabled={updating || !detail.trim()} onClick={reopen}>
                 Reopen

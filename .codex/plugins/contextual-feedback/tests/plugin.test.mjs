@@ -118,6 +118,7 @@ test("agent verification requires user acceptance before resolution", () => {
   const root = fixture();
   const record = createFeedback(root, input("Add a projects page"));
   transitionFeedback(root, record.id, "in_progress");
+  linkPr(root, record.id);
   assert.throws(
     () => transitionFeedback(root, record.id, "ready_for_review", { verification: "too short" }),
     /Verification evidence/,
@@ -142,6 +143,7 @@ test("agent lifecycle operations cannot claim user review authority", () => {
   const root = fixture();
   const record = createFeedback(root, input("Keep closure user-owned"));
   transitionFeedback(root, record.id, "in_progress");
+  linkPr(root, record.id);
   transitionFeedback(root, record.id, "ready_for_review", {
     verification: "Verified the bounded behavior and recorded evidence for user review.",
   });
@@ -159,6 +161,7 @@ test("rejection and reopening preserve verification and complete history", () =>
   const root = fixture();
   const record = createFeedback(root, input("Add a projects page"));
   transitionFeedback(root, record.id, "in_progress");
+  linkPr(root, record.id);
   transitionFeedback(root, record.id, "ready_for_review", {
     verification: "Built the route and verified the page through the browser integration test.",
   });
@@ -227,6 +230,7 @@ test("every emitted event matches the tracked v4 JSON Schema", () => {
   });
   transitionFeedback(root, record.id, "in_progress");
   heartbeatFeedback(root, record.id);
+  linkPr(root, record.id);
   transitionFeedback(root, record.id, "ready_for_review", {
     verification: "Validated the emitted event history with the repository JSON Schema.",
   });
@@ -251,4 +255,12 @@ function readEvents(root) {
     .split("\n")
     .filter(Boolean)
     .map(JSON.parse);
+}
+
+function linkPr(root, id, number = 42) {
+  return linkFeedbackWork(
+    root,
+    id,
+    `pull-request:https://github.com/example/origin/pull/${number}`,
+  );
 }

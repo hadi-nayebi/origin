@@ -180,20 +180,24 @@ describe("Origin dashboard", () => {
     expect(await screen.findByText("Answer saved and wake queued.")).toBeTruthy();
   });
 
-  test("user accepts verified work and cannot silently edit verification", async () => {
+  test("user merges the linked PR and cannot silently edit verification", async () => {
     const user = userEvent.setup();
     let current = record({
       status: "ready_for_review",
       verification: "Built the page and verified its route and browser controls.",
+      linkedWork: ["pull-request:https://github.com/example/origin/pull/42"],
     });
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
         if (url === "/api/feedback" && !init?.method) return response(view([current], "waiting"));
-        if (url.includes(current.id) && init?.method === "PATCH") {
-          const body = JSON.parse(String(init.body));
-          current = { ...current, status: body.status, acceptance: body.acceptance };
+        if (url.endsWith(`/${current.id}/merge`) && init?.method === "POST") {
+          current = {
+            ...current,
+            status: "resolved",
+            acceptance: "User merged PR #42 at 2026-09-12T20:00:00Z.",
+          };
           return response({
             record: current,
             delivery: { state: "pending", transport: "tmux", pending: 1, last: null },
@@ -205,8 +209,13 @@ describe("Origin dashboard", () => {
     render(<App />);
     await user.click(await screen.findByRole("button", { name: /items need your attention/ }));
     expect(await screen.findByText(/Built the page and verified/)).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: "Accept" }));
-    expect(await screen.findByText("Acceptance saved and wake queued.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: /pull\/42/ }).getAttribute("href")).toBe(
+      "https://github.com/example/origin/pull/42",
+    );
+    await user.click(screen.getByRole("button", { name: "Merge PR" }));
+    expect(
+      await screen.findByText("Pull request merged; acceptance saved and wake queued."),
+    ).toBeTruthy();
   });
 });
 

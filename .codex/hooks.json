@@ -1,6 +1,19 @@
 {
-  "description": "Independent channel Stop hooks. Passive channels abstain.",
+  "description": "Owner authority plus independent channel Stop hooks. Passive channels abstain.",
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/scripts/owner-authority-hook.mjs\"",
+            "timeout": 5,
+            "statusMessage": "Protecting owner merge authority"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

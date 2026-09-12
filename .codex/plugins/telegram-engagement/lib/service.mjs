@@ -13,6 +13,7 @@ import {
   mergeFeedback,
 } from "../../_engagement-core/lib/service.mjs";
 import { pauseAgent, resumeAgent, readAgentState } from "../../_engagement-core/lib/state.mjs";
+import { requirePullRequestReference } from "../../_engagement-core/lib/work-reference.mjs";
 import { readTransport, updateTransport, scopeFor } from "./storage.mjs";
 
 export function authorized(message, config) {
@@ -64,18 +65,28 @@ export function receiveUpdate(root, config, update) {
         ) {
           const current = getFeedback(scopeFor(root), action.threadId);
           if (recordVersion(current) === action.version) {
-            reviewFeedbackMutation(scopeFor(root), action.threadId, action.status, {
-              expectedVersion: action.version,
-              acceptance: "Accepted by paired Telegram owner.",
-              reason:
-                action.status === "dismissed"
-                  ? "Paired Telegram owner withdrew this request."
-                  : "Paired Telegram owner requested another review.",
-            });
+            if (action.status === "resolved") {
+              state.ownerActions[`callback-${update.update_id}`] = {
+                id: `callback-${update.update_id}`,
+                type: "merge",
+                threadId: action.threadId,
+                expectedVersion: action.version,
+                replyToMessageId: callback.message?.message_id || null,
+                status: "pending",
+                createdAt: new Date().toISOString(),
+              };
+            } else
+              reviewFeedbackMutation(scopeFor(root), action.threadId, action.status, {
+                expectedVersion: action.version,
+                reason:
+                  action.status === "dismissed"
+                    ? "Paired Telegram owner withdrew this request."
+                    : "Paired Telegram owner requested another review.",
+              });
             action.used = true;
             state.callbackReceipts[String(update.update_id)] =
               action.status === "resolved"
-                ? "Accepted."
+                ? "Merge requested."
                 : action.status === "dismissed"
                   ? "Withdrawn; history preserved."
                   : "Reopened.";
@@ -88,12 +99,22 @@ export function receiveUpdate(root, config, update) {
         const text = message.text || message.caption || "";
         const files = mediaOf(message);
         const command = files.length ? "" : text.trim();
+        const merge = command.match(/^\/merge(?:@[A-Za-z0-9_]+)?\s+#?([1-9]\d*)$/);
         if (command === "/pause")
           pauseAgent(scopeFor(root), "Paused by the paired Telegram owner.");
         else if (command === "/resume") {
           if (readAgentState(scopeFor(root)).mode === "paused") resumeAgent(scopeFor(root));
         } else if (command === "/voice-sample")
           state.enrollment = { expiresAt: Date.now() + 600000 };
+        else if (merge)
+          state.ownerActions[`command-${update.update_id}`] = {
+            id: `command-${update.update_id}`,
+            type: "merge",
+            pullRequestNumber: Number(merge[1]),
+            replyToMessageId: message.message_id,
+            status: "pending",
+            createdAt: new Date().toISOString(),
+          };
         else {
           const sample =
             state.enrollment?.expiresAt > Date.now() &&
@@ -260,6 +281,7 @@ export function queueReply(root, id, text, kind = "progress", materials = [], op
       throw new Error(
         "Reply is invalid for the current thread status; inspect or start the thread first.",
       );
+    if (kind === "review") requirePullRequestReference(current);
     const pending = Object.values(state.outbox).filter(
       (p) => p.threadId === id && !["sent", "superseded", "cancelled"].includes(p.status),
     );
@@ -306,7 +328,7 @@ export function commitReply(root, packageId) {
       const actions =
         item.kind === "review"
           ? [
-              ["Accept", "resolved"],
+              ["Merge PR", "resolved"],
               ["Reopen", "open"],
               ["Withdraw", "dismissed"],
             ]
@@ -339,6 +361,16 @@ export function channelStatus(root) {
       error,
     })),
     outbox: Object.values(state.outbox).map(({ id, status, error }) => ({ id, status, error })),
+    ownerActions: Object.values(state.ownerActions).map(
+      ({ id, type, threadId, pullRequestNumber, status, error }) => ({
+        id,
+        type,
+        threadId,
+        pullRequestNumber,
+        status,
+        error,
+      }),
+    ),
   };
 }
 

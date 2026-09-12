@@ -31,6 +31,7 @@ import {
   verifyFeedback,
 } from "../../_engagement-core/lib/service.mjs";
 import { pauseAgent, resumeAgent } from "../../_engagement-core/lib/state.mjs";
+import { linkPullRequest, prepareWorktree } from "../../_engagement-core/lib/pull-request.mjs";
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const root = path.resolve(process.env.ORIGIN_REPOSITORY_ROOT || path.join(pluginRoot, "../../.."));
@@ -98,6 +99,8 @@ try {
     reconcileAgentState(scope);
     print(resumeAgent(scope));
   } else if (command === "verify") print(verifyFeedback(scope));
+  else if (command === "link-pr") print(linkPullRequest(scope, id, args[0]));
+  else if (command === "worktree") print(prepareWorktree(scope, id));
   else if (command === "enable") {
     loadConfig(root);
     reconcileAgentState(scope);
@@ -171,7 +174,7 @@ try {
     print({ voiceRepliesEnabled: enabled, textTransportReady: true });
   } else
     throw new Error(
-      "Usage: telegram <setup|install-voice|voice-replies|run|doctor|enable|disable|status|list|next|get|start|reply|ask|review|material|associate|pause|resume|verify|retry-input|retry-output|reconcile-output|sample-text> [id] [text or file]",
+      "Usage: telegram <setup|install-voice|voice-replies|run|doctor|enable|disable|status|list|next|get|start|reply|ask|review|material|associate|worktree|link-pr|pause|resume|verify|retry-input|retry-output|reconcile-output|sample-text> [id] [text or file]",
     );
 } catch (error) {
   process.stderr.write(error.message + "\n");

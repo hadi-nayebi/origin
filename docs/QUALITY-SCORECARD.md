@@ -43,8 +43,8 @@ has been executed or inspected on the current revision. No partial credit or ext
 6. Other runnable work prevents a single blocked thread from making the agent waiting within its
    channel.
 7. Agent verification is required before review.
-8. The agent service and CLI cannot resolve, dismiss, or perform review-based reopening; the
-   separate dashboard review operation records those actions.
+8. Each reviewed parent thread has exactly one managed worktree branch and repository-matched PR;
+   the agent service and CLI expose no merge or direct-resolution operation.
 9. Rejection and reopening preserve history and wake Codex.
 10. Active blocks Stop; waiting, paused, idle, and corrupt-state behavior are tested.
 
@@ -55,7 +55,7 @@ has been executed or inspected on the current revision. No partial credit or ext
 3. Feedback captures kind, body, actual browser pathname, and a derived or page-provided label.
 4. Threads show raw messages, interpretation, verification, and lifecycle.
 5. Waiting questions and review requests display an attention indicator.
-6. User answer, acceptance, dismissal, and reopening operate through bounded APIs.
+6. User answer, PR merge acceptance, dismissal, and reopening operate through bounded APIs.
 7. Server binds only to loopback and rejects cross-origin requests.
 8. Payload, path, and content-type boundaries are enforced.
 9. Wake prompts contain identifiers/routes rather than raw bodies.
@@ -98,7 +98,8 @@ has been executed or inspected on the current revision. No partial credit or ext
 6. Feedback during active work queues without interruption.
 7. Agent question appears in the dashboard and permits legitimate waiting.
 8. User answer wakes the same session and work resumes.
-9. Verification, user acceptance, rejection, and reopening complete successfully.
+9. Worktree/PR creation, verification, owner merge acceptance, rejection, and reopening complete
+   successfully.
 10. Restart recovers pending feedback and wake delivery.
 
 The live dimension remains incomplete until performed on an authenticated target machine. CI is not

@@ -37,6 +37,12 @@ Voice is the soft organ. Schema validation, serialized state mutation, lifecycle
 tests are hard organs. A healthy plugin lets these layers reinforce one another without confusing
 coaching with enforcement.
 
+Origin's owner-authority PreToolUse hook is one such hard organ. The lifecycle does not rely on an
+instruction asking the agent not to approve itself: supported agent merge routes, direct resolution,
+protected-base pushes, and edits to the authority controls are denied. The separate owner-facing
+broker can merge only the exact PR linked to the current reviewed thread and records resolution only
+after GitHub confirms it.
+
 ## Avoid scattered cognition
 
 Generic dashboard and server code may transport, validate, and render plugin records. It should not

@@ -7,6 +7,7 @@ import { ensureAgentState } from "../../agent-stop-state/lib/state.mjs";
 import { pauseAgent } from "../../agent-stop-state/lib/state.mjs";
 import {
   createFeedback,
+  linkFeedbackWork,
   reviewFeedback,
   transitionFeedback,
 } from "../../contextual-feedback/lib/service.mjs";
@@ -531,6 +532,7 @@ test("stale wake is cancelled after user acceptance", async () => {
   });
   enqueueWake(root, { kind: "feedback.new", reference: record.id, route: "/" });
   transitionFeedback(root, record.id, "in_progress");
+  linkFeedbackWork(root, record.id, "pull-request:https://github.com/example/origin/pull/42");
   transitionFeedback(root, record.id, "ready_for_review", {
     verification: "Updated the title and verified the rendered heading in the UI test.",
   });

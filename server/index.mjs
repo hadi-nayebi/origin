@@ -1,3 +1,4 @@
+import { pluginPresent } from "../.codex/plugins/_engagement-core/lib/scope.mjs";
 import express from "express";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -12,8 +13,14 @@ import {
   reconcileAgentState,
   reviewFeedbackMutation,
   verifyFeedback,
-} from "../.codex/plugins/contextual-feedback/lib/service.mjs";
-import { ensureAgentState, stopOutcome } from "../.codex/plugins/agent-stop-state/lib/state.mjs";
+} from "../.codex/plugins/_engagement-core/lib/service.mjs";
+import {
+  ensureAgentState,
+  stopOutcome,
+  pauseAgent,
+  resumeAgent,
+  readAgentState,
+} from "../.codex/plugins/_engagement-core/lib/state.mjs";
 import {
   enqueueFeedbackWake,
   hasFeedbackWakeForEvent,
@@ -23,6 +30,12 @@ import {
 } from "../.codex/plugins/_dashboard-runtime/lib/wake-outbox.mjs";
 import { runtimeInstanceId } from "../.codex/plugins/_dashboard-runtime/lib/runtime-control.mjs";
 
+import {
+  attachMaterial,
+  materialForThread,
+  threadView,
+} from "../.codex/plugins/_engagement-core/lib/materials.mjs";
+
 const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 export async function createOriginApp(options = {}) {
@@ -31,28 +44,41 @@ export async function createOriginApp(options = {}) {
   const serveUi = options.serveUi !== false;
   const devNonce = isDev && serveUi ? randomBytes(24).toString("base64") : null;
   const app = express();
+  const feedbackEnabled = pluginPresent(sourceRoot);
 
   app.disable("x-powered-by");
   app.use((request, response, next) => securityHeaders(request, response, next, devNonce));
   app.use(requireLocalRequest);
   app.use(express.json({ limit: "16kb", strict: true, type: "application/json" }));
 
+  app.use("/api/feedback", (request, response, next) => {
+    if (feedbackEnabled) return next();
+    if (request.method === "GET")
+      return response.json({
+        records: [],
+        disabled: true,
+        feedbackMode: { mode: "idle" },
+        outcome: { mode: "idle", block: false },
+        delivery: { state: "idle", pending: 0 },
+      });
+    return response.status(404).json({ error: "Dashboard engagement plugin is not installed." });
+  });
   app.get("/api/health", (_request, response) => {
     response.json({
       name: "origin",
       instanceId: runtimeInstanceId(root),
       status: "ready",
       localOnly: true,
-      ledger: verifyFeedback(root),
-      agent: stopOutcome(root),
-      delivery: wakeStatus(root),
+      ledger: feedbackEnabled ? verifyFeedback(root) : { disabled: true },
+      agent: feedbackEnabled ? stopOutcome(root) : { mode: "idle", block: false },
+      delivery: feedbackEnabled ? wakeStatus(root) : { state: "idle", pending: 0 },
     });
   });
 
   app.get("/api/feedback", (_request, response, next) => {
     try {
       response.json({
-        records: listFeedback(root),
+        records: listFeedback(root).map((record) => threadView(root, record)),
         feedbackMode: feedbackMode(root),
         outcome: stopOutcome(root),
         delivery: wakeStatus(root),
@@ -89,6 +115,22 @@ export async function createOriginApp(options = {}) {
     }
   });
 
+  app.post("/api/feedback/control", (request, response, next) => {
+    try {
+      requireJson(request);
+      if (request.body?.action === "pause") pauseAgent(root, "Paused by the dashboard owner.");
+      else if (request.body?.action === "resume") {
+        reconcileAgentState(root);
+        if (readAgentState(root).mode === "paused") resumeAgent(root);
+        ensureRunnableWakeCoverage(root);
+        if (options.deliverWakes !== false) scheduleWakeDelivery(root, options.wakeOptions);
+      } else throw new Error("Invalid dashboard channel control.");
+      response.json({ outcome: stopOutcome(root), delivery: wakeStatus(root) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.post("/api/feedback/wake", async (request, response, next) => {
     try {
       requireJson(request);
@@ -103,6 +145,8 @@ export async function createOriginApp(options = {}) {
   });
 
   app.post("/api/session/wake", (request, response, next) => {
+    if (!feedbackEnabled)
+      return response.json({ wake: null, disabled: true, delivery: { state: "idle", pending: 0 } });
     try {
       requireJson(request);
       let wake = null;
@@ -156,13 +200,55 @@ export async function createOriginApp(options = {}) {
     }
   });
 
+  app.post(
+    "/api/feedback/:id/materials",
+    express.raw({ type: "application/octet-stream", limit: "20mb" }),
+    (request, response, next) => {
+      try {
+        if (!request.is("application/octet-stream"))
+          throw new Error("Content-Type application/octet-stream is required.");
+        let name;
+        try {
+          name = decodeURIComponent(String(request.headers["x-origin-file-name"] || ""));
+        } catch {
+          throw new Error("Invalid material name encoding.");
+        }
+        const { record, event } = attachMaterial(root, request.params.id, name, request.body);
+        const wake = enqueueFeedbackWake(root, {
+          kind: event.message.type === "answer" ? "feedback.answer" : "feedback.during-active",
+          reference: record.id,
+          route: record.pagePath,
+          activeReference: record.id,
+          sourceEventHash: event.hash,
+          sourceSequence: event.sequence,
+        });
+        if (options.deliverWakes !== false) scheduleWakeDelivery(root, options.wakeOptions);
+        response
+          .status(201)
+          .json({ record: threadView(root, record), wake, delivery: wakeStatus(root) });
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+  app.get("/api/feedback/:id/materials/:material", (request, response, next) => {
+    try {
+      const material = materialForThread(root, request.params.id, request.params.material);
+      response.attachment(material.name).type("application/octet-stream").send(material.bytes);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.patch("/api/feedback/:id", (request, response, next) => {
     try {
       requireJson(request);
-      const { status, reason, acceptance } = request.body || {};
+      const { status, reason, acceptance, expectedVersion } = request.body || {};
+      if (!/^[a-f0-9]{64}$/.test(expectedVersion || ""))
+        throw new Error("A current thread version is required; refresh before reviewing.");
       if (!["resolved", "open", "dismissed"].includes(status))
         throw new Error("Dashboard may only accept, reopen, or dismiss feedback.");
-      const detail = status === "resolved" ? { acceptance } : { reason };
+      const detail = { expectedVersion, ...(status === "resolved" ? { acceptance } : { reason }) };
       const { record, event } = reviewFeedbackMutation(root, request.params.id, status, detail);
       let wake = null;
       if (["resolved", "open", "dismissed"].includes(status)) {
@@ -233,7 +319,9 @@ export async function createOriginApp(options = {}) {
 
   app.use((error, _request, response, _next) => {
     if (error?.type === "entity.too.large")
-      return response.status(413).json({ error: "JSON body exceeds the 16 KiB limit." });
+      return response
+        .status(413)
+        .json({ error: "Request body exceeds the limit: 16 KiB for JSON, 20 MiB for materials." });
     if (error?.type === "entity.parse.failed")
       return response.status(400).json({ error: "Invalid JSON body." });
     const message = error instanceof Error ? error.message : "Origin request failed.";
@@ -258,16 +346,19 @@ export async function startOriginServer(options = {}) {
   if (!Number.isInteger(port) || port < 0 || port > 65535)
     throw new Error("ORIGIN_PORT must be a valid TCP port.");
   const root = path.resolve(options.root || sourceRoot);
-  ensureAgentState(root);
-  reconcileAgentState(root);
-  ensureRunnableWakeCoverage(root);
+  if (pluginPresent(sourceRoot)) {
+    ensureAgentState(root);
+    reconcileAgentState(root);
+    ensureRunnableWakeCoverage(root);
+  }
   const app = await createOriginApp({ ...options, root, dev: isDev });
   const server = await new Promise((resolve, reject) => {
     const listening = app.listen(port, host, () => resolve(listening));
     listening.once("error", reject);
   });
   server.once("close", () => void app.locals.closeUi?.());
-  if (options.deliverWakes !== false) scheduleWakeDelivery(root, options.wakeOptions);
+  if (pluginPresent(sourceRoot) && options.deliverWakes !== false)
+    scheduleWakeDelivery(root, options.wakeOptions);
   return server;
 }
 

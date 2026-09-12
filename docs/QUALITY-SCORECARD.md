@@ -1,3 +1,6 @@
+> Historical 1.0 baseline. New two-channel evidence is recorded in
+> [TWO-CHANNEL-REVIEW.md](TWO-CHANNEL-REVIEW.md); these prior scores do not certify Telegram.
+
 # Origin 1.0 evidence scorecard
 
 Each dimension has ten binary criteria. A criterion receives one point only when its named evidence
@@ -37,7 +40,8 @@ has been executed or inspected on the current revision. No partial credit or ext
 3. Questions, answers, and user review pair their message and lifecycle change in one journal event.
 4. Linked work and progress remain inspectable.
 5. Only one thread is in progress.
-6. Other runnable work prevents a single blocked thread from making the agent globally waiting.
+6. Other runnable work prevents a single blocked thread from making the agent waiting within its
+   channel.
 7. Agent verification is required before review.
 8. The agent service and CLI cannot resolve, dismiss, or perform review-based reopening; the
    separate dashboard review operation records those actions.

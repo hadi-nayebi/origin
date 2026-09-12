@@ -1,0 +1,22 @@
+{
+  "name": "telegram-engagement",
+  "version": "1.1.0",
+  "description": "Independent remote conversations, local cloned voice, durable media and reviewed agent responsibility.",
+  "author": {
+    "name": "Hadi Nayebi",
+    "url": "https://github.com/hadi-nayebi"
+  },
+  "repository": "https://github.com/hadi-nayebi/origin",
+  "license": "MIT",
+  "keywords": ["codex", "dashboard", "feedback", "agent-harness"],
+  "interface": {
+    "displayName": "Origin Telegram Engagement",
+    "shortDescription": "Remote conversation with local cloned voice and independent Stop control.",
+    "longDescription": "Independent remote conversations, local cloned voice, durable media and reviewed agent responsibility.",
+    "developerName": "Hadi Nayebi",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write", "Hooks"],
+    "defaultPrompt": ["Read the next Telegram conversation and continue its unresolved request."],
+    "brandColor": "#C9F27B"
+  }
+}

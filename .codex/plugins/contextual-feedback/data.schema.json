@@ -33,7 +33,7 @@
             "review"
           ]
         },
-        "body": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "body": { "type": "string", "minLength": 1, "maxLength": 65536 },
         "at": { "$ref": "#/$defs/timestamp" }
       }
     }
@@ -74,7 +74,7 @@
               "properties": {
                 "id": { "$ref": "#/$defs/id" },
                 "kind": { "enum": ["update", "feature", "bug"] },
-                "body": { "type": "string", "minLength": 3, "maxLength": 2000 },
+                "body": { "type": "string", "minLength": 1, "maxLength": 65536 },
                 "pagePath": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^/" },
                 "pageLabel": { "type": "string", "minLength": 1, "maxLength": 120 },
                 "status": { "const": "open" },
@@ -285,6 +285,61 @@
             "reason": { "type": "string", "minLength": 3, "maxLength": 1000 },
             "verification": { "type": "string", "minLength": 20, "maxLength": 4000 },
             "acceptance": { "type": "string", "minLength": 3, "maxLength": 2000 }
+          }
+        }
+      ]
+    },
+    {
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "sequence",
+            "previousHash",
+            "hash",
+            "type",
+            "id",
+            "at",
+            "mergedId"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 4
+            },
+            "sequence": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "previousHash": {
+              "anyOf": [
+                {
+                  "const": "GENESIS"
+                },
+                {
+                  "$ref": "#/$defs/hash"
+                }
+              ]
+            },
+            "hash": {
+              "$ref": "#/$defs/hash"
+            },
+            "type": {
+              "const": "feedback.merged"
+            },
+            "id": {
+              "$ref": "#/$defs/id"
+            },
+            "at": {
+              "$ref": "#/$defs/timestamp"
+            },
+            "mergedId": {
+              "$ref": "#/$defs/id"
+            }
           }
         }
       ]

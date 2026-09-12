@@ -1,14 +1,20 @@
 {
-  "description": "Origin host registration for the clone-local Agent Stop State gate.",
+  "description": "Independent channel Stop hooks. Passive channels abstain.",
   "hooks": {
     "Stop": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.codex/plugins/agent-stop-state/hooks/stop.mjs\"",
+            "command": "node \"$(git rev-parse --show-toplevel)/scripts/channel-hook.mjs\" contextual-feedback",
             "timeout": 5,
-            "statusMessage": "Checking Origin agent state"
+            "statusMessage": "Checking contextual-feedback"
+          },
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/scripts/channel-hook.mjs\" telegram-engagement",
+            "timeout": 5,
+            "statusMessage": "Checking telegram-engagement"
           }
         ]
       }

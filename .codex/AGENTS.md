@@ -1,9 +1,10 @@
 # Origin harness root
 
-The harness contains shared context, one visible behavior plugin (`contextual-feedback`), one
-low-level control plugin (`agent-stop-state`), and underscore-prefixed runtime infrastructure. Keep
-their ownership separate: thread lifecycle, global continuation state, and tmux transport are three
-different concerns.
+The harness has two independent communication plugins, `contextual-feedback` and
+`telegram-engagement`, backed by neutral `_engagement-core` policy and runtime transport. Each
+channel owns separate histories, continuation state, Stop decisions and wake outboxes. Removing one
+plugin must leave the other functional. Shared infrastructure may serialize terminal access; it must
+not combine or overwrite channel states.
 
 Host registrations live in `.codex/hooks.json`. A hook observes or constrains an event but does not
 become the owner of the state it reads.

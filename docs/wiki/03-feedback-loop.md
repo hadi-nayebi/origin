@@ -42,6 +42,7 @@ user, and what evidence moves the thread to its next boundary.
 
 ## Stop and waiting
 
-Contextual Feedback reconciles its complete queue into `agent-stop-state`. Runnable work means
-`active`. Review or a genuine missing input means `waiting` only when no other runnable item exists.
-No responsibility means `idle`. A user pause is distinct from completion.
+Contextual Feedback reconciles its complete queue into its own
+`.origin/contextual-feedback/data.json`. Runnable work means `active`. Review or a genuine missing
+input means `waiting` only when no other runnable item exists. No responsibility means `idle`. A
+user pause is distinct from completion.

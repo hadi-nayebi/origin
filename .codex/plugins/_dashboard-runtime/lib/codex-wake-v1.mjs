@@ -44,10 +44,16 @@ export function deliverCodexWake(root, input, options = {}) {
   const waitMilliseconds = Number(options.waitMilliseconds ?? 15_000);
   return withWakeLease(root, () => {
     const pane = resolveCodexPane(root, { run });
-    const before = capture(run, pane.id);
+    const styledBefore = capture(run, pane.id, true);
+    const before = stripTerminalStyle(styledBefore);
     const wasBusy = codexIsBusy(before);
+    if (codexEditorHasInput(styledBefore))
+      throw new Error(
+        "Codex editor is unavailable or contains pending input; preserve it and retry after it clears.",
+      );
     const buffer = `origin-${process.pid}-${crypto.randomBytes(5).toString("hex")}`;
     assertSuccess(run("tmux", ["set-buffer", "-b", buffer, "--", prompt]), "tmux buffer write");
+    options.beforeSideEffect?.();
     assertSuccess(
       run("tmux", ["paste-buffer", "-p", "-d", "-b", buffer, "-t", pane.id]),
       "tmux prompt paste",
@@ -61,25 +67,19 @@ export function deliverCodexWake(root, input, options = {}) {
     }
     if (!editorPending(current, marker, { before, promptLength: prompt.length }))
       throw new Error("Origin could not verify that the wake prompt reached the Codex editor.");
+    assertSuccess(run("tmux", ["send-keys", "-t", pane.id, "Enter"]), "tmux prompt submit");
     for (let attempt = 0; attempt < 12; attempt += 1) {
-      const key = attempt % 2 === 0 ? "C-m" : "Enter";
-      assertSuccess(run("tmux", ["send-keys", "-t", pane.id, key]), "tmux prompt submit");
       wait(250);
       current = capture(run, pane.id);
       if (
-        submissionAccepted({
-          value: current,
-          marker,
-          wasBusy,
-          before,
-          promptLength: prompt.length,
-        })
+        submissionAccepted({ value: current, marker, wasBusy, before, promptLength: prompt.length })
       )
         return Object.freeze({
           state: wasBusy ? "queued-without-interruption" : "submitted",
           transport: "tmux",
           pane: pane.id,
           session: pane.session,
+          evidence: "Unique marker observed with submission transition.",
         });
     }
     throw new Error("Origin pasted the wake prompt but could not verify its submission to Codex.");
@@ -90,6 +90,54 @@ export function codexIsBusy(captured) {
   return /esc to interrupt|ctrl-c to interrupt|Working \(\d+|Messages to be submitted after next tool call/i.test(
     captured,
   );
+}
+
+// Codex renders an empty editor's placeholder with SGR dim (2). Its words are
+// configurable, so text matching would mistake an identical owner draft for a
+// placeholder. Inspect styling only at the final prompt, never transcript text.
+export function codexEditorHasInput(captured) {
+  const lines = String(captured).split("\n");
+  let prompt = -1;
+  for (let index = 0; index < lines.length; index += 1)
+    if (stripTerminalStyle(lines[index]).startsWith("› ")) prompt = index;
+  if (prompt < 0) return true;
+  const block = [];
+  for (const line of lines.slice(prompt)) {
+    if (!stripTerminalStyle(line).trim()) break;
+    block.push(line);
+  }
+  const editor = block.join("\n").replace(/^.*?›/, "");
+  let dim = false;
+  let placeholder = false;
+  for (const part of editor.split(/(\x1b\[[0-9;]*m)/)) {
+    if (part.startsWith("\x1b[")) {
+      const codes = part.slice(2, -1).split(";").map(Number);
+      for (let index = 0; index < codes.length; index += 1) {
+        const code = codes[index];
+        if ([38, 48, 58].includes(code)) {
+          index += codes[index + 1] === 2 ? 4 : codes[index + 1] === 5 ? 2 : 0;
+          continue;
+        }
+        if (code === 0 || code === 22) dim = false;
+        if (code === 2) dim = true;
+      }
+    } else if (part.trim()) {
+      if (!dim) return true;
+      placeholder = true;
+    }
+  }
+  // A draft may start with blank lines. Only the styled placeholder establishes
+  // that following text belongs to terminal chrome rather than such a draft.
+  if (
+    !placeholder &&
+    lines.slice(prompt + block.length).some((line) => stripTerminalStyle(line).trim())
+  )
+    return true;
+  return false;
+}
+
+function stripTerminalStyle(value) {
+  return String(value).replace(/\x1b\[[0-9;]*m/g, "");
 }
 
 export function editorPending(value, marker, options = {}) {
@@ -109,9 +157,10 @@ export function editorPending(value, marker, options = {}) {
 export function submissionAccepted({ value, marker, wasBusy, before, promptLength }) {
   const queued = /Messages to be submitted after next tool call/i;
   return (
-    !editorPending(value, marker, { before, promptLength }) ||
-    (!wasBusy && codexIsBusy(value)) ||
-    (wasBusy && queued.test(String(value)) && !queued.test(String(before || "")))
+    String(value).includes(marker) &&
+    (!editorPending(value, marker, { before, promptLength }) ||
+      (!wasBusy && codexIsBusy(value)) ||
+      (wasBusy && queued.test(String(value)) && !queued.test(String(before || ""))))
   );
 }
 
@@ -121,10 +170,10 @@ function pastedLengths(value) {
   );
 }
 
-function capture(run, pane) {
-  const result = run("tmux", ["capture-pane", "-p", "-J", "-t", pane, "-S", "-80"]);
+function capture(run, pane, styled = false) {
+  const result = run("tmux", ["capture-pane", "-p", "-e", "-J", "-t", pane, "-S", "-80"]);
   assertSuccess(result, "tmux pane capture");
-  return String(result.stdout || "");
+  return styled ? String(result.stdout || "") : stripTerminalStyle(result.stdout || "");
 }
 
 function readProcesses(run) {
@@ -196,7 +245,12 @@ function withWakeLease(root, operation) {
 function clearStaleLease(file) {
   try {
     const value = JSON.parse(fs.readFileSync(file, "utf8"));
-    if (Date.now() - Date.parse(value.at) > 30_000) fs.unlinkSync(file);
+    if (value.host !== os.hostname() || !Number.isInteger(value.pid)) return;
+    try {
+      process.kill(value.pid, 0);
+    } catch (error) {
+      if (error.code === "ESRCH") fs.unlinkSync(file);
+    }
   } catch {}
 }
 

@@ -73,7 +73,7 @@ test("revision mismatch and corrupt state fail closed", () => {
       ),
     /revision changed/,
   );
-  fs.writeFileSync(path.join(root, ".origin", "agent-stop-state", "data.json"), "not-json");
+  fs.writeFileSync(path.join(root, ".origin", "contextual-feedback", "data.json"), "not-json");
   assert.throws(() => readAgentState(root), /corrupt/);
 });
 
@@ -94,7 +94,7 @@ test("state rejects line-breaking voice inserts", () => {
 test("state rejects symbolic files instead of following them", (context) => {
   if (process.platform === "win32") return context.skip("Windows symlink creation is privileged.");
   const root = fixture();
-  const directory = path.join(root, ".origin", "agent-stop-state");
+  const directory = path.join(root, ".origin", "contextual-feedback");
   fs.mkdirSync(directory, { recursive: true });
   const target = path.join(root, "outside.json");
   fs.writeFileSync(target, JSON.stringify({}));

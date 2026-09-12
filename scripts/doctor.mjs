@@ -2,73 +2,50 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { ensureAgentState, stopOutcome } from "../.codex/plugins/agent-stop-state/lib/state.mjs";
-import { verifyFeedback } from "../.codex/plugins/contextual-feedback/lib/service.mjs";
+import { ensureAgentState } from "../.codex/plugins/_engagement-core/lib/state.mjs";
+import { verifyFeedback } from "../.codex/plugins/_engagement-core/lib/service.mjs";
+import { CHANNELS, pluginPresent } from "../.codex/plugins/_engagement-core/lib/scope.mjs";
 import { inspectMachine } from "../.codex/plugins/_dashboard-runtime/lib/machine.mjs";
-
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const checks = [];
-const machine = inspectMachine();
-for (const item of machine.checks) check(item.name, item.ok, item.detail);
-
+const checks = [...inspectMachine().checks];
 try {
-  const hooks = JSON.parse(fs.readFileSync(path.join(root, ".codex", "hooks.json"), "utf8"));
-  const hook = hooks?.hooks?.Stop?.[0]?.hooks?.[0];
-  check(
-    "Codex Stop registration",
-    hook?.type === "command" &&
-      hook?.command ===
-        'node "$(git rev-parse --show-toplevel)/.codex/plugins/agent-stop-state/hooks/stop.mjs"' &&
-      hook?.timeout === 5,
-    "registered to agent-stop-state",
-  );
+  const hooks = JSON.parse(fs.readFileSync(path.join(root, ".codex/hooks.json"), "utf8"));
+  const commands = hooks.hooks.Stop.flatMap((group) => group.hooks);
+  for (const channel of CHANNELS) {
+    checks.push({
+      name: `${channel} Stop registration`,
+      ok: commands.some(
+        (h) =>
+          h.type === "command" &&
+          h.command ===
+            `node "$(git rev-parse --show-toplevel)/scripts/channel-hook.mjs" ${channel}` &&
+          h.timeout === 5,
+      ),
+    });
+    const scope = { root, channel };
+    if (!pluginPresent(scope)) {
+      checks.push({ name: `${channel} removed; other channel remains independent`, ok: true });
+      continue;
+    }
+    if (
+      channel === "telegram-engagement" &&
+      !fs.existsSync(path.join(root, ".origin/telegram-engagement/enabled.json"))
+    ) {
+      checks.push({ name: "Telegram optional activation is off", ok: true });
+      continue;
+    }
+    ensureAgentState(scope);
+    checks.push({ name: `${channel} journal`, ok: verifyFeedback(scope).valid });
+  }
 } catch (error) {
-  check("Codex Stop registration", false, error.message);
+  checks.push({ name: "Channel integrity", ok: false, detail: error.message });
 }
-
-for (const relative of [
-  ".codex/plugins/agent-stop-state/hooks/stop.mjs",
-  ".codex/plugins/agent-stop-state/voice.xml",
-  ".codex/plugins/agent-stop-state/data.schema.json",
-  ".codex/plugins/contextual-feedback/scripts/feedback.mjs",
-  ".codex/plugins/contextual-feedback/voice.xml",
-  ".codex/plugins/contextual-feedback/data.schema.json",
-  ".codex/plugins/_dashboard-runtime/lib/codex-wake-v1.mjs",
-  ".codex/plugins/_dashboard-runtime/lib/wake-outbox.mjs",
-  ".codex/plugins/_dashboard-runtime/scripts/start-harness.mjs",
-])
-  check(`Required file: ${relative}`, fs.existsSync(path.join(root, relative)), "present");
-
-try {
-  ensureAgentState(root);
-  check("Agent state", Boolean(stopOutcome(root).mode), JSON.stringify(stopOutcome(root)));
-} catch (error) {
-  check("Agent state", false, error.message);
-}
-try {
-  check("Feedback ledger", verifyFeedback(root).valid, JSON.stringify(verifyFeedback(root)));
-} catch (error) {
-  check("Feedback ledger", false, error.message);
-}
-
-for (const result of checks)
+for (const check of checks)
   console.log(
-    `${result.ok ? "PASS" : "FAIL"}  ${result.name}${result.detail ? ` — ${result.detail}` : ""}`,
+    `${check.ok ? "PASS" : "FAIL"}  ${check.name}${check.detail ? ` — ${check.detail}` : ""}`,
   );
-const failed = checks.filter((result) => !result.ok);
-if (failed.length) {
-  console.error(
-    `Origin doctor found ${failed.length} blocking problem${failed.length === 1 ? "" : "s"}.`,
+if (checks.some((c) => !c.ok)) process.exitCode = 1;
+else
+  console.log(
+    "Local prerequisites and channel journals pass. Run Telegram doctor and the documented live acceptance separately; this does not prove hook trust or remote voice delivery.",
   );
-  process.exitCode = 1;
-} else console.log("Origin interactive dashboard and Codex harness are ready.");
-
-function check(name, ok, detail = "") {
-  checks.push({
-    name,
-    ok: Boolean(ok),
-    detail: String(detail || "")
-      .replace(/\s+/g, " ")
-      .slice(0, 400),
-  });
-}

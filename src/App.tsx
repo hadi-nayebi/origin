@@ -15,11 +15,15 @@ type Surface = { kind: "canvas"; path: string } | { kind: "wiki"; slug?: string 
 export default function App() {
   const [surface, setSurface] = useState<Surface>(() => surfaceFromPath(window.location.pathname));
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackEnabled, setFeedbackEnabled] = useState(true);
   const [attention, setAttention] = useState(0);
   const refreshAttention = async () => {
-    const { records } = await api.feedback();
+    const { records, disabled } = await api.feedback();
+    setFeedbackEnabled(!disabled);
     setAttention(
-      records.filter((record) => ["waiting", "ready_for_review"].includes(record.status)).length,
+      records.filter(
+        (record) => !record.mergedInto && ["waiting", "ready_for_review"].includes(record.status),
+      ).length,
     );
   };
   const navigate = (next: Surface) => {
@@ -70,22 +74,24 @@ export default function App() {
         <BookIcon />
         <span>Wiki</span>
       </button>
-      <button
-        className="floating-control feedback-control"
-        onClick={() => setFeedbackOpen(true)}
-        aria-label={
-          attention ? `Give feedback, ${attention} items need your attention` : "Give feedback"
-        }
-      >
-        <CommentIcon />
-        <span>Feedback</span>
-        {attention > 0 && (
-          <b className="attention-dot" aria-hidden="true">
-            {attention}
-          </b>
-        )}
-      </button>
-      {feedbackOpen && (
+      {feedbackEnabled && (
+        <button
+          className="floating-control feedback-control"
+          onClick={() => setFeedbackOpen(true)}
+          aria-label={
+            attention ? `Give feedback, ${attention} items need your attention` : "Give feedback"
+          }
+        >
+          <CommentIcon />
+          <span>Feedback</span>
+          {attention > 0 && (
+            <b className="attention-dot" aria-hidden="true">
+              {attention}
+            </b>
+          )}
+        </button>
+      )}
+      {feedbackEnabled && feedbackOpen && (
         <FeedbackPanel
           pagePath={pagePath}
           pageLabel={pageLabel}
@@ -293,6 +299,22 @@ function FeedbackPanel({
       setSubmitting(false);
     }
   };
+  const controlChannel = async () => {
+    try {
+      const result = await api.controlFeedback(outcome.mode === "paused" ? "resume" : "pause");
+      setOutcome(result.outcome);
+      setDelivery(result.delivery);
+      setStatus(
+        result.outcome.mode === "paused"
+          ? "Dashboard channel paused. Incoming comments are retained."
+          : "Dashboard channel resumed.",
+      );
+    } catch (error) {
+      setStatus(
+        error instanceof Error ? error.message : "Could not change dashboard channel state.",
+      );
+    }
+  };
   const retryWake = async () => {
     setStatus("Retrying delivery…");
     try {
@@ -325,12 +347,15 @@ function FeedbackPanel({
         <section className="delivery-summary" aria-labelledby="delivery-title">
           <div>
             <p id="delivery-title" className={`delivery-state ${delivery.state}`}>
-              Agent state: {outcome.mode} · tmux: {delivery.state}
+              Dashboard channel: {outcome.mode} · tmux: {delivery.state}
             </p>
             <p>Saved feedback targets the same interactive Codex session open in your terminal.</p>
             {outcome.reference && <small>Current responsibility: {outcome.reference.id}</small>}
             {delivery.last?.error && <small>{delivery.last.error}</small>}
           </div>
+          <button type="button" onClick={controlChannel}>
+            {outcome.mode === "paused" ? "Resume dashboard channel" : "Pause dashboard channel"}
+          </button>
           {delivery.pending > 0 && (
             <button type="button" onClick={retryWake}>
               Retry wake
@@ -432,18 +457,39 @@ function FeedbackRecordCard({
         api.transitionFeedback(record.id, {
           status: "resolved",
           acceptance: detail.trim() || "Accepted by user.",
+          expectedVersion: record.version,
         }),
       "Acceptance saved and wake queued.",
     );
   const reopen = () =>
     run(
-      () => api.transitionFeedback(record.id, { status: "open", reason: detail }),
+      () =>
+        api.transitionFeedback(record.id, {
+          status: "open",
+          reason: detail,
+          expectedVersion: record.version,
+        }),
       "Reopened and wake queued.",
     );
   const dismiss = () =>
     run(
-      () => api.transitionFeedback(record.id, { status: "dismissed", reason: detail }),
+      () =>
+        api.transitionFeedback(record.id, {
+          status: "dismissed",
+          reason: detail,
+          expectedVersion: record.version,
+        }),
       "Withdrawal saved and wake queued.",
+    );
+  if (record.mergedInto)
+    return (
+      <article className="feedback-record">
+        <p>{record.body}</p>
+        <p>
+          Associated with thread <code>{record.mergedInto}</code>. Continue and review the complete
+          conversation in its parent thread.
+        </p>
+      </article>
     );
   return (
     <article className={`feedback-record ${needsAttention ? "needs-attention" : ""}`}>
@@ -472,6 +518,17 @@ function FeedbackRecordCard({
                 {item.role} · {item.type}
               </small>
               <p>{item.body}</p>
+              {item.material &&
+                (item.material.error ? (
+                  <p role="alert">{item.material.error}</p>
+                ) : (
+                  <a
+                    href={`/api/feedback/${encodeURIComponent(record.id)}/materials/${encodeURIComponent(item.material.id)}`}
+                    download
+                  >
+                    {item.material.name} ({item.material.size} bytes)
+                  </a>
+                ))}
             </div>
           ))}
         </div>
@@ -499,6 +556,23 @@ function FeedbackRecordCard({
             <textarea value={detail} onChange={(event) => setDetail(event.target.value)} />
           </label>
         )}
+        <label>
+          Attach a file to this thread (up to 20 MiB)
+          <input
+            type="file"
+            disabled={updating}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (!file) return;
+              if (file.size > 20 * 1024 * 1024) {
+                setMessage("File exceeds the 20 MiB limit.");
+                return;
+              }
+              void run(() => api.attachMaterial(record.id, file), "File saved and wake queued.");
+            }}
+          />
+        </label>
         <div className="record-actions">
           {["open", "in_progress", "waiting"].includes(record.status) && (
             <button type="button" disabled={updating || !detail.trim()} onClick={submitMessage}>
@@ -520,7 +594,7 @@ function FeedbackRecordCard({
               Reopen
             </button>
           )}
-          {["open", "waiting"].includes(record.status) && (
+          {["open", "in_progress", "waiting", "ready_for_review"].includes(record.status) && (
             <button type="button" disabled={updating || !detail.trim()} onClick={dismiss}>
               Withdraw
             </button>

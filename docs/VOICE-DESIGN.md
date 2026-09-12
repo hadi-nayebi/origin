@@ -38,7 +38,7 @@ license a guess; idle cannot be declared merely to escape a Stop block.
 | ------------------------------------------ | ---------------------------------------------------------------------------- |
 | Explain why focus should be preserved.     | Lifecycle policy permits only one in-progress thread.                        |
 | Remind Codex to retrieve the thread by ID. | Contracts validate IDs, routes, roles, and payload bounds.                   |
-| Explain why unresolved work must continue. | The Stop hook exits nonzero while global state is active.                    |
+| Explain why unresolved work must continue. | The Stop hook exits nonzero while owning channel state is active.            |
 | Explain why user review owns closure.      | The agent CLI exposes review preparation but not acceptance or dismissal.    |
 | Explain why a wake is durable.             | The outbox persists every nonterminal event and retries serialized delivery. |
 

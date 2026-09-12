@@ -1,11 +1,12 @@
 #!/usr/bin/env node
+import { pluginPresent } from "../../_engagement-core/lib/scope.mjs";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { ensureAgentState } from "../../agent-stop-state/lib/state.mjs";
-import { reconcileAgentState } from "../../contextual-feedback/lib/service.mjs";
+import { ensureAgentState } from "../../_engagement-core/lib/state.mjs";
+import { reconcileAgentState } from "../../_engagement-core/lib/service.mjs";
 import { assertMachineReady } from "../lib/machine.mjs";
 import { ensureDashboardRuntime } from "../lib/runtime-control.mjs";
 
@@ -16,9 +17,15 @@ export async function startHarness(options = {}) {
   const run = options.run || runCommand;
   const repositoryRoot = path.resolve(options.root || root);
   assertMachineReady({ run, platform: options.platform, release: options.release });
-  ensureAgentState(repositoryRoot);
-  reconcileAgentState(repositoryRoot);
-  const runtime = await ensureDashboardRuntime(repositoryRoot, options);
+  const feedbackEnabled =
+    !options.telegramOnly && !process.argv.includes("--telegram-only") && pluginPresent(root);
+  if (feedbackEnabled) {
+    ensureAgentState(repositoryRoot);
+    reconcileAgentState(repositoryRoot);
+  }
+  const runtime = feedbackEnabled
+    ? await ensureDashboardRuntime(repositoryRoot, options)
+    : { state: "disabled", url: "dashboard channel disabled" };
   const session = sessionName(repositoryRoot);
   const resume = options.resumeLast ?? process.argv.includes("--resume-last");
   const command = resume ? ["codex", "resume", "--last"] : ["codex"];
@@ -30,7 +37,25 @@ export async function startHarness(options = {}) {
     );
   }
   ensureTmuxCodex(run, session, command, repositoryRoot);
-  await requestSessionWake(runtime.url, options.fetch || fetch);
+  if (feedbackEnabled) await requestSessionWake(runtime.url, options.fetch || fetch);
+  if (
+    pluginPresent({ root: repositoryRoot, channel: "telegram-engagement" }) &&
+    fs.existsSync(path.join(repositoryRoot, ".origin/telegram-engagement/enabled.json")) &&
+    JSON.parse(
+      fs.readFileSync(
+        path.join(repositoryRoot, ".origin/telegram-engagement/enabled.json"),
+        "utf8",
+      ),
+    ).enabled === true
+  ) {
+    const { startBackground } = await import(
+      pathToFileURL(
+        path.join(repositoryRoot, ".codex/plugins/telegram-engagement/lib/launcher.mjs"),
+      )
+    );
+    const telegram = await startBackground(repositoryRoot);
+    process.stdout.write(`Telegram listener: ${telegram.status} (PID ${telegram.pid})\n`);
+  }
   if (process.env.TMUX || options.insideTmux) {
     process.stdout.write(
       `Origin dashboard: ${runtime.url}\nSwitching to interactive Codex session: ${session}\n`,

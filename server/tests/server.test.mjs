@@ -7,6 +7,9 @@ import { request as httpRequest } from "node:http";
 import { fileURLToPath } from "node:url";
 import {
   askFeedbackQuestion,
+  addFeedbackMessage,
+  getFeedback,
+  recordVersion,
   createFeedback,
   reviewFeedbackMutation,
   transitionFeedback,
@@ -16,7 +19,9 @@ import { startOriginServer } from "../index.mjs";
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 async function fixtureServer() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "origin-server-"));
+  const base = path.join(repositoryRoot, ".origin", "server-fixtures");
+  fs.mkdirSync(base, { recursive: true });
+  const root = fs.mkdtempSync(path.join(base, "origin-server-"));
   fs.mkdirSync(path.join(root, "docs"));
   fs.cpSync(path.join(repositoryRoot, "docs", "wiki"), path.join(root, "docs", "wiki"), {
     recursive: true,
@@ -219,7 +224,11 @@ test("dashboard accepts verified work or reopens it but cannot impersonate agent
   const accepted = await fetch(`${app.base}/api/feedback/${created.record.id}`, {
     method: "PATCH",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ status: "resolved", acceptance: "Accepted by user." }),
+    body: JSON.stringify({
+      status: "resolved",
+      acceptance: "Accepted by user.",
+      expectedVersion: recordVersion(getFeedback(app.root, created.record.id)),
+    }),
   });
   assert.equal(accepted.status, 200);
   const payload = await accepted.json();
@@ -230,7 +239,8 @@ test("dashboard accepts verified work or reopens it but cannot impersonate agent
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ body: "Change it again without reopening." }),
   });
-  assert.equal(closedComment.status, 400);
+  assert.equal(closedComment.status, 201);
+  assert.equal((await closedComment.json()).record.status, "open");
 });
 
 test("a fresh interactive session receives a resume voice only when no wake is pending", async (context) => {
@@ -328,3 +338,132 @@ function requestWithHost(base, host) {
     request.end();
   });
 }
+
+test("dashboard review rejects stale and missing versions after a later contribution", async (t) => {
+  const app = await fixtureServer();
+  t.after(() => app.server.close());
+  const record = createFeedback(app.root, {
+    kind: "feature",
+    body: "Review latest work",
+    pagePath: "/",
+    pageLabel: "Canvas",
+  });
+  transitionFeedback(app.root, record.id, "in_progress");
+  transitionFeedback(app.root, record.id, "ready_for_review", {
+    verification: "Initial behavior was verified with regression evidence.",
+  });
+  const stale = recordVersion(getFeedback(app.root, record.id));
+  addFeedbackMessage(app.root, record.id, { body: "Also include my later correction" });
+  transitionFeedback(app.root, record.id, "in_progress");
+  transitionFeedback(app.root, record.id, "ready_for_review", {
+    verification: "The later correction was verified with new evidence.",
+  });
+  for (const expectedVersion of [undefined, stale]) {
+    const r = await fetch(`${app.base}/api/feedback/${record.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ status: "resolved", acceptance: "Looks fine", expectedVersion }),
+    });
+    assert.equal(r.status, 400);
+    assert.equal(getFeedback(app.root, record.id).status, "ready_for_review");
+  }
+  const listing = await (await fetch(`${app.base}/api/feedback`)).json();
+  assert.equal(listing.records[0].version, recordVersion(getFeedback(app.root, record.id)));
+});
+
+test("dashboard materials survive restart, wake waiting work, and remain bound to their thread", async (t) => {
+  const { attachMaterial, materialForThread, threadView } =
+    await import("../../.codex/plugins/_engagement-core/lib/materials.mjs");
+  const app = await fixtureServer();
+  t.after(() => app.server.close());
+  const create = () =>
+    createFeedback(app.root, {
+      kind: "feature",
+      body: "Exchange materials",
+      pagePath: "/",
+      pageLabel: "Canvas",
+    });
+  const a = create(),
+    b = create();
+  askFeedbackQuestion(app.root, a.id, "Please supply the evidence file.");
+  const response = await fetch(`${app.base}/api/feedback/${a.id}/materials`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/octet-stream",
+      "x-origin-file-name": encodeURIComponent("evidence.html"),
+    },
+    body: "<script>never execute this</script>",
+  });
+  assert.equal(response.status, 201);
+  const saved = await response.json();
+  assert.equal(saved.record.status, "open");
+  assert.equal(saved.wake.kind, "feedback.answer");
+  const malformed = await fetch(`${app.base}/api/feedback/${a.id}/materials`, {
+    method: "POST",
+    headers: { "content-type": "application/octet-stream", "x-origin-file-name": "%" },
+    body: "bad name",
+  });
+  assert.equal(malformed.status, 400);
+  const material = saved.record.messages.at(-1).material;
+  const download = await fetch(`${app.base}/api/feedback/${a.id}/materials/${material.id}`);
+  assert.match(download.headers.get("content-disposition"), /^attachment/);
+  assert.match(download.headers.get("content-type"), /octet-stream/);
+  assert.equal(await download.text(), "<script>never execute this</script>");
+  assert.equal(
+    (await fetch(`${app.base}/api/feedback/${b.id}/materials/${material.id}`)).status,
+    400,
+  );
+  const reply = attachMaterial(app.root, a.id, "result.txt", Buffer.from("verified result"), {
+    role: "agent",
+  });
+  assert.equal(
+    threadView(app.root, getFeedback(app.root, a.id)).messages.at(-1).material.name,
+    "result.txt",
+  );
+  assert.equal(
+    materialForThread(app.root, a.id, reply.material.id).bytes.toString(),
+    "verified result",
+  );
+  assert.throws(() => attachMaterial(app.root, a.id, "../bad", Buffer.from("no")), /Invalid/);
+  assert.throws(
+    () => attachMaterial(app.root, a.id, "large", Buffer.alloc(20 * 1024 * 1024 + 1)),
+    /limit/,
+  );
+  const local = materialForThread(app.root, a.id, material.id).localPath;
+  fs.writeFileSync(local, "modified");
+  assert.throws(() => materialForThread(app.root, a.id, material.id), /integrity/);
+});
+
+test("dashboard pause and resume retain later inputs without altering Telegram state", async (t) => {
+  const { ensureAgentState, readAgentState } =
+    await import("../../.codex/plugins/_engagement-core/lib/state.mjs");
+  const app = await fixtureServer();
+  t.after(() => app.server.close());
+  const remote = { root: app.root, channel: "telegram-engagement" };
+  ensureAgentState(remote);
+  createFeedback(remote, {
+    kind: "feature",
+    body: "Remote work stays active",
+    pagePath: "/telegram",
+    pageLabel: "Telegram",
+  });
+  const before = readAgentState(remote);
+  const control = async (action) =>
+    (
+      await fetch(`${app.base}/api/feedback/control`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action }),
+      })
+    ).json();
+  assert.equal((await control("pause")).outcome.mode, "paused");
+  createFeedback(app.root, {
+    kind: "feature",
+    body: "Preserve incoming work during pause",
+    pagePath: "/",
+    pageLabel: "Canvas",
+  });
+  assert.equal(readAgentState(app.root).mode, "paused");
+  assert.equal((await control("resume")).outcome.mode, "active");
+  assert.deepEqual(readAgentState(remote), before);
+});

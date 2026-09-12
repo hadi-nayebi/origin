@@ -1,11 +1,12 @@
+import { channelContext, ledgerDirectory } from "../../_engagement-core/lib/scope.mjs";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { getFeedback } from "../../contextual-feedback/lib/service.mjs";
-import { readAgentState } from "../../agent-stop-state/lib/state.mjs";
-import { renderVoice } from "../../contextual-feedback/lib/voice.mjs";
+import { getFeedback } from "../../_engagement-core/lib/service.mjs";
+import { readAgentState } from "../../_engagement-core/lib/state.mjs";
+import { renderVoice } from "../../_engagement-core/lib/voice.mjs";
 import { deliverCodexWake } from "./codex-wake-v1.mjs";
 
 const waitArray = new Int32Array(new SharedArrayBuffer(4));
@@ -25,7 +26,11 @@ export function enqueueFeedbackWake(root, input, now = new Date()) {
   const sourceSequence = positiveInteger(input?.sourceSequence, "Wake source sequence");
   const id = `wake-${crypto.randomUUID()}`;
   const marker = markerFor(id);
-  const prompt = renderVoice(voiceFile, kind, {
+  const selectedVoice =
+    channelContext(root).channel === "contextual-feedback"
+      ? voiceFile
+      : path.join(channelContext(root).root, ".codex/plugins/telegram-engagement/voice.xml");
+  const prompt = renderVoice(selectedVoice, kind, {
     reference,
     route,
     activeReference: input?.activeReference || reference,
@@ -61,17 +66,35 @@ export function hasFeedbackWakeForEvent(root, sourceEventHash) {
 }
 
 export async function deliverPendingWakes(root, options = {}) {
-  const key = path.resolve(root);
+  const key = ledgerDirectory(root);
   if (activeDeliveries.has(key)) return wakeStatus(root);
   activeDeliveries.add(key);
   try {
-    const deliver = options.deliver || ((input) => deliverCodexWake(root, input, options));
+    const deliver =
+      options.deliver || ((input) => deliverCodexWake(channelContext(root).root, input, options));
     const clock = options.clock || (() => options.now || new Date());
-    while (true) {
+    let deliveredCount = 0;
+    while (deliveredCount < (options.maxDeliveries || 20)) {
       const claimed = claimNextWake(root, clock());
       if (!claimed) break;
+      deliveredCount += 1;
       try {
-        const result = await deliver({ prompt: claimed.prompt, marker: claimed.marker });
+        const result = await (options.deliver
+          ? deliver({ prompt: claimed.prompt, marker: claimed.marker })
+          : deliverCodexWake(
+              channelContext(root).root,
+              { prompt: claimed.prompt, marker: claimed.marker },
+              {
+                ...options,
+                beforeSideEffect: () =>
+                  mutateOutbox(root, (events) => {
+                    const event = events.find((e) => e.id === claimed.id);
+                    event.status = "indeterminate";
+                    event.error = "Submission began; outcome must be observed before retry.";
+                    return events;
+                  }),
+              },
+            ));
         finishWake(root, claimed.id, { result }, clock());
       } catch (error) {
         finishWake(
@@ -89,7 +112,7 @@ export async function deliverPendingWakes(root, options = {}) {
 }
 
 export function scheduleWakeDelivery(root, options = {}) {
-  const key = path.resolve(root);
+  const key = ledgerDirectory(root);
   if (timers.has(key)) return;
   const delay = options.delayMs ?? nextWakeDelay(root);
   const timer = setTimeout(async () => {
@@ -107,7 +130,7 @@ export function scheduleWakeDelivery(root, options = {}) {
 }
 
 export async function retryWakeDelivery(root, options = {}) {
-  const key = path.resolve(root);
+  const key = ledgerDirectory(root);
   const timer = timers.get(key);
   if (timer) clearTimeout(timer);
   timers.delete(key);
@@ -132,18 +155,21 @@ export async function retryWakeDelivery(root, options = {}) {
 export function wakeStatus(root) {
   const events = readOutbox(root);
   const pending = events.filter((event) =>
-    ["pending", "retrying", "delivering"].includes(event.status),
+    ["pending", "retrying", "delivering", "indeterminate"].includes(event.status),
   ).length;
   const last = events.at(-1) || null;
   return Object.freeze({
-    state: pending
-      ? last?.status === "retrying"
-        ? "retrying"
-        : "pending"
-      : last?.status === "delivered"
-        ? "connected"
-        : "idle",
+    state: events.some((e) => e.status === "indeterminate")
+      ? "attention"
+      : pending
+        ? last?.status === "retrying"
+          ? "retrying"
+          : "pending"
+        : last?.status === "delivered"
+          ? "connected"
+          : "idle",
     transport: "tmux",
+    retryable: events.filter((e) => ["pending", "retrying"].includes(e.status)).length,
     pending,
     last: last
       ? Object.freeze({
@@ -164,10 +190,7 @@ function claimNextWake(root, now) {
   let claimed = null;
   mutateOutbox(root, (events) => {
     for (const event of events) {
-      if (
-        event.status === "delivering" &&
-        now.getTime() - Date.parse(event.claimedAt || event.updatedAt) > 30_000
-      ) {
+      if (event.status === "delivering" && claimOwnerDead(event.claimedBy)) {
         event.status = "retrying";
         event.error = "Recovered an interrupted wake delivery claim.";
         event.nextAttemptAt = now.toISOString();
@@ -217,12 +240,12 @@ function claimNextWake(root, now) {
 function finishWake(root, id, outcome, now) {
   mutateOutbox(root, (events) => {
     const event = events.find((item) => item.id === id);
-    if (!event || event.status !== "delivering") return events;
+    if (!event || !["delivering", "indeterminate"].includes(event.status)) return events;
     delete event.claimedAt;
     delete event.claimedBy;
     event.updatedAt = now.toISOString();
     if (outcome.error) {
-      event.status = "retrying";
+      event.status = event.status === "indeterminate" ? "indeterminate" : "retrying";
       event.error = safeError(outcome.error);
       event.nextAttemptAt = new Date(
         now.getTime() + Math.min(60_000, 1_000 * 2 ** Math.min(event.attempts - 1, 6)),
@@ -266,7 +289,7 @@ function mutateOutbox(root, mutation) {
 }
 
 function withOutboxLease(root, operation) {
-  const directory = path.join(path.resolve(root), ".origin");
+  const directory = ledgerDirectory(root);
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   const file = path.join(directory, "wake-outbox.lock");
   const token = crypto.randomUUID();
@@ -304,7 +327,7 @@ function withOutboxLease(root, operation) {
 function clearStaleLease(file) {
   try {
     const value = JSON.parse(fs.readFileSync(file, "utf8"));
-    if (Date.now() - Date.parse(value.at) > 30_000) fs.unlinkSync(file);
+    if (claimOwnerDead(`${value.host}:${value.pid}`)) fs.unlinkSync(file);
   } catch {}
 }
 
@@ -321,7 +344,7 @@ function nextWakeDelay(root) {
         : Date.parse(event.nextAttemptAt || event.updatedAt),
     )
     .filter(Number.isFinite);
-  if (!timestamps.length) return 250;
+  if (!timestamps.length) return 60_000;
   return Math.max(25, Math.min(60_000, Math.min(...timestamps) - now));
 }
 
@@ -348,7 +371,7 @@ function writeOutbox(root, events) {
   fs.renameSync(temporary, file);
 }
 function outboxPath(root) {
-  return path.join(path.resolve(root), ".origin", "wake-outbox.json");
+  return path.join(ledgerDirectory(root), "wake-outbox.json");
 }
 function markerFor(id) {
   return `[ORIGIN WAKE ${id}]`;
@@ -384,4 +407,30 @@ function compactOutbox(events) {
   return events.filter(
     (event) => !["delivered", "cancelled"].includes(event.status) || keepTerminal.has(event.id),
   );
+}
+
+function claimOwnerDead(owner) {
+  if (typeof owner !== "string") return false;
+  const [host, pid] = owner.split(":");
+  if (host !== os.hostname() || !/^\d+$/.test(pid)) return false;
+  try {
+    process.kill(Number(pid), 0);
+    return false;
+  } catch (error) {
+    return error.code === "ESRCH";
+  }
+}
+export function reconcileWake(root, id, submitted, evidence) {
+  if (typeof evidence !== "string" || evidence.trim().length < 10)
+    throw new Error("Record the operator's submission evidence.");
+  mutateOutbox(root, (events) => {
+    const event = events.find((e) => e.id === id);
+    if (!event || event.status !== "indeterminate") throw new Error("Wake is not indeterminate.");
+    event.status = submitted ? "delivered" : "retrying";
+    event.error = null;
+    event.reconciliation = { evidence, at: new Date().toISOString(), submitted };
+    event.nextAttemptAt = new Date().toISOString();
+    return events;
+  });
+  return wakeStatus(root);
 }

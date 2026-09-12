@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { attachMaterial } from "../.codex/plugins/_engagement-core/lib/materials.mjs";
 import { chromium } from "playwright";
 import { startOriginServer } from "../server/index.mjs";
 import {
@@ -61,6 +62,10 @@ try {
       .fill(`Verify ${dev ? "development" : "production"} feedback flow`);
     await page.getByRole("button", { name: "Save feedback", exact: true }).click();
     await page.getByText(/Saved.*tmux wake.*pending/).waitFor();
+    await page.getByRole("button", { name: "Pause dashboard channel", exact: true }).click();
+    await page.getByRole("button", { name: "Resume dashboard channel", exact: true }).waitFor();
+    await page.getByRole("button", { name: "Resume dashboard channel", exact: true }).click();
+    await page.getByRole("button", { name: "Pause dashboard channel", exact: true }).waitFor();
     const record = listFeedback(root).at(-1);
     assert.equal(record.pagePath, pagePath);
     transitionFeedback(root, record.id, "in_progress");
@@ -69,13 +74,42 @@ try {
     await page.getByRole("button", { name: "Send answer" }).click();
     await page.getByText("Answer saved and wake queued.").waitFor();
     assert.equal(listFeedback(root).at(-1).status, "open");
+    const card = page.locator(".feedback-record").filter({ hasText: record.body }).first();
+    await card.getByLabel("Attach a file to this thread (up to 20 MiB)").setInputFiles({
+      name: "owner-notes.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("Owner file evidence"),
+    });
+    await card.getByText("File saved and wake queued.").waitFor();
+    attachMaterial(root, record.id, "agent-result.txt", Buffer.from("Verified result material"), {
+      role: "agent",
+    });
+    await card.getByRole("link", { name: /agent-result.txt/ }).waitFor();
     transitionFeedback(root, record.id, "in_progress");
     transitionFeedback(root, record.id, "ready_for_review", {
       verification: "The isolated browser test verified page context, answer and lifecycle state.",
     });
-    await page.getByRole("button", { name: "Accept", exact: true }).click();
+    await card
+      .getByLabel("Acceptance note or reason to reopen")
+      .fill("Please verify the returned material as well.");
+    await card.getByRole("button", { name: "Reopen", exact: true }).click();
+    await card.getByText("Reopened and wake queued.").waitFor();
+    assert.equal(listFeedback(root).at(-1).status, "open");
+    transitionFeedback(root, record.id, "in_progress");
+    transitionFeedback(root, record.id, "ready_for_review", {
+      verification:
+        "Verified the returned material and the owner correction with browser evidence.",
+    });
+    await card.getByRole("button", { name: "Accept", exact: true }).click();
     await page.getByText("Acceptance saved and wake queued.").waitFor();
     assert.equal(listFeedback(root).at(-1).status, "resolved");
+    assert.equal(
+      await page
+        .locator(".feedback-panel")
+        .evaluate((panel) => panel.scrollWidth > panel.clientWidth),
+      false,
+      "Feedback panel must not overflow at mobile width",
+    );
     assert.deepEqual(errors, []);
     await page.keyboard.press("Escape");
     await page.getByRole("dialog").waitFor({ state: "hidden" });
@@ -83,7 +117,7 @@ try {
     await new Promise((resolve) => server.close(resolve));
     server = null;
     console.log(
-      `PASS ${dev ? "Development" : "Production"}: render, Wiki, page-aware feedback, answer, acceptance and mobile width`,
+      `PASS ${dev ? "Development" : "Production"}: render, Wiki, page-aware feedback, answer, bidirectional materials, acceptance and mobile width`,
     );
   }
 } finally {

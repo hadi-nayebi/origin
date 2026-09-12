@@ -1,4 +1,4 @@
-import { pluginPresent } from "../.codex/plugins/_engagement-core/lib/scope.mjs";
+import { CHANNELS, pluginPresent } from "../.codex/plugins/_engagement-core/lib/scope.mjs";
 import express from "express";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -319,6 +319,27 @@ export async function createOriginApp(options = {}) {
     }
   });
 
+  app.get("/api/plugins", async (_request, response, next) => {
+    try {
+      response.json({ plugins: await pluginIndex(root) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/plugins/:id", async (request, response, next) => {
+    try {
+      if (
+        !CHANNELS.includes(request.params.id) ||
+        !pluginPresent({ root, channel: request.params.id })
+      )
+        return response.status(404).json({ error: "Reference plugin not found." });
+      response.json(await pluginReference(root, request.params.id));
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.use("/api", (_request, response) =>
     response.status(404).json({ error: "API route not found." }),
   );
@@ -459,6 +480,100 @@ async function wikiIndex(root) {
       };
     }),
   );
+}
+
+async function pluginIndex(root) {
+  const plugins = await Promise.all(
+    CHANNELS.map(async (id) => {
+      if (!pluginPresent({ root, channel: id })) return null;
+      const directory = path.join(root, ".codex", "plugins", id);
+      const manifest = JSON.parse(
+        await readFile(path.join(directory, ".codex-plugin", "plugin.json"), "utf8"),
+      );
+      const readme = await readFile(path.join(directory, "README.md"), "utf8");
+      const anatomy = await pluginAnatomy(directory);
+      return {
+        id,
+        name: manifest.interface?.displayName || manifest.name || titleFromPluginId(id),
+        version: manifest.version || "unversioned",
+        description: manifest.description || "Origin reference plugin.",
+        objective: pluginObjective(readme, manifest.description),
+        capabilities: Array.isArray(manifest.interface?.capabilities)
+          ? manifest.interface.capabilities
+          : [],
+        anatomy,
+        complete: anatomy.every((part) => part.present),
+      };
+    }),
+  );
+  return plugins.filter(Boolean);
+}
+
+async function pluginReference(root, id) {
+  const summary = (await pluginIndex(root)).find((plugin) => plugin.id === id);
+  if (!summary) throw new Error("Reference plugin not found.");
+  const directory = path.join(root, ".codex", "plugins", id);
+  const sources = [
+    { path: "README.md", label: "Plugin contract" },
+    { path: "AGENTS.md", label: "Agent boundary" },
+    { path: path.join("docs", "wiki.md"), label: "Plugin wiki" },
+  ];
+  const documents = [];
+  for (const source of sources) {
+    try {
+      const content = await readFile(path.join(directory, source.path), "utf8");
+      documents.push({
+        name: source.path.replaceAll(path.sep, "/"),
+        label: source.label,
+        content: content.replace(/^---\n[\s\S]*?\n---\n/, "").trimStart(),
+      });
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+  }
+  return { ...summary, documents };
+}
+
+async function pluginAnatomy(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = new Set(entries.filter((entry) => entry.isFile()).map((entry) => entry.name));
+  const directories = new Set(
+    entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name),
+  );
+  return [
+    { key: "manifest", label: "Manifest", present: directories.has(".codex-plugin") },
+    {
+      key: "state",
+      label: "State schemas",
+      present: [...files].some((name) => name.endsWith(".schema.json")),
+    },
+    { key: "operations", label: "Public operations", present: directories.has("scripts") },
+    { key: "hooks", label: "Hooks", present: directories.has("hooks") },
+    { key: "voice", label: "Voice", present: files.has("voice.xml") },
+    {
+      key: "documentation",
+      label: "Documentation",
+      present: files.has("README.md") && files.has("AGENTS.md"),
+    },
+    { key: "tests", label: "Tests", present: directories.has("tests") },
+  ];
+}
+
+function pluginObjective(readme, fallback) {
+  const explicit = readme.match(/^Objective:\s*([\s\S]*?)(?:\n\s*\n|$)/m)?.[1];
+  if (explicit) return explicit.replace(/\s+/g, " ").trim();
+  const paragraph = readme
+    .replace(/^# .+\n+/, "")
+    .split(/\n\s*\n/)
+    .find((part) => part.trim() && !part.trim().startsWith("#"));
+  return paragraph?.replace(/\s+/g, " ").trim() || fallback || "Origin reference plugin.";
+}
+
+function titleFromPluginId(id) {
+  return id
+    .split("-")
+    .map((part) => part[0]?.toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

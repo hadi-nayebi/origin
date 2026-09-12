@@ -7,10 +7,15 @@ import type {
   DeliveryStatus,
   FeedbackKind,
   FeedbackRecord,
+  PluginReference,
+  PluginSummary,
   WikiChapter,
 } from "./types";
 
-type Surface = { kind: "canvas"; path: string } | { kind: "wiki"; slug?: string };
+type Surface =
+  | { kind: "canvas"; path: string }
+  | { kind: "admin"; section: "wiki"; slug?: string }
+  | { kind: "admin"; section: "plugins"; plugin?: string };
 
 export default function App() {
   const [surface, setSurface] = useState<Surface>(() => surfaceFromPath(window.location.pathname));
@@ -27,7 +32,7 @@ export default function App() {
     );
   };
   const navigate = (next: Surface) => {
-    window.history.pushState({}, "", next.kind === "wiki" ? `/wiki/${next.slug || ""}` : next.path);
+    window.history.pushState({}, "", surfacePath(next));
     setSurface(next);
   };
   useEffect(() => {
@@ -40,14 +45,8 @@ export default function App() {
       window.clearInterval(polling);
     };
   }, []);
-  const pagePath =
-    surface.kind === "wiki" ? `/wiki/${surface.slug || ""}` : normalizePagePath(surface.path);
-  const pageLabel =
-    surface.kind === "wiki"
-      ? `Origin wiki${surface.slug ? `: ${titleFromSlug(surface.slug)}` : ""}`
-      : pagePath === "/"
-        ? "Origin canvas"
-        : labelFromPath(pagePath);
+  const pagePath = normalizePagePath(window.location.pathname);
+  const pageLabel = pageLabelForSurface(surface, pagePath);
   return (
     <div className="origin-shell">
       <a className="skip-link" href="#origin-main">
@@ -63,16 +62,16 @@ export default function App() {
         {surface.kind === "canvas" ? (
           <EmptyCanvas />
         ) : (
-          <Wiki slug={surface.slug} navigate={navigate} />
+          <Admin surface={surface} navigate={navigate} />
         )}
       </main>
       <button
-        className="floating-control wiki-control"
-        onClick={() => navigate({ kind: "wiki" })}
-        aria-label="Open Origin wiki"
+        className="floating-control admin-control"
+        onClick={() => navigate({ kind: "admin", section: "wiki" })}
+        aria-label="Open Origin admin"
       >
-        <BookIcon />
-        <span>Wiki</span>
+        <AdminIcon />
+        <span>Admin</span>
       </button>
       {feedbackEnabled && (
         <button
@@ -115,32 +114,48 @@ function EmptyCanvas() {
   );
 }
 
-function Wiki({ slug, navigate }: { slug?: string; navigate: (surface: Surface) => void }) {
+function Admin({
+  surface,
+  navigate,
+}: {
+  surface: Exclude<Surface, { kind: "canvas" }>;
+  navigate: (surface: Surface) => void;
+}) {
   const [chapters, setChapters] = useState<WikiChapter[]>([]);
   const [chapter, setChapter] = useState<(WikiChapter & { content: string }) | null>(null);
-  const [loading, setLoading] = useState(Boolean(slug));
+  const [plugins, setPlugins] = useState<PluginSummary[]>([]);
+  const [plugin, setPlugin] = useState<PluginReference | null>(null);
+  const [loading, setLoading] = useState(
+    surface.section === "wiki" ? Boolean(surface.slug) : Boolean(surface.plugin),
+  );
   const [error, setError] = useState("");
   useEffect(() => {
-    api
-      .wiki()
-      .then(({ chapters }) => setChapters(chapters))
+    Promise.all([api.wiki(), api.plugins()])
+      .then(([wiki, references]) => {
+        setChapters(wiki.chapters);
+        setPlugins(references.plugins);
+      })
       .catch((error: Error) => setError(error.message));
   }, []);
   useEffect(() => {
     let current = true;
     setError("");
     setChapter(null);
-    setLoading(Boolean(slug));
-    if (!slug) {
+    setPlugin(null);
+    const selected = surface.section === "wiki" ? surface.slug : surface.plugin;
+    setLoading(Boolean(selected));
+    if (!selected) {
       return () => {
         current = false;
       };
     }
-    api
-      .chapter(slug)
+    const request =
+      surface.section === "wiki" ? api.chapter(surface.slug!) : api.plugin(surface.plugin!);
+    request
       .then((value) => {
         if (current) {
-          setChapter(value);
+          if (surface.section === "wiki") setChapter(value as WikiChapter & { content: string });
+          else setPlugin(value as PluginReference);
           setLoading(false);
         }
       })
@@ -153,45 +168,83 @@ function Wiki({ slug, navigate }: { slug?: string; navigate: (surface: Surface) 
     return () => {
       current = false;
     };
-  }, [slug]);
+  }, [surface.section, surface.section === "wiki" ? surface.slug : surface.plugin]);
   return (
-    <section className="wiki-surface">
-      <aside className="wiki-nav">
+    <section className="admin-surface">
+      <aside className="admin-nav">
         <button className="back-button" onClick={() => navigate({ kind: "canvas", path: "/" })}>
           ← Canvas
         </button>
         <div>
-          <p className="eyebrow">Growth guide</p>
-          <h1>Origin Wiki</h1>
-          <p className="wiki-intro">
-            Patterns for cultivating this foundation through Hadosh Academy Phases 6–7.
+          <p className="eyebrow">Repository guide</p>
+          <h1>Origin Admin</h1>
+          <p className="admin-intro">
+            Understand the foundation before asking your agent to extend it.
           </p>
         </div>
-        <nav aria-label="Wiki chapters">
-          {chapters.map((item) => (
-            <button
-              className={item.slug === slug ? "chapter-link active" : "chapter-link"}
-              aria-current={item.slug === slug ? "page" : undefined}
-              key={item.slug}
-              onClick={() => navigate({ kind: "wiki", slug: item.slug })}
-            >
-              <span>{item.title}</span>
-              <small>{labelStatus(item.status)}</small>
-            </button>
-          ))}
-        </nav>
+        <div className="admin-tabs" role="tablist" aria-label="Admin sections">
+          <button
+            className={surface.section === "wiki" ? "active" : ""}
+            role="tab"
+            aria-selected={surface.section === "wiki"}
+            onClick={() => navigate({ kind: "admin", section: "wiki" })}
+          >
+            Wiki
+          </button>
+          <button
+            className={surface.section === "plugins" ? "active" : ""}
+            role="tab"
+            aria-selected={surface.section === "plugins"}
+            onClick={() => navigate({ kind: "admin", section: "plugins" })}
+          >
+            Plugins
+          </button>
+        </div>
+        {surface.section === "wiki" ? (
+          <nav aria-label="Wiki chapters">
+            {chapters.map((item) => (
+              <button
+                className={item.slug === surface.slug ? "admin-link active" : "admin-link"}
+                aria-current={item.slug === surface.slug ? "page" : undefined}
+                key={item.slug}
+                onClick={() => navigate({ kind: "admin", section: "wiki", slug: item.slug })}
+              >
+                <span>{item.title}</span>
+                <small>{labelStatus(item.status)}</small>
+              </button>
+            ))}
+          </nav>
+        ) : (
+          <nav aria-label="Reference plugins">
+            {plugins.map((item) => (
+              <button
+                className={item.id === surface.plugin ? "admin-link active" : "admin-link"}
+                aria-current={item.id === surface.plugin ? "page" : undefined}
+                key={item.id}
+                onClick={() => navigate({ kind: "admin", section: "plugins", plugin: item.id })}
+              >
+                <span>{item.name.replace(/^Origin /, "")}</span>
+                <small>Reference plugin</small>
+              </button>
+            ))}
+          </nav>
+        )}
       </aside>
-      <article className="wiki-article" aria-live="polite">
+      <article className="admin-article" aria-live="polite">
         {error ? (
           <p className="error" role="alert">
             {error}
           </p>
         ) : loading ? (
           <p role="status">Loading chapter…</p>
-        ) : chapter ? (
+        ) : surface.section === "wiki" && chapter ? (
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{chapter.content}</ReactMarkdown>
-        ) : (
+        ) : surface.section === "wiki" ? (
           <WikiLanding chapters={chapters} navigate={navigate} />
+        ) : plugin ? (
+          <PluginDetail plugin={plugin} />
+        ) : (
+          <PluginLanding plugins={plugins} navigate={navigate} />
         )}
       </article>
     </section>
@@ -215,13 +268,90 @@ function WikiLanding({
       </p>
       <div className="chapter-grid">
         {chapters.map((chapter) => (
-          <button key={chapter.slug} onClick={() => navigate({ kind: "wiki", slug: chapter.slug })}>
+          <button
+            key={chapter.slug}
+            onClick={() => navigate({ kind: "admin", section: "wiki", slug: chapter.slug })}
+          >
             <small>{labelStatus(chapter.status)}</small>
             <strong>{chapter.title}</strong>
             <span>{chapter.summary}</span>
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+function PluginLanding({
+  plugins,
+  navigate,
+}: {
+  plugins: PluginSummary[];
+  navigate: (surface: Surface) => void;
+}) {
+  return (
+    <div>
+      <p className="eyebrow">Reference implementations</p>
+      <h2>Two plugins show how Origin grows.</h2>
+      <p className="lead">
+        Each plugin owns one coherent objective, durable state, public operations, hooks, voice,
+        documentation, and executable proof. Use their structure as a pattern—not their behavior as
+        a requirement for every future plugin.
+      </p>
+      <div className="plugin-grid">
+        {plugins.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => navigate({ kind: "admin", section: "plugins", plugin: item.id })}
+          >
+            <small>{item.id}</small>
+            <strong>{item.name}</strong>
+            <span>{item.objective}</span>
+            <b>{item.complete ? "Complete reference anatomy" : "Reference anatomy needs repair"}</b>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PluginDetail({ plugin }: { plugin: PluginReference }) {
+  return (
+    <div className="plugin-reference">
+      <p className="eyebrow">Reference plugin · {plugin.id}</p>
+      <h2>{plugin.name}</h2>
+      <p className="lead">{plugin.objective}</p>
+      <p>{plugin.description}</p>
+      <dl className="plugin-metadata">
+        <div>
+          <dt>Version</dt>
+          <dd>{plugin.version}</dd>
+        </div>
+        <div>
+          <dt>Capabilities</dt>
+          <dd>{plugin.capabilities.join(" · ") || "No capabilities declared"}</dd>
+        </div>
+      </dl>
+      <section className="plugin-anatomy" aria-labelledby="plugin-anatomy-title">
+        <h3 id="plugin-anatomy-title">Anatomy</h3>
+        <ul>
+          {plugin.anatomy.map((part) => (
+            <li key={part.key} className={part.present ? "present" : "missing"}>
+              <span aria-hidden="true">{part.present ? "✓" : "!"}</span>
+              {part.label}
+            </li>
+          ))}
+        </ul>
+      </section>
+      {plugin.documents.map((document) => (
+        <section className="plugin-document" key={document.name}>
+          <header>
+            <p className="eyebrow">{document.label}</p>
+            <code>{document.name}</code>
+          </header>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{document.content}</ReactMarkdown>
+        </section>
+      ))}
     </div>
   );
 }
@@ -617,10 +747,24 @@ function FeedbackRecordCard({
 }
 
 function surfaceFromPath(pathname: string): Surface {
-  const match = pathname.match(/^\/wiki(?:\/([^/]*))?\/?$/);
-  return match
-    ? { kind: "wiki", slug: match[1] || undefined }
-    : { kind: "canvas", path: normalizePagePath(pathname) };
+  const wiki = pathname.match(/^\/(?:admin\/wiki|wiki)(?:\/([^/]*))?\/?$/);
+  if (wiki) return { kind: "admin", section: "wiki", slug: wiki[1] || undefined };
+  const plugins = pathname.match(/^\/admin\/plugins(?:\/([^/]*))?\/?$/);
+  if (plugins) return { kind: "admin", section: "plugins", plugin: plugins[1] || undefined };
+  if (/^\/admin\/?$/.test(pathname)) return { kind: "admin", section: "wiki" };
+  return { kind: "canvas", path: normalizePagePath(pathname) };
+}
+function surfacePath(surface: Surface) {
+  if (surface.kind === "canvas") return surface.path;
+  if (surface.section === "wiki") return `/admin/wiki/${surface.slug || ""}`;
+  return `/admin/plugins/${surface.plugin || ""}`;
+}
+function pageLabelForSurface(surface: Surface, pagePath: string) {
+  if (surface.kind === "canvas")
+    return pagePath === "/" ? "Origin canvas" : labelFromPath(pagePath);
+  if (surface.section === "wiki")
+    return `Origin Admin / Wiki${surface.slug ? ` / ${titleFromSlug(surface.slug)}` : ""}`;
+  return `Origin Admin / Plugins${surface.plugin ? ` / ${titleFromSlug(surface.plugin)}` : ""}`;
 }
 function normalizePagePath(pathname: string) {
   const path = pathname.startsWith("/") ? pathname : `/${pathname}`;
@@ -693,10 +837,10 @@ function deliveryMessage(prefix: string, delivery: DeliveryStatus) {
   if (delivery.state === "connected") return `${prefix}. The tmux wake was delivered.`;
   return `${prefix}. No wake currently requires delivery.`;
 }
-function BookIcon() {
+function AdminIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H20v17H7.5A3.5 3.5 0 0 0 4 22V5.5Zm0 0V22m4-15h8m-8 4h8" />
+      <path d="M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h6v6h-6v-6Z" />
     </svg>
   );
 }

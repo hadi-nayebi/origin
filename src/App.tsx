@@ -582,7 +582,12 @@ function SystemStatus({
           <small>Agent and Stop decision</small>
           <strong>{health.agent.mode}</strong>
           <span>{health.agent.block ? "Stop is blocked while responsibility remains." : "Stop is currently allowed."}</span>
-          <p>{health.agent.reason}</p>
+          <p>
+            {health.agent.reason ||
+              (health.ledger.disabled
+                ? "Dashboard engagement is not installed."
+                : "No Stop reason is recorded.")}
+          </p>
           {health.agent.nextAction && <p>Next: {health.agent.nextAction}</p>}
         </section>
         <section>

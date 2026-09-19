@@ -101,6 +101,7 @@ export interface SystemHealth {
     records?: number;
     schemaVersion?: number;
   };
-  agent: AgentState;
-  delivery: DeliveryStatus;
+  agent: Pick<AgentState, "mode" | "block"> & Partial<Omit<AgentState, "mode" | "block">>;
+  delivery: Pick<DeliveryStatus, "state" | "pending"> &
+    Partial<Omit<DeliveryStatus, "state" | "pending">>;
 }

@@ -335,7 +335,14 @@ function Admin({
     return () => {
       current = false;
     };
-  }, [surface.section, surface.section === "wiki" ? surface.slug : surface.plugin]);
+  }, [
+    surface.section,
+    surface.section === "wiki"
+      ? surface.slug
+      : surface.section === "plugins"
+        ? surface.plugin
+        : undefined,
+  ]);
   return (
     <section className="admin-surface">
       <aside className="admin-nav">

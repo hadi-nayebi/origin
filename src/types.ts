@@ -88,7 +88,6 @@ export interface PluginReference extends PluginSummary {
   documents: Array<{ name: string; label: string; content: string }>;
 }
 
-
 export interface SystemHealth {
   name: string;
   instanceId: string;

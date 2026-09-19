@@ -305,6 +305,7 @@ function Admin({
     setChapter(null);
     setPlugin(null);
     if (surface.section === "system") {
+      setLoading(false);
       return () => {
         current = false;
       };
@@ -424,8 +425,12 @@ function Admin({
           </p>
         ) : loading ? (
           <p role="status">Loading chapter…</p>
-        ) : surface.section === "system" && health ? (
-          <SystemStatus health={health} plugins={plugins} />
+        ) : surface.section === "system" ? (
+          health ? (
+            <SystemStatus health={health} plugins={plugins} />
+          ) : (
+            <p role="status">Loading system status…</p>
+          )
         ) : surface.section === "wiki" && chapter ? (
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{chapter.content}</ReactMarkdown>
         ) : surface.section === "wiki" ? (

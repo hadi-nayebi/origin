@@ -9,13 +9,15 @@ import type {
   FeedbackRecord,
   PluginReference,
   PluginSummary,
+  SystemHealth,
   WikiChapter,
 } from "./types";
 
 type Surface =
   | { kind: "canvas"; path: string }
   | { kind: "admin"; section: "wiki"; slug?: string }
-  | { kind: "admin"; section: "plugins"; plugin?: string };
+  | { kind: "admin"; section: "plugins"; plugin?: string }
+  | { kind: "admin"; section: "system" };
 
 export default function App() {
   const [surface, setSurface] = useState<Surface>(() => surfaceFromPath(window.location.pathname));
@@ -281,15 +283,19 @@ function Admin({
   const [chapter, setChapter] = useState<(WikiChapter & { content: string }) | null>(null);
   const [plugins, setPlugins] = useState<PluginSummary[]>([]);
   const [plugin, setPlugin] = useState<PluginReference | null>(null);
+  const [health, setHealth] = useState<SystemHealth | null>(null);
   const [loading, setLoading] = useState(
-    surface.section === "wiki" ? Boolean(surface.slug) : Boolean(surface.plugin),
+    surface.section === "system" ||
+      (surface.section === "wiki" ? Boolean(surface.slug) : Boolean(surface.plugin)),
   );
   const [error, setError] = useState("");
   useEffect(() => {
-    Promise.all([api.wiki(), api.plugins()])
-      .then(([wiki, references]) => {
+    Promise.all([api.wiki(), api.plugins(), api.health()])
+      .then(([wiki, references, system]) => {
         setChapters(wiki.chapters);
         setPlugins(references.plugins);
+        setHealth(system);
+        if (surface.section === "system") setLoading(false);
       })
       .catch((error: Error) => setError(error.message));
   }, []);
@@ -298,6 +304,11 @@ function Admin({
     setError("");
     setChapter(null);
     setPlugin(null);
+    if (surface.section === "system") {
+      return () => {
+        current = false;
+      };
+    }
     const selected = surface.section === "wiki" ? surface.slug : surface.plugin;
     setLoading(Boolean(selected));
     if (!selected) {
@@ -355,6 +366,14 @@ function Admin({
           >
             Plugins
           </button>
+          <button
+            className={surface.section === "system" ? "active" : ""}
+            role="tab"
+            aria-selected={surface.section === "system"}
+            onClick={() => navigate({ kind: "admin", section: "system" })}
+          >
+            System
+          </button>
         </div>
         {surface.section === "wiki" ? (
           <nav aria-label="Wiki chapters">
@@ -370,7 +389,7 @@ function Admin({
               </button>
             ))}
           </nav>
-        ) : (
+        ) : surface.section === "plugins" ? (
           <nav aria-label="Reference plugins">
             {plugins.map((item) => (
               <button
@@ -384,6 +403,11 @@ function Admin({
               </button>
             ))}
           </nav>
+        ) : (
+          <div className="system-nav-copy">
+            <strong>Live local evidence</strong>
+            <span>Read-only status from this running Origin instance.</span>
+          </div>
         )}
       </aside>
       <article className="admin-article" aria-live="polite">
@@ -393,6 +417,8 @@ function Admin({
           </p>
         ) : loading ? (
           <p role="status">Loading chapter…</p>
+        ) : surface.section === "system" && health ? (
+          <SystemStatus health={health} plugins={plugins} />
         ) : surface.section === "wiki" && chapter ? (
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{chapter.content}</ReactMarkdown>
         ) : surface.section === "wiki" ? (
@@ -508,6 +534,63 @@ function PluginDetail({ plugin }: { plugin: PluginReference }) {
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{document.content}</ReactMarkdown>
         </section>
       ))}
+    </div>
+  );
+}
+
+function SystemStatus({
+  health,
+  plugins,
+}: {
+  health: SystemHealth;
+  plugins: PluginSummary[];
+}) {
+  const completePlugins = plugins.filter((item) => item.complete).length;
+  const ledgerState = health.ledger.disabled
+    ? "Not installed"
+    : health.ledger.valid
+      ? "Verified"
+      : "Needs inspection";
+  return (
+    <div className="system-status">
+      <p className="eyebrow">Live local evidence</p>
+      <h2>Origin system status</h2>
+      <p className="lead">
+        This page reads the running harness. It does not change state, restart services, or grant
+        authority.
+      </p>
+      <div className="system-grid">
+        <section>
+          <small>Runtime</small>
+          <strong>{health.status === "ready" ? "Ready" : health.status}</strong>
+          <span>{health.localOnly ? "Loopback-only local server" : "Network exposure needs review"}</span>
+          <code>{health.instanceId}</code>
+        </section>
+        <section>
+          <small>Agent and Stop decision</small>
+          <strong>{health.agent.mode}</strong>
+          <span>{health.agent.block ? "Stop is blocked while responsibility remains." : "Stop is currently allowed."}</span>
+          <p>{health.agent.reason}</p>
+          {health.agent.nextAction && <p>Next: {health.agent.nextAction}</p>}
+        </section>
+        <section>
+          <small>Wake delivery</small>
+          <strong>{health.delivery.state}</strong>
+          <span>{health.delivery.pending} pending event{health.delivery.pending === 1 ? "" : "s"}</span>
+          <p>{health.delivery.last ? `Last: ${health.delivery.last.status}` : "No recent delivery is recorded."}</p>
+        </section>
+        <section>
+          <small>Feedback ledger</small>
+          <strong>{ledgerState}</strong>
+          <span>{health.ledger.records ?? 0} record{health.ledger.records === 1 ? "" : "s"} · {health.ledger.events ?? 0} event{health.ledger.events === 1 ? "" : "s"}</span>
+          {health.ledger.schemaVersion && <p>Schema version {health.ledger.schemaVersion}</p>}
+        </section>
+        <section>
+          <small>Reference plugins</small>
+          <strong>{completePlugins} of {plugins.length} complete</strong>
+          <span>Completeness covers manifest, state, operations, hooks, voice, documentation, and tests.</span>
+        </section>
+      </div>
     </div>
   );
 }
@@ -905,6 +988,7 @@ function FeedbackRecordCard({
 function surfaceFromPath(pathname: string): Surface {
   const wiki = pathname.match(/^\/(?:admin\/wiki|wiki)(?:\/([^/]*))?\/?$/);
   if (wiki) return { kind: "admin", section: "wiki", slug: wiki[1] || undefined };
+  if (/^\/admin\/system\/?$/.test(pathname)) return { kind: "admin", section: "system" };
   const plugins = pathname.match(/^\/admin\/plugins(?:\/([^/]*))?\/?$/);
   if (plugins) return { kind: "admin", section: "plugins", plugin: plugins[1] || undefined };
   if (/^\/admin\/?$/.test(pathname)) return { kind: "admin", section: "wiki" };
@@ -913,14 +997,17 @@ function surfaceFromPath(pathname: string): Surface {
 function surfacePath(surface: Surface) {
   if (surface.kind === "canvas") return surface.path;
   if (surface.section === "wiki") return `/admin/wiki/${surface.slug || ""}`;
-  return `/admin/plugins/${surface.plugin || ""}`;
+  if (surface.section === "plugins") return `/admin/plugins/${surface.plugin || ""}`;
+  return "/admin/system";
 }
 function pageLabelForSurface(surface: Surface, pagePath: string) {
   if (surface.kind === "canvas")
     return pagePath === "/" ? "Origin canvas" : labelFromPath(pagePath);
   if (surface.section === "wiki")
     return `Origin Admin / Wiki${surface.slug ? ` / ${titleFromSlug(surface.slug)}` : ""}`;
-  return `Origin Admin / Plugins${surface.plugin ? ` / ${titleFromSlug(surface.plugin)}` : ""}`;
+  if (surface.section === "plugins")
+    return `Origin Admin / Plugins${surface.plugin ? ` / ${titleFromSlug(surface.plugin)}` : ""}`;
+  return "Origin Admin / System";
 }
 function normalizePagePath(pathname: string) {
   const path = pathname.startsWith("/") ? pathname : `/${pathname}`;

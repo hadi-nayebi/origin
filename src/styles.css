@@ -912,13 +912,13 @@ summary:focus-visible {
   display: grid;
   gap: 0.35rem;
   padding: 1rem;
-  border: 1px solid var(--border);
+  border: 1px solid #343a33;
   border-radius: 0.85rem;
-  color: var(--muted);
+  color: #aeb5aa;
 }
 
 .system-nav-copy strong {
-  color: var(--text);
+  color: #e8e8e5;
 }
 
 .system-status .lead {
@@ -938,13 +938,13 @@ summary:focus-visible {
   gap: 0.55rem;
   min-height: 10rem;
   padding: 1.1rem;
-  border: 1px solid var(--border);
+  border: 1px solid #d4cec0;
   border-radius: 0.9rem;
-  background: var(--surface);
+  background: #faf7ef;
 }
 
 .system-grid small {
-  color: var(--muted);
+  color: #718053;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -957,7 +957,7 @@ summary:focus-visible {
 .system-grid span,
 .system-grid p {
   margin: 0;
-  color: var(--muted);
+  color: #5d645a;
   line-height: 1.5;
 }
 

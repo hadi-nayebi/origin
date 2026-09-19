@@ -550,13 +550,7 @@ function PluginDetail({ plugin }: { plugin: PluginReference }) {
   );
 }
 
-function SystemStatus({
-  health,
-  plugins,
-}: {
-  health: SystemHealth;
-  plugins: PluginSummary[];
-}) {
+function SystemStatus({ health, plugins }: { health: SystemHealth; plugins: PluginSummary[] }) {
   const completePlugins = plugins.filter((item) => item.complete).length;
   const ledgerState = health.ledger.disabled
     ? "Not installed"
@@ -575,13 +569,19 @@ function SystemStatus({
         <section>
           <small>Runtime</small>
           <strong>{health.status === "ready" ? "Ready" : health.status}</strong>
-          <span>{health.localOnly ? "Loopback-only local server" : "Network exposure needs review"}</span>
+          <span>
+            {health.localOnly ? "Loopback-only local server" : "Network exposure needs review"}
+          </span>
           <code>{health.instanceId}</code>
         </section>
         <section>
           <small>Agent and Stop decision</small>
           <strong>{health.agent.mode}</strong>
-          <span>{health.agent.block ? "Stop is blocked while responsibility remains." : "Stop is currently allowed."}</span>
+          <span>
+            {health.agent.block
+              ? "Stop is blocked while responsibility remains."
+              : "Stop is currently allowed."}
+          </span>
           <p>
             {health.agent.reason ||
               (health.ledger.disabled
@@ -593,19 +593,32 @@ function SystemStatus({
         <section>
           <small>Wake delivery</small>
           <strong>{health.delivery.state}</strong>
-          <span>{health.delivery.pending} pending event{health.delivery.pending === 1 ? "" : "s"}</span>
-          <p>{health.delivery.last ? `Last: ${health.delivery.last.status}` : "No recent delivery is recorded."}</p>
+          <span>
+            {health.delivery.pending} pending event{health.delivery.pending === 1 ? "" : "s"}
+          </span>
+          <p>
+            {health.delivery.last
+              ? `Last: ${health.delivery.last.status}`
+              : "No recent delivery is recorded."}
+          </p>
         </section>
         <section>
           <small>Feedback ledger</small>
           <strong>{ledgerState}</strong>
-          <span>{health.ledger.records ?? 0} record{health.ledger.records === 1 ? "" : "s"} · {health.ledger.events ?? 0} event{health.ledger.events === 1 ? "" : "s"}</span>
+          <span>
+            {health.ledger.records ?? 0} record{health.ledger.records === 1 ? "" : "s"} ·{" "}
+            {health.ledger.events ?? 0} event{health.ledger.events === 1 ? "" : "s"}
+          </span>
           {health.ledger.schemaVersion && <p>Schema version {health.ledger.schemaVersion}</p>}
         </section>
         <section>
           <small>Reference plugins</small>
-          <strong>{completePlugins} of {plugins.length} complete</strong>
-          <span>Completeness covers manifest, state, operations, hooks, voice, documentation, and tests.</span>
+          <strong>
+            {completePlugins} of {plugins.length} complete
+          </strong>
+          <span>
+            Completeness covers manifest, state, operations, hooks, voice, documentation, and tests.
+          </span>
         </section>
       </div>
     </div>

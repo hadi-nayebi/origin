@@ -906,3 +906,61 @@ summary:focus-visible {
   max-width: 100%;
   margin: 8px 0;
 }
+
+
+.system-nav-copy {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  color: var(--muted);
+}
+
+.system-nav-copy strong {
+  color: var(--text);
+}
+
+.system-status .lead {
+  max-width: 48rem;
+}
+
+.system-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.system-grid section {
+  display: grid;
+  align-content: start;
+  gap: 0.55rem;
+  min-height: 10rem;
+  padding: 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--surface);
+}
+
+.system-grid small {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.system-grid strong {
+  font-size: 1.25rem;
+  text-transform: capitalize;
+}
+
+.system-grid span,
+.system-grid p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.system-grid code {
+  overflow-wrap: anywhere;
+}

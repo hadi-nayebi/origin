@@ -51,6 +51,16 @@ beforeEach(() => {
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url === "/api/feedback" && !init?.method) return response(idleView);
+      if (url === "/api/health")
+        return response({
+          name: "origin",
+          instanceId: "origin-test-instance",
+          status: "ready",
+          localOnly: true,
+          ledger: { valid: true, events: 4, records: 2, schemaVersion: 1 },
+          agent: idleView.outcome,
+          delivery: idleView.delivery,
+        });
       if (url === "/api/wiki") return response({ chapters: [chapter] });
       if (url === "/api/wiki/01-welcome")
         return response({
@@ -158,6 +168,25 @@ describe("Origin dashboard", () => {
     expect(await screen.findByRole("heading", { name: "Anatomy" })).toBeTruthy();
     expect(await screen.findByText("The complete plugin contract.")).toBeTruthy();
     expect(window.location.pathname).toBe("/admin/plugins/contextual-feedback");
+  });
+
+  test("shows live read-only system evidence inside Admin", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Open Origin admin" }));
+    await user.click(await screen.findByRole("tab", { name: "System" }));
+    expect(await screen.findByRole("heading", { name: "Origin system status" })).toBeTruthy();
+    expect(screen.getByText("Loopback-only local server")).toBeTruthy();
+    expect(screen.getByText("Verified")).toBeTruthy();
+    expect(screen.getByText("2 records · 4 events")).toBeTruthy();
+    expect(screen.getByText("1 of 1 complete")).toBeTruthy();
+    expect(window.location.pathname).toBe("/admin/system");
+    const results = await axe.run(document.body, {
+      rules: { "color-contrast": { enabled: false } },
+    });
+    expect(
+      results.violations.filter((item) => ["serious", "critical"].includes(item.impact || "")),
+    ).toEqual([]);
   });
 
   test("captures page-aware feedback for the interactive tmux session", async () => {

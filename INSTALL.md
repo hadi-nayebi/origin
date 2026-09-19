@@ -6,11 +6,24 @@ Codex authentication.
 
 ## Create a repository you control
 
-On the public Origin repository, select **Use this template → Create a new repository**. Choose your
-account or organization, choose public or private visibility, and leave **Include all branches**
-off. Clone that new repository into an empty local directory. Do not use a direct clone of
-`hadi-nayebi/origin` as a personal harness: another user can read it but cannot push the managed
-branches or merge the PRs required by the feedback lifecycle.
+GitHub's template control is not currently enabled on the public Origin repository. Create a new
+empty repository under your own account or organization, choose public or private visibility, and do
+not initialize it with a README, license, or `.gitignore`. Then copy Origin's tracked source,
+replace the read-only source remote with your repository, and push `main`:
+
+```bash
+git clone https://github.com/hadi-nayebi/origin.git YOUR-PROJECT
+cd YOUR-PROJECT
+git remote set-url origin https://github.com/YOUR-ACCOUNT/YOUR-PROJECT.git
+git push -u origin main
+git remote get-url origin
+```
+
+The last command must report the repository you control. If GitHub later shows **Use this template →
+Create a new repository**, that route is also valid; create the repository without other branches
+and clone it normally. An unchanged direct clone of `hadi-nayebi/origin` is not a personal harness:
+another user can read it but cannot push the managed branches or merge the PRs required by the
+feedback lifecycle.
 
 The repository may use any name. The local Git remote must remain named `origin`, and the
 authenticated GitHub account must have write and merge permission there. `npm run doctor` checks
@@ -18,12 +31,12 @@ this before reporting the GitHub work-unit path healthy.
 
 ## Protect the repository's main branch
 
-GitHub template creation copies the tracked project, not the source repository's settings. In the
-new repository, create an active branch ruleset targeting the default branch. Leave the bypass list
-empty, require changes through a pull request, require the three `Node 22 / ubuntu-latest`,
-`Node 22 / macos-latest`, and `Node 22 / windows-latest` checks, require the branch to be up to
-date, restrict deletion, and block force pushes. Keep required approvals at zero for a single-owner
-repository unless a separate reviewer identity is available.
+Copying or generating the repository transfers tracked files, not the source repository's settings.
+In the new repository, create an active branch ruleset targeting the default branch. Leave the
+bypass list empty, require changes through a pull request, require the three
+`Node 22 / ubuntu-latest`, `Node 22 / macos-latest`, and `Node 22 / windows-latest` checks, require
+the branch to be up to date, restrict deletion, and block force pushes. Keep required approvals at
+zero for a single-owner repository unless a separate reviewer identity is available.
 
 This remote rule complements the trusted local hook. The rule blocks direct or unverified changes to
 `main`; the hook prevents supported Codex tool calls from exercising the owner's merge path.
@@ -51,8 +64,8 @@ transport contract. Install WSL2:
 powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -InstallWsl
 ```
 
-After any required restart, open the WSL terminal, clone the repository you created from the Origin
-template inside the Linux filesystem, and run `./scripts/install.sh` there.
+After any required restart, open the WSL terminal, create the owner-controlled Origin copy described
+above inside the Linux filesystem, and run `./scripts/install.sh` there.
 
 ## Authenticate and inspect
 

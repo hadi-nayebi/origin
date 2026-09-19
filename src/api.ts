@@ -6,6 +6,7 @@ import type {
   FeedbackStatus,
   PluginReference,
   PluginSummary,
+  SystemHealth,
   WikiChapter,
 } from "./types";
 
@@ -26,6 +27,7 @@ export type FeedbackView = {
 };
 
 export const api = {
+  health: () => request<SystemHealth>("/api/health"),
   feedback: () => request<FeedbackView>("/api/feedback"),
   submitFeedback: (input: {
     kind: FeedbackKind;

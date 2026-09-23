@@ -30,7 +30,7 @@ export function inspectGitHubRepositoryAccess({ cwd, run = spawnSync } = {}) {
       ok,
       detail: ok
         ? `${name} — ${permission}`
-        : `${name} — ${permission}. Create your own repository from the Origin template, clone it, and authenticate an account with write and merge permission.`,
+        : `${name} — ${permission}. Create an owner-controlled Origin copy, keep its writable remote named origin, and authenticate an account with write and merge permission.`,
     };
   } catch {
     return {

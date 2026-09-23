@@ -5,10 +5,11 @@ delivery claims, retry, API, UI, hooks, and recovery. They cannot prove a partic
 authentication, GitHub authorization, terminal behavior, hook trust, browser opening, or
 operating-system integration.
 
-Run this contract in a repository created from the Origin template under the tester's own account or
-organization. A direct read-only clone of the public source repository cannot exercise managed
-branch pushes or owner-merged PRs. Use a disposable private repository for acceptance when the test
-history should not become part of a real harness.
+Run this contract in an owner-controlled Origin copy under the tester's own account or organization.
+Follow `INSTALL.md` to create the writable repository while GitHub template mode is unavailable. An
+unchanged read-only clone of the public source repository cannot exercise managed branch pushes or
+owner-merged PRs. Use a disposable private repository for acceptance when the test history should
+not become part of a real harness.
 
 ## Machine and transport check
 

@@ -87,3 +87,20 @@ export interface PluginSummary {
 export interface PluginReference extends PluginSummary {
   documents: Array<{ name: string; label: string; content: string }>;
 }
+
+export interface SystemHealth {
+  name: string;
+  instanceId: string;
+  status: "ready";
+  localOnly: boolean;
+  ledger: {
+    disabled?: boolean;
+    valid?: boolean;
+    events?: number;
+    records?: number;
+    schemaVersion?: number;
+  };
+  agent: Pick<AgentState, "mode" | "block"> & Partial<Omit<AgentState, "mode" | "block">>;
+  delivery: Pick<DeliveryStatus, "state" | "pending"> &
+    Partial<Omit<DeliveryStatus, "state" | "pending">>;
+}

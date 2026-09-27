@@ -12,6 +12,11 @@ factual claims: respect an explicit choice while candidly recording a material d
 capability. Never describe a clone, fork, template, or local-only route as fully operational without
 checking the current repository settings and the PR-backed workflow requirements.
 
+Every Issue and PR prepared for the user must put `## Why this is not rocket science?` immediately
+after `## Exact ask`. Explain the established practice, why it fits the current implementation,
+and any real constraint or unresolved tradeoff. Research ordinary technical choices yourself;
+do not invent a universal best practice or ask the user to supply one.
+
 Origin contains two independently removable engagement plugins: `contextual-feedback` for the local
 dashboard and `telegram-engagement` for remote Telegram conversations. Each owns its own thread
 journal and continuation `data.json`, with identical mode names but no shared channel state. The

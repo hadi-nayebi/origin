@@ -151,7 +151,8 @@ test("installers require consent and Windows routes to WSL2", () => {
   assert.match(windows, /wsl --install/);
   assert.match(windows, /does not run.*native PowerShell/i);
   assert.match(windows, /owner-controlled Origin copy/i);
-  assert.match(installGuide, /template control\s+is not currently enabled/i);
+  assert.match(installGuide, /Use this template/);
+  assert.match(installGuide, /git clone https:\/\/github\.com\/YOUR-ACCOUNT\/YOUR-PROJECT\.git/);
   assert.match(installGuide, /git remote set-url origin/);
   assert.match(installGuide, /git push -u origin main/);
 });
@@ -180,9 +181,9 @@ test("README is agent-first and contains no headless fallback", () => {
   assert.match(readme, /ONBOARDING_HANDOFF\.md/);
   assert.match(readme, /Hadosh Academy Origin project/);
   assert.match(readme, /same interactive Codex session/i);
-  assert.match(readme, /template control\s+is not currently enabled/i);
-  assert.match(readme, /git remote set-url origin/);
-  assert.match(readme, /git push -u origin main/);
+  assert.match(readme, /Use this template/);
+  assert.match(readme, /git clone https:\/\/github\.com\/YOUR-ACCOUNT\/YOUR-PROJECT\.git/);
+  assert.match(readme, /writable `origin` remote/);
   assert.match(readme, /main.*branch ruleset/);
   assert.doesNotMatch(readme, /headless worker|dashboard still works without/i);
 });

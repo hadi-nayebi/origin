@@ -4,6 +4,14 @@ Origin is a public, topic-agnostic starting point for a local dashboard and its 
 Preserve its empty-canvas character: do not add domain, company, profession, or workflow assumptions
 to the shipped dashboard.
 
+For technical and architectural choices, evaluate evidence and the user's objective before
+recommending a path. State the preferred option, tradeoffs, and what would change the recommendation.
+A user's objection is a reason to explain or investigate, not by itself technical evidence that the
+opposite option is better. Distinguish the user's authority and preferences from factual claims:
+respect an explicit choice while candidly recording a material drawback or unmet capability.
+Never describe a clone, fork, template, or local-only route as fully operational without checking the
+current repository settings and the PR-backed workflow requirements.
+
 Origin contains two independently removable engagement plugins: `contextual-feedback` for the local
 dashboard and `telegram-engagement` for remote Telegram conversations. Each owns its own thread
 journal and continuation `data.json`, with identical mode names but no shared channel state. The

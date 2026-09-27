@@ -6,10 +6,25 @@ Codex authentication.
 
 ## Create a repository you control
 
-GitHub's template control is not currently enabled on the public Origin repository. Create a new
-empty repository under your own account or organization, choose public or private visibility, and do
-not initialize it with a README, license, or `.gitignore`. Then copy Origin's tracked source,
-replace the read-only source remote with your repository, and push `main`:
+The recommended route for an independent harness is **Use this template → Create a new repository**
+on [Origin](https://github.com/hadi-nayebi/origin). Choose your account or organization, public or
+private visibility, and leave **Include all branches** off. Clone the repository you created:
+
+```bash
+git clone https://github.com/YOUR-ACCOUNT/YOUR-PROJECT.git
+cd YOUR-PROJECT
+git remote get-url origin
+```
+
+The last command must report your repository. Template generation starts a separate project with
+its own history; repository settings are not copied. Fork instead if you intend to keep an upstream
+connection for contribution or synchronization. You can directly clone Origin to inspect or edit it
+locally, but an unchanged clone points to a source remote other users cannot push to, so it cannot
+complete the current PR-backed feedback lifecycle.
+
+If the template control is unavailable or you prefer a manual copy, create a new empty repository
+under your account or organization without a README, license, or `.gitignore`. Then clone the
+source, replace the remote, and push `main`:
 
 ```bash
 git clone https://github.com/hadi-nayebi/origin.git YOUR-PROJECT
@@ -19,11 +34,9 @@ git push -u origin main
 git remote get-url origin
 ```
 
-The last command must report the repository you control. If GitHub later shows **Use this template →
-Create a new repository**, that route is also valid; create the repository without other branches
-and clone it normally. An unchanged direct clone of `hadi-nayebi/origin` is not a personal harness:
-another user can read it but cannot push the managed branches or merge the PRs required by the
-feedback lifecycle.
+A user who wants a fully local workflow without a writable GitHub repository needs a separate
+local-only work-unit implementation. This release does not provide one; the full launcher checks
+GitHub access rather than silently degrading the feedback lifecycle.
 
 The repository may use any name. The local Git remote must remain named `origin`, and the
 authenticated GitHub account must have write and merge permission there. `npm run doctor` checks
@@ -64,8 +77,8 @@ transport contract. Install WSL2:
 powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -InstallWsl
 ```
 
-After any required restart, open the WSL terminal, create the owner-controlled Origin copy described
-above inside the Linux filesystem, and run `./scripts/install.sh` there.
+After any required restart, open the WSL terminal, clone the repository you created through the
+template or manual route inside the Linux filesystem, and run `./scripts/install.sh` there.
 
 ## Authenticate and inspect
 

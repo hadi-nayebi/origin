@@ -184,7 +184,7 @@ test("README is agent-first and contains no headless fallback", () => {
   assert.match(readme, /Use this template/);
   assert.match(readme, /git clone https:\/\/github\.com\/YOUR-ACCOUNT\/YOUR-PROJECT\.git/);
   assert.match(readme, /writable `origin` remote/);
-  assert.match(readme, /main.*branch ruleset/);
+  assert.match(readme, /main[\\s\\S]*branch ruleset/);
   assert.doesNotMatch(readme, /headless worker|dashboard still works without/i);
 });
 

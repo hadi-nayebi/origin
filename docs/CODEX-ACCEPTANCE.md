@@ -7,9 +7,9 @@ operating-system integration.
 
 Run this contract in a repository generated from the Origin template under the tester's own account
 or organization, or in an owner-controlled copy made with the fallback in `INSTALL.md`. An unchanged
-read-only clone of the public source repository cannot exercise managed branch pushes or owner-merged
-PRs. Use a disposable private repository for acceptance when the test history should not become
-part of a real harness.
+read-only clone of the public source repository cannot exercise managed branch pushes or
+owner-merged PRs. Use a disposable private repository for acceptance when the test history should
+not become part of a real harness.
 
 ## Machine and transport check
 

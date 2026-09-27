@@ -78,10 +78,10 @@ tracked files and a new history. A fork retains the link and history for contrib
 upstream or following Origin development. You may also clone the source and copy its tracked files
 into an empty repository you control; [installation](INSTALL.md) gives exact commands. An unchanged
 clone of `hadi-nayebi/origin` can be inspected and customized locally, but its `origin` remote is
-not writable by other users, so the current PR-backed feedback workflow cannot complete there.
-Every full Origin setup needs a writable `origin` remote, GitHub authentication, and the `main`
-branch ruleset described in [installation](INSTALL.md). Repository settings are not copied with
-tracked files.
+not writable by other users, so the current PR-backed feedback workflow cannot complete there. Every
+full Origin setup needs a writable `origin` remote, GitHub authentication, and the `main` branch
+ruleset described in [installation](INSTALL.md). Repository settings are not copied with tracked
+files.
 
 `npm run origin` performs strict preflight, starts or reuses the live dashboard, opens the browser,
 creates or reuses a repository-scoped tmux session, launches interactive Codex, and attaches the

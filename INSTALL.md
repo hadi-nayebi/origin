@@ -16,8 +16,8 @@ cd YOUR-PROJECT
 git remote get-url origin
 ```
 
-The last command must report your repository. Template generation starts a separate project with
-its own history; repository settings are not copied. Fork instead if you intend to keep an upstream
+The last command must report your repository. Template generation starts a separate project with its
+own history; repository settings are not copied. Fork instead if you intend to keep an upstream
 connection for contribution or synchronization. You can directly clone Origin to inspect or edit it
 locally, but an unchanged clone points to a source remote other users cannot push to, so it cannot
 complete the current PR-backed feedback lifecycle.

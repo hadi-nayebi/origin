@@ -143,13 +143,18 @@ test("existing tmux sessions reuse Codex or launch it only from an idle shell", 
 test("installers require consent and Windows routes to WSL2", () => {
   const unix = fs.readFileSync(path.join(root, "scripts", "install.sh"), "utf8");
   const windows = fs.readFileSync(path.join(root, "scripts", "install.ps1"), "utf8");
+  const installGuide = fs.readFileSync(path.join(root, "INSTALL.md"), "utf8");
   assert.match(unix, /Continue\? \[y\/N\]/);
   assert.match(unix, /npm install --global @openai\/codex/);
   assert.match(unix, /gh auth login/);
   assert.match(unix, /tmux/);
   assert.match(windows, /wsl --install/);
   assert.match(windows, /does not run.*native PowerShell/i);
-  assert.match(windows, /repository from the Origin template/i);
+  assert.match(windows, /owner-controlled Origin copy/i);
+  assert.match(installGuide, /Use this template/);
+  assert.match(installGuide, /git clone https:\/\/github\.com\/YOUR-ACCOUNT\/YOUR-PROJECT\.git/);
+  assert.match(installGuide, /git remote set-url origin/);
+  assert.match(installGuide, /git push -u origin main/);
 });
 
 test("doctor requires a user-writable GitHub repository", () => {
@@ -166,7 +171,7 @@ test("doctor requires a user-writable GitHub repository", () => {
   assert.equal(inspect({ nameWithOwner: "team/harness", viewerPermission: "WRITE" }).ok, true);
   const readOnly = inspect({ nameWithOwner: "hadi-nayebi/origin", viewerPermission: "READ" });
   assert.equal(readOnly.ok, false);
-  assert.match(readOnly.detail, /Origin template/);
+  assert.match(readOnly.detail, /owner-controlled Origin copy/);
   assert.equal(inspect({}, 1).ok, false);
 });
 
@@ -177,8 +182,9 @@ test("README is agent-first and contains no headless fallback", () => {
   assert.match(readme, /Hadosh Academy Origin project/);
   assert.match(readme, /same interactive Codex session/i);
   assert.match(readme, /Use this template/);
-  assert.match(readme, /main.*branch ruleset/);
-  assert.doesNotMatch(readme, /git clone https:\/\/github\.com\/hadi-nayebi\/origin\.git/);
+  assert.match(readme, /git clone https:\/\/github\.com\/YOUR-ACCOUNT\/YOUR-PROJECT\.git/);
+  assert.match(readme, /writable `origin` remote/);
+  assert.match(readme, /main[\s\S]*branch\s+ruleset/);
   assert.doesNotMatch(readme, /headless worker|dashboard still works without/i);
 });
 

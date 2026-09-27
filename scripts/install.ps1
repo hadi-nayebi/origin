@@ -8,7 +8,7 @@ if ($env:WSL_DISTRO_NAME) {
 if ($InstallWsl) {
   Write-Host "Origin 1.0 uses tmux and must run inside WSL2 on Windows. Windows may request administrator approval and a restart."
   wsl --install
-  Write-Host "After Windows restarts, create your repository from the Origin template, clone that repository inside WSL, and run ./scripts/install.sh."
+  Write-Host "After Windows restarts, create the owner-controlled Origin copy described in INSTALL.md inside WSL, and run ./scripts/install.sh."
   exit 0
 }
 

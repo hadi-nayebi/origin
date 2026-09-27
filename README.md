@@ -62,11 +62,9 @@ Model/sample/token files stay under ignored `.origin/`; no speech model is shipp
 The full harness supports Linux, macOS, and Windows through WSL2. It requires Git, GitHub CLI,
 Node.js 22+, tmux, Codex CLI, and authenticated GitHub and Codex sessions.
 
-First, use **Use this template → Create a new repository** on GitHub. Create the repository under
-your own account or organization and do not include the template's other branches. Origin's feedback
-workflow must be able to push managed feature branches and open and merge PRs in the repository you
-own; cloning Hadosh Academy's source repository directly does not give another user those
-permissions.
+For a distinct personal harness, use **Use this template → Create a new repository** on the
+[public Origin repository](https://github.com/hadi-nayebi/origin). Choose your account or
+organization, public or private visibility, and only the default branch. Clone your new repository:
 
 ```bash
 git clone https://github.com/YOUR-ACCOUNT/YOUR-PROJECT.git
@@ -75,10 +73,15 @@ cd YOUR-PROJECT
 npm run origin
 ```
 
-Directly clone `hadi-nayebi/origin` only when contributing a change back to Origin itself. For a
-personal harness or a clean acceptance test, create and clone your own repository from the template.
-Then apply the `main` branch ruleset described in [installation](INSTALL.md); repository settings
-are not carried into a repository created from a template.
+Template generation is the recommended shortcut for an independent project; it starts with the
+tracked files and a new history. A fork retains the link and history for contributing changes
+upstream or following Origin development. You may also clone the source and copy its tracked files
+into an empty repository you control; [installation](INSTALL.md) gives exact commands. An unchanged
+clone of `hadi-nayebi/origin` can be inspected and customized locally, but its `origin` remote is
+not writable by other users, so the current PR-backed feedback workflow cannot complete there. Every
+full Origin setup needs a writable `origin` remote, GitHub authentication, and the `main` branch
+ruleset described in [installation](INSTALL.md). Repository settings are not copied with tracked
+files.
 
 `npm run origin` performs strict preflight, starts or reuses the live dashboard, opens the browser,
 creates or reuses a repository-scoped tmux session, launches interactive Codex, and attaches the

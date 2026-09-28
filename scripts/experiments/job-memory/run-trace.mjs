@@ -4,7 +4,9 @@ import path from "node:path";
 import fs from "node:fs";
 import { OwnerStore, bindArtifact } from "./store.mjs";
 
-const root = process.env.ORIGIN_REPOSITORY_ROOT || fs.mkdtempSync(path.join(os.tmpdir(), "origin-p31-p37-"));
+const root =
+  process.env.ORIGIN_REPOSITORY_ROOT ||
+  fs.mkdtempSync(path.join(os.tmpdir(), "origin-p31-p37-"));
 const memory = new OwnerStore(root, "P31");
 const lineage = new OwnerStore(root, "P37");
 const caller = { class: "authorized-agent", proof_ref: "fixture:same-session" };
@@ -107,8 +109,17 @@ const lineageResult = bindArtifact(lineage, memory, {
   aggregate: job,
   recordId: "lineage_1",
   payload: {
-    artifact: { kind: "fixture", revision: "fixture:artifact@2", privacy: "private" },
-    evidence_refs: { plan: [decision], execute: [action], verify: [result], limitations: [risk] },
+    artifact: {
+      kind: "fixture",
+      revision: "fixture:artifact@2",
+      privacy: "private",
+    },
+    evidence_refs: {
+      plan: [decision],
+      execute: [action],
+      verify: [result],
+      limitations: [risk],
+    },
     export_privacy: "private",
   },
   inputRefs: [decision, action, result, risk],
@@ -125,7 +136,11 @@ try {
     eventType: "entry.appended",
     aggregate: job,
     recordId: "stale_action",
-    payload: { attempt_id: "execute_1", kind: "action", body: "Must not commit." },
+    payload: {
+      attempt_id: "execute_1",
+      kind: "action",
+      body: "Must not commit.",
+    },
     caller,
   });
 } catch (error) {
@@ -135,7 +150,13 @@ try {
 const correction = mutate("entry.corrected", "correction_1", {
   prior_entry_ref: fact,
   reason: "Later evidence narrowed the original fact.",
-  invalidates: [handoff.record_id, use.record_id, decision.record_id, action.record_id, result.record_id],
+  invalidates: [
+    handoff.record_id,
+    use.record_id,
+    decision.record_id,
+    action.record_id,
+    result.record_id,
+  ],
 });
 const repair = mutate("repair.opened", "repair_1", {
   source_attempt_id: "verify_1",

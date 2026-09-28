@@ -21,7 +21,8 @@ cannot prove semantic understanding.
 - An old owner revision fails without partial mutation.
 - A late correction invalidates dependents without rewriting earlier attempts.
 - A backward repair preserves the failed path and its reason.
-- Deleting a projection, closing a dashboard, or removing a channel does not remove the owner journal.
+- Deleting a projection, closing a dashboard, or removing a channel does not remove the owner
+  journal.
 
 Run the isolated trace:
 

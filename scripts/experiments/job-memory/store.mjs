@@ -34,7 +34,12 @@ export class OwnerStore {
   constructor(root, owner) {
     if (!EVENT_TYPES[owner]) throw new Error(`Unknown owner: ${owner}`);
     this.owner = owner;
-    this.directory = path.join(root, ".origin", "experiments", owner.toLowerCase());
+    this.directory = path.join(
+      root,
+      ".origin",
+      "experiments",
+      owner.toLowerCase(),
+    );
     this.journalPath = path.join(this.directory, "journal.jsonl");
     this.projectionPath = path.join(this.directory, "data.json");
     this.receiptsDirectory = path.join(this.directory, "receipts");
@@ -79,10 +84,14 @@ export class OwnerStore {
 
   resolve(ref) {
     validateRefShape(ref);
-    if (ref.owner !== this.owner) throw new Error(`Reference owner ${ref.owner} is unavailable here`);
+    if (ref.owner !== this.owner)
+      throw new Error(`Reference owner ${ref.owner} is unavailable here`);
     const event = this.inspect().records[ref.record_id];
     if (!event) throw new Error(`Unresolved reference: ${ref.record_id}`);
-    if (event.aggregate_revision !== ref.revision || event.payload_digest !== ref.digest) {
+    if (
+      event.aggregate_revision !== ref.revision ||
+      event.payload_digest !== ref.digest
+    ) {
       throw new Error(`Reference changed: ${ref.record_id}`);
     }
     return event;
@@ -90,14 +99,17 @@ export class OwnerStore {
 
   mutate(input) {
     for (const key of Object.keys(input)) {
-      if (!ALLOWED_INPUT.has(key)) throw new Error(`Unknown input field: ${key}`);
+      if (!ALLOWED_INPUT.has(key))
+        throw new Error(`Unknown input field: ${key}`);
     }
     requireString(input.operationId, "operationId");
     requireInteger(input.expectedRevision, "expectedRevision");
     requireString(input.aggregate, "aggregate");
     requireString(input.recordId, "recordId");
     if (!EVENT_TYPES[this.owner].has(input.eventType)) {
-      throw new Error(`Unknown event type for ${this.owner}: ${input.eventType}`);
+      throw new Error(
+        `Unknown event type for ${this.owner}: ${input.eventType}`,
+      );
     }
     if (!input.caller?.class || !input.caller?.proof_ref) {
       throw new Error("Caller class and proof_ref are required");
@@ -112,10 +124,14 @@ export class OwnerStore {
       privacy: input.privacy || "private",
     });
     const inputDigest = digest(canonicalInput);
-    const receiptPath = path.join(this.receiptsDirectory, `${safeId(input.operationId)}.json`);
+    const receiptPath = path.join(
+      this.receiptsDirectory,
+      `${safeId(input.operationId)}.json`,
+    );
     if (fs.existsSync(receiptPath)) {
       const receipt = readJson(receiptPath);
-      if (receipt.input_digest !== inputDigest) throw new Error("Operation ID collision");
+      if (receipt.input_digest !== inputDigest)
+        throw new Error("Operation ID collision");
       return { ...receipt.result, replayed: true };
     }
 
@@ -149,10 +165,12 @@ export class OwnerStore {
         event: eventRef(this.owner, event),
         owner_revision: revision,
       };
-      if (input.failurePoint === "before-journal") throw new Error("Injected failure before journal");
+      if (input.failurePoint === "before-journal")
+        throw new Error("Injected failure before journal");
       fs.mkdirSync(this.directory, { recursive: true });
       fs.appendFileSync(this.journalPath, `${JSON.stringify(event)}\n`);
-      if (input.failurePoint === "after-journal") throw new Error("Injected failure after journal");
+      if (input.failurePoint === "after-journal")
+        throw new Error("Injected failure after journal");
       applyEvent(projection, event);
       atomicJson(this.projectionPath, projection);
       if (input.failurePoint === "after-projection") {
@@ -175,9 +193,14 @@ export function bindArtifact(lineageStore, memoryStore, input) {
   for (const group of Object.values(refs)) {
     for (const ref of group || []) {
       const event = memoryStore.resolve(ref);
-      if (input.payload.export_privacy === "public" && event.privacy === "private") {
+      if (
+        input.payload.export_privacy === "public" &&
+        event.privacy === "private"
+      ) {
         if (!input.payload.derivation_receipt_ref) {
-          throw new Error("Private evidence requires a derivation receipt for public export");
+          throw new Error(
+            "Private evidence requires a derivation receipt for public export",
+          );
         }
       }
     }
@@ -225,9 +248,13 @@ function applyEvent(projection, event) {
   } else if (event.event_type === "entry.appended") {
     projection.attempts[payload.attempt_id]?.entry_refs.push(event.record_id);
   } else if (event.event_type === "handoff.published") {
-    projection.attempts[payload.source_attempt_id]?.handoff_refs.push(event.record_id);
+    projection.attempts[payload.source_attempt_id]?.handoff_refs.push(
+      event.record_id,
+    );
   } else if (event.event_type === "packet.used") {
-    projection.attempts[payload.target_attempt_id]?.consumed_handoff_refs.push(payload.handoff_ref);
+    projection.attempts[payload.target_attempt_id]?.consumed_handoff_refs.push(
+      payload.handoff_ref,
+    );
   } else if (event.event_type === "entry.corrected") {
     projection.invalidated_refs.push(...(payload.invalidates || []));
   } else if (event.event_type === "repair.opened") {
@@ -291,14 +318,17 @@ function digest(value) {
 }
 
 function safeId(value) {
-  if (!/^[A-Za-z0-9._-]{1,128}$/.test(value)) throw new Error("Operation ID is invalid");
+  if (!/^[A-Za-z0-9._-]{1,128}$/.test(value))
+    throw new Error("Operation ID is invalid");
   return value;
 }
 
 function requireString(value, name) {
-  if (typeof value !== "string" || !value) throw new Error(`${name} is required`);
+  if (typeof value !== "string" || !value)
+    throw new Error(`${name} is required`);
 }
 
 function requireInteger(value, name) {
-  if (!Number.isInteger(value) || value < 0) throw new Error(`${name} must be a non-negative integer`);
+  if (!Number.isInteger(value) || value < 0)
+    throw new Error(`${name} must be a non-negative integer`);
 }

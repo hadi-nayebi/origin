@@ -51,7 +51,7 @@ const delivery = mutate("packet.delivered", "delivery_1", {
   packet_ref: "P21:packet_1",
   target_phase_revision: 1,
 });
-const planAttempt = mutate("attempt.opened", "plan_1", {
+const _planAttempt = mutate("attempt.opened", "plan_1", {
   phase: "Plan",
   profile_ref: "feature-implementation/v0",
   objective_revision: 1,
@@ -68,7 +68,7 @@ const use = mutate("packet.used", "use_1", {
   packet_ref: "P21:packet_1",
   first_affected_ref: decision,
 });
-const executeAttempt = mutate("attempt.opened", "execute_1", {
+const _executeAttempt = mutate("attempt.opened", "execute_1", {
   phase: "Execute",
   profile_ref: "feature-implementation/v0",
   objective_revision: 1,
@@ -80,7 +80,7 @@ const action = mutate("entry.appended", "action_1", {
   artifact_revision: "fixture:artifact@2",
   evidence_refs: [decision, use],
 });
-const verifyAttempt = mutate("attempt.opened", "verify_1", {
+const _verifyAttempt = mutate("attempt.opened", "verify_1", {
   phase: "Verify",
   profile_ref: "feature-implementation/v0",
   objective_revision: 1,

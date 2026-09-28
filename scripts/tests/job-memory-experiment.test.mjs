@@ -7,9 +7,13 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { OwnerStore, bindArtifact } from "../experiments/job-memory/store.mjs";
 
-const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const repositoryRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../..",
+);
 const caller = { class: "authorized-agent", proof_ref: "fixture:test" };
-const fixture = () => fs.mkdtempSync(path.join(os.tmpdir(), "origin-job-memory-"));
+const fixture = () =>
+  fs.mkdtempSync(path.join(os.tmpdir(), "origin-job-memory-"));
 const input = (revision, overrides = {}) => ({
   operationId: `op_${revision}_${Math.random().toString(16).slice(2)}`,
   expectedRevision: revision,
@@ -24,7 +28,10 @@ const input = (revision, overrides = {}) => ({
 
 test("P31/P37 same-session trace preserves causality and repair history", () => {
   const root = fixture();
-  const script = path.join(repositoryRoot, "scripts/experiments/job-memory/run-trace.mjs");
+  const script = path.join(
+    repositoryRoot,
+    "scripts/experiments/job-memory/run-trace.mjs",
+  );
   const run = spawnSync(process.execPath, [script], {
     env: { ...process.env, ORIGIN_REPOSITORY_ROOT: root },
     encoding: "utf8",
@@ -55,20 +62,32 @@ test("typed entry kinds remain distinct", () => {
       input(index + 1, {
         eventType: "entry.appended",
         recordId: kind,
-        payload: { attempt_id: Object.keys(store.inspect().attempts)[0], kind, body: kind },
+        payload: {
+          attempt_id: Object.keys(store.inspect().attempts)[0],
+          kind,
+          body: kind,
+        },
       }),
     );
   }
   assert.deepEqual(
-    ["fact", "hypothesis", "constraint"].map((id) => store.inspect().records[id].payload.kind),
+    ["fact", "hypothesis", "constraint"].map(
+      (id) => store.inspect().records[id].payload.kind,
+    ),
     ["fact", "hypothesis", "constraint"],
   );
 });
 
 test("unknown fields and event types fail without mutation", () => {
   const store = new OwnerStore(fixture(), "P31");
-  assert.throws(() => store.mutate({ ...input(0), surprise: true }), /Unknown input field/);
-  assert.throws(() => store.mutate(input(0, { eventType: "future.event" })), /Unknown event type/);
+  assert.throws(
+    () => store.mutate({ ...input(0), surprise: true }),
+    /Unknown input field/,
+  );
+  assert.throws(
+    () => store.mutate(input(0, { eventType: "future.event" })),
+    /Unknown event type/,
+  );
   assert.equal(store.inspect().owner_revision, 0);
 });
 
@@ -81,7 +100,10 @@ test("stale owner revisions fail closed", () => {
 
 test("operation replay is idempotent and collision fails", () => {
   const store = new OwnerStore(fixture(), "P31");
-  const operation = input(0, { operationId: "op_fixed", recordId: "attempt_1" });
+  const operation = input(0, {
+    operationId: "op_fixed",
+    recordId: "attempt_1",
+  });
   const first = store.mutate(operation);
   const replay = store.mutate(operation);
   assert.equal(replay.replayed, true);
@@ -103,12 +125,18 @@ test("journal-committed crash rebuilds one effect", () => {
   const root = fixture();
   const store = new OwnerStore(root, "P31");
   assert.throws(
-    () => store.mutate(input(0, { failurePoint: "after-journal", recordId: "attempt_1" })),
+    () =>
+      store.mutate(
+        input(0, { failurePoint: "after-journal", recordId: "attempt_1" }),
+      ),
     /Injected failure/,
   );
   fs.rmSync(store.projectionPath, { force: true });
   assert.equal(store.rebuild().owner_revision, 1);
-  assert.equal(fs.readFileSync(store.journalPath, "utf8").trim().split("\n").length, 1);
+  assert.equal(
+    fs.readFileSync(store.journalPath, "utf8").trim().split("\n").length,
+    1,
+  );
 });
 
 test("handoff publication is distinct from packet delivery and use", () => {
@@ -125,7 +153,11 @@ test("handoff publication is distinct from packet delivery and use", () => {
     input(2, {
       eventType: "handoff.published",
       recordId: "handoff_1",
-      payload: { source_attempt_id: "observe_1", target_phase: "Plan", selected_entry_refs: [fact] },
+      payload: {
+        source_attempt_id: "observe_1",
+        target_phase: "Plan",
+        selected_entry_refs: [fact],
+      },
       inputRefs: [attempt, fact],
     }),
   ).event;
@@ -165,7 +197,10 @@ test("correction invalidates dependents without deleting history", () => {
     input(1, {
       eventType: "entry.corrected",
       recordId: "correction_1",
-      payload: { prior_entry_ref: fact, invalidates: ["decision_1", "action_1"] },
+      payload: {
+        prior_entry_ref: fact,
+        invalidates: ["decision_1", "action_1"],
+      },
       inputRefs: [fact],
     }),
   );
@@ -177,12 +212,18 @@ test("correction invalidates dependents without deleting history", () => {
 
 test("backward repair preserves the source attempt", () => {
   const store = new OwnerStore(fixture(), "P31");
-  store.mutate(input(0, { recordId: "verify_1", payload: { phase: "Verify" } }));
+  store.mutate(
+    input(0, { recordId: "verify_1", payload: { phase: "Verify" } }),
+  );
   store.mutate(
     input(1, {
       eventType: "repair.opened",
       recordId: "repair_1",
-      payload: { source_attempt_id: "verify_1", target_phase: "Observe", reason_ref: "evidence:1" },
+      payload: {
+        source_attempt_id: "verify_1",
+        target_phase: "Observe",
+        reason_ref: "evidence:1",
+      },
     }),
   );
   assert.ok(store.inspect().attempts.verify_1);
@@ -200,7 +241,9 @@ test("artifact lineage requires Plan, Execute, and Verify evidence", () => {
     ["execute", "Execute"],
     ["verify", "Verify"],
   ]) {
-    refs[name] = memory.mutate(input(revision++, { recordId: name, payload: { phase } })).event;
+    refs[name] = memory.mutate(
+      input(revision++, { recordId: name, payload: { phase } }),
+    ).event;
   }
   const bind = (evidenceRefs, extra = {}) =>
     bindArtifact(lineage, memory, {
@@ -209,14 +252,22 @@ test("artifact lineage requires Plan, Execute, and Verify evidence", () => {
       eventType: "artifact.bound",
       aggregate: "job:1",
       recordId: "lineage_1",
-      payload: { evidence_refs: evidenceRefs, export_privacy: "private", ...extra },
+      payload: {
+        evidence_refs: evidenceRefs,
+        export_privacy: "private",
+        ...extra,
+      },
       inputRefs: Object.values(evidenceRefs).flat(),
       privacy: "private",
       caller,
     });
-  assert.throws(() => bind({ plan: [refs.plan], execute: [refs.execute] }), /Verify evidence/);
+  assert.throws(
+    () => bind({ plan: [refs.plan], execute: [refs.execute] }),
+    /Verify evidence/,
+  );
   assert.equal(
-    bind({ plan: [refs.plan], execute: [refs.execute], verify: [refs.verify] }).owner_revision,
+    bind({ plan: [refs.plan], execute: [refs.execute], verify: [refs.verify] })
+      .owner_revision,
     1,
   );
 });
@@ -225,8 +276,10 @@ test("public lineage refuses private evidence without derivation receipt", () =>
   const root = fixture();
   const memory = new OwnerStore(root, "P31");
   const lineage = new OwnerStore(root, "P37");
-  const refs = ["plan", "execute", "verify"].map((recordId, index) =>
-    memory.mutate(input(index, { recordId, payload: { phase: recordId } })).event,
+  const refs = ["plan", "execute", "verify"].map(
+    (recordId, index) =>
+      memory.mutate(input(index, { recordId, payload: { phase: recordId } }))
+        .event,
   );
   assert.throws(
     () =>
@@ -237,7 +290,11 @@ test("public lineage refuses private evidence without derivation receipt", () =>
         aggregate: "job:1",
         recordId: "lineage_public",
         payload: {
-          evidence_refs: { plan: [refs[0]], execute: [refs[1]], verify: [refs[2]] },
+          evidence_refs: {
+            plan: [refs[0]],
+            execute: [refs[1]],
+            verify: [refs[2]],
+          },
           export_privacy: "public",
         },
         inputRefs: refs,
@@ -252,9 +309,13 @@ test("projection deletion and dashboard or channel removal do not erase owner st
   const store = new OwnerStore(root, "P31");
   store.mutate(input(0, { recordId: "attempt_1" }));
   const before = store.inspect();
-  fs.mkdirSync(path.join(root, ".origin", "contextual-feedback"), { recursive: true });
+  fs.mkdirSync(path.join(root, ".origin", "contextual-feedback"), {
+    recursive: true,
+  });
   fs.mkdirSync(path.join(root, ".origin", "dashboard"), { recursive: true });
-  fs.rmSync(path.join(root, ".origin", "contextual-feedback"), { recursive: true });
+  fs.rmSync(path.join(root, ".origin", "contextual-feedback"), {
+    recursive: true,
+  });
   fs.rmSync(path.join(root, ".origin", "dashboard"), { recursive: true });
   fs.rmSync(store.projectionPath);
   assert.deepEqual(store.rebuild(), before);

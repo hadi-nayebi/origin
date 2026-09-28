@@ -5,8 +5,7 @@ import fs from "node:fs";
 import { OwnerStore, bindArtifact } from "./store.mjs";
 
 const root =
-  process.env.ORIGIN_REPOSITORY_ROOT ||
-  fs.mkdtempSync(path.join(os.tmpdir(), "origin-p31-p37-"));
+  process.env.ORIGIN_REPOSITORY_ROOT || fs.mkdtempSync(path.join(os.tmpdir(), "origin-p31-p37-"));
 const memory = new OwnerStore(root, "P31");
 const lineage = new OwnerStore(root, "P37");
 const caller = { class: "authorized-agent", proof_ref: "fixture:same-session" };

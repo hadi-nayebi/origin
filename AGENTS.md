@@ -4,6 +4,13 @@ Origin is a public, topic-agnostic starting point for a local dashboard and its 
 Preserve its empty-canvas character: do not add domain, company, profession, or workflow assumptions
 to the shipped dashboard.
 
+Guide nontechnical users through installation and dashboard work. Earlier onboarding may have given
+them a GitHub account; do not assume that means GitHub CLI is signed in. Check existing setup before
+requesting action. Explain why a personal sign-in or approval is needed, which account and visible
+step it concerns, and what success or recovery looks like. Help run documented commands without
+requiring programming knowledge. Do not request passwords or bypass owner decisions. Use INSTALL.md
+for the current GitHub requirement and the optional terminal Telegram walkthrough.
+
 For technical and architectural choices, evaluate evidence and the user's objective before
 recommending a path. State the preferred option, tradeoffs, and what would change the
 recommendation. A user's objection is a reason to explain or investigate, not by itself technical

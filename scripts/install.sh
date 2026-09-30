@@ -47,9 +47,12 @@ if ! codex login status >/dev/null 2>&1; then
   codex login
 fi
 
+echo "Origin uses your GitHub repository to submit proposed changes for your review. Only you decide when to merge them."
 if ! gh auth status >/dev/null 2>&1; then
-  echo "GitHub CLI is installed but is not authenticated. Origin will now open GitHub's login flow."
+  echo "Sign in with your own GitHub account. Follow GitHub CLI's prompts and complete its browser instructions. Do not give your password or authentication code to your agent."
   gh auth login
+else
+  echo "Your GitHub CLI is already signed in. No new login is needed."
 fi
 
 node scripts/install.mjs

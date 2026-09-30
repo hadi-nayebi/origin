@@ -666,6 +666,12 @@ test("combined launcher validates, creates one repo session, starts Codex, and a
       return { status: 1, stdout: "", stderr: "missing" };
     if (command === "tmux" && args[0] === "list-panes")
       return { status: 0, stdout: `bash\t${root}\n`, stderr: "" };
+    if (command === "gh")
+      return {
+        status: 0,
+        stdout: JSON.stringify({ nameWithOwner: "person/harness", viewerPermission: "WRITE" }),
+        stderr: "",
+      };
     return { status: 0, stdout: "ready", stderr: "" };
   };
   const result = await startHarness({
@@ -702,6 +708,12 @@ test("combined launcher keeps an explicit fresh-session escape hatch", async () 
       return { status: 1, stdout: "", stderr: "missing" };
     if (command === "tmux" && args[0] === "list-panes")
       return { status: 0, stdout: `bash\t${root}\n`, stderr: "" };
+    if (command === "gh")
+      return {
+        status: 0,
+        stdout: JSON.stringify({ nameWithOwner: "person/harness", viewerPermission: "WRITE" }),
+        stderr: "",
+      };
     return { status: 0, stdout: "ready", stderr: "" };
   };
   await startHarness({
@@ -727,6 +739,12 @@ test("combined launcher switches an existing tmux client into the repository ses
       return { status: 0, stdout: "", stderr: "" };
     if (command === "tmux" && args[0] === "list-panes")
       return { status: 0, stdout: `codex\t${root}\n`, stderr: "" };
+    if (command === "gh")
+      return {
+        status: 0,
+        stdout: JSON.stringify({ nameWithOwner: "person/harness", viewerPermission: "WRITE" }),
+        stderr: "",
+      };
     return { status: 0, stdout: "ready", stderr: "" };
   };
   const result = await startHarness({
@@ -825,4 +843,31 @@ test("real Codex styled placeholder allows a wake while identical owner text is 
     ),
     false,
   );
+});
+
+test("launcher refuses a read-only GitHub remote before starting any runtime", async () => {
+  const root = fixture();
+  const calls = [];
+  const run = (command, args) => {
+    calls.push({ command, args });
+    return {
+      status: 0,
+      stdout:
+        command === "gh"
+          ? JSON.stringify({ nameWithOwner: "upstream/origin", viewerPermission: "READ" })
+          : "ready",
+      stderr: "",
+    };
+  };
+  await assert.rejects(
+    startHarness({ root, run, platform: "linux", release: { name: "node" } }),
+    /writable GitHub work-unit repository/,
+  );
+  assert.equal(
+    calls.some(
+      ({ command }) => command === "tmux" && calls.some(({ args }) => args[0] === "new-session"),
+    ),
+    false,
+  );
+  assert.equal(fs.existsSync(path.join(root, ".origin", "runtime.json")), false);
 });

@@ -859,7 +859,10 @@ test("launcher refuses a read-only GitHub remote before starting any runtime", a
       stderr: "",
     };
   };
-  await assert.rejects(startHarness({ root, run }), /writable GitHub work-unit repository/);
+  await assert.rejects(
+    startHarness({ root, run, platform: "linux", release: { name: "node" } }),
+    /writable GitHub work-unit repository/,
+  );
   assert.equal(
     calls.some(
       ({ command }) => command === "tmux" && calls.some(({ args }) => args[0] === "new-session"),

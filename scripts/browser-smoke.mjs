@@ -90,6 +90,29 @@ try {
     await page
       .getByLabel("What should change?")
       .fill(`Verify ${dev ? "development" : "production"} feedback flow`);
+    if (dev) {
+      // Managed worktrees are private runtime data, not live dashboard source.
+      // A nested tsconfig used to force a full reload and erase this draft.
+      let navigations = 0;
+      const trackNavigation = (frame) => {
+        if (frame === page.mainFrame()) navigations += 1;
+      };
+      page.on("framenavigated", trackNavigation);
+      const nested = path.join(root, ".origin", "worktrees", "watch-probe");
+      fs.mkdirSync(nested, { recursive: true });
+      fs.cpSync(path.join(root, "tsconfig.json"), path.join(nested, "tsconfig.json"));
+      fs.writeFileSync(
+        path.join(nested, "index.html"),
+        "<!doctype html><title>Worktree preview</title>",
+      );
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      assert.equal(navigations, 0, "Private worktree creation must not reload the live dashboard");
+      assert.equal(
+        await page.getByLabel("What should change?").inputValue(),
+        "Verify development feedback flow",
+      );
+      page.off("framenavigated", trackNavigation);
+    }
     await page.getByRole("button", { name: "Save feedback", exact: true }).click();
     await page.getByText(/Saved.*tmux wake.*pending/).waitFor();
     await page.getByRole("button", { name: "Pause dashboard channel", exact: true }).click();

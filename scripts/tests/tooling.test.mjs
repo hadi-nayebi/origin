@@ -8,6 +8,7 @@ import {
   ensureTmuxCodex,
   sessionName,
 } from "../../.codex/plugins/_dashboard-runtime/scripts/start-harness.mjs";
+import { supportsNode, assertNode } from "../node-runtime.mjs";
 import { inspectGitHubRepositoryAccess } from "../github-repository-access.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -240,6 +241,16 @@ test("lockfile and package versions match", () => {
   const lock = JSON.parse(fs.readFileSync(path.join(root, "package-lock.json"), "utf8"));
   assert.equal(lock.version, manifest.version);
   assert.equal(lock.packages[""].version, manifest.version);
+});
+
+test("Node preflight matches dependency release-line and patch requirements", () => {
+  for (const version of ["22.0.0", "22.21.0", "22.22.1", "23.9.0", "24.14.0", "25.0.0", "garbage"])
+    assert.equal(supportsNode(version), false, version);
+  for (const version of ["v22.22.2", "22.23.0", "24.15.0", "24.16.0", "26.0.0", "27.0.0"])
+    assert.equal(supportsNode(version), true, version);
+  assert.throws(() => assertNode("22.21.0"), /Install a supported Node.js LTS/);
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+  assert.equal(manifest.engines.node, "^22.22.2 || ^24.15.0 || >=26.0.0");
 });
 
 test("launcher reuses an npm-wrapped Codex only with repository and session proof", () => {

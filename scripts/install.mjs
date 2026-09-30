@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
 
-if (Number(process.versions.node.split(".")[0]) < 22)
-  fail(`Origin requires Node.js 22 or newer; found ${process.version}.`);
+import { assertNode } from "./node-runtime.mjs";
+try {
+  assertNode();
+} catch (error) {
+  fail(error.message);
+}
 run(process.platform === "win32" ? "npm.cmd" : "npm", ["ci"]);
 run(process.platform === "win32" ? "npm.cmd" : "npm", ["run", "check"]);
 run(process.execPath, ["scripts/doctor.mjs"]);

@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { supportsNode, nodeRequirement } from "../../../../scripts/node-runtime.mjs";
 
 export function inspectMachine(options = {}) {
   const run = options.run || runCommand;
@@ -6,7 +7,11 @@ export function inspectMachine(options = {}) {
   const release = options.release || process.release;
   const checks = [];
   checks.push(
-    check("Node.js 22+", Number(process.versions.node.split(".")[0]) >= 22, process.version),
+    check(
+      nodeRequirement,
+      supportsNode(options.nodeVersion || process.version),
+      options.nodeVersion || process.version,
+    ),
   );
   checks.push(commandCheck(run, "git", ["--version"], "Git"));
   checks.push(commandCheck(run, "tmux", ["-V"], "tmux"));

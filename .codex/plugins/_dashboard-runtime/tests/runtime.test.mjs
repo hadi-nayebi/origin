@@ -549,12 +549,14 @@ test("stale wake is cancelled after user acceptance", async () => {
 
 test("machine inspection requires tmux, Codex, auth, and WSL2 on Windows", () => {
   const good = inspectMachine({
+    nodeVersion: "22.22.2",
     run: () => ({ status: 0, stdout: "ready" }),
     platform: "linux",
     release: { name: "node" },
   });
   assert.equal(good.ok, true);
   const nativeWindows = inspectMachine({
+    nodeVersion: "22.22.2",
     run: () => ({ status: 0, stdout: "ready" }),
     platform: "win32",
     release: { name: "node" },
@@ -562,11 +564,13 @@ test("machine inspection requires tmux, Codex, auth, and WSL2 on Windows", () =>
   assert.equal(nativeWindows.ok, false);
   assert.equal(nativeWindows.checks.find((item) => item.name === "Interactive platform").ok, false);
   const missingTmux = inspectMachine({
+    nodeVersion: "22.22.2",
     run: (command) => ({ status: command === "tmux" ? 1 : 0, stdout: "", stderr: "missing" }),
     platform: "linux",
   });
   assert.equal(missingTmux.ok, false);
   const missingCodex = inspectMachine({
+    nodeVersion: "22.22.2",
     run: (command) => ({
       status: command === "codex" ? 1 : 0,
       stdout: "",

@@ -23,7 +23,7 @@ install_system_kit() {
   elif command -v zypper >/dev/null 2>&1; then
     sudo zypper install -y git gh tmux nodejs npm
   else
-    echo "No supported package manager was found. Install Git, GitHub CLI, tmux, and Node.js 22+ and rerun." >&2
+    echo "No supported package manager was found. Install Git, GitHub CLI, tmux, and a supported Node.js LTS and rerun." >&2
     exit 1
   fi
 }
@@ -38,11 +38,7 @@ command -v codex >/dev/null 2>&1 || missing_codex=1
 if [ "$missing_system" = "1" ] || [ "$missing_codex" = "1" ]; then confirm; fi
 if [ "$missing_system" = "1" ]; then install_system_kit; fi
 
-node_major=$(node -p 'Number(process.versions.node.split(".")[0])')
-if [ "$node_major" -lt 22 ]; then
-  echo "The package manager installed Node.js $(node --version), but Origin requires Node.js 22+. Install the current Node.js LTS from https://nodejs.org and rerun." >&2
-  exit 1
-fi
+node scripts/node-runtime.mjs
 
 if [ "$missing_codex" = "1" ]; then npm install --global @openai/codex; fi
 

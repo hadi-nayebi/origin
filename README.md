@@ -60,7 +60,7 @@ Model/sample/token files stay under ignored `.origin/`; no speech model is shipp
 ## Start
 
 The full harness supports Linux, macOS, and Windows through WSL2. It requires Git, GitHub CLI,
-Node.js 22+, tmux, Codex CLI, and authenticated GitHub and Codex sessions.
+Node.js 22.22.2+, 24.15.0+, or 26+, tmux, Codex CLI, and authenticated GitHub and Codex sessions.
 
 For a distinct personal harness, use **Use this template → Create a new repository** on the
 [public Origin repository](https://github.com/hadi-nayebi/origin). Choose your account or

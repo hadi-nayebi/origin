@@ -9,6 +9,8 @@ import { ensureAgentState } from "../../_engagement-core/lib/state.mjs";
 import { reconcileAgentState } from "../../_engagement-core/lib/service.mjs";
 import { assertMachineReady } from "../lib/machine.mjs";
 import { ensureDashboardRuntime } from "../lib/runtime-control.mjs";
+import { resolveCodexPane } from "../lib/codex-wake-v1.mjs";
+import { inspectGitHubRepositoryAccess } from "../../../../scripts/github-repository-access.mjs";
 
 const runtimeRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const root = path.resolve(runtimeRoot, "../../..");
@@ -17,6 +19,11 @@ export async function startHarness(options = {}) {
   const run = options.run || runCommand;
   const repositoryRoot = path.resolve(options.root || root);
   assertMachineReady({ run, platform: options.platform, release: options.release });
+  const repositoryAccess = inspectGitHubRepositoryAccess({ cwd: repositoryRoot, run });
+  if (!repositoryAccess.ok)
+    throw new Error(
+      `Origin requires a writable GitHub work-unit repository: ${repositoryAccess.detail}`,
+    );
   const feedbackEnabled =
     !options.telegramOnly &&
     !process.argv.includes("--telegram-only") &&
@@ -118,6 +125,13 @@ export function ensureTmuxCodex(run, session, command, repositoryRoot) {
   if (codexPanes.length === 1) return "running";
   if (codexPanes.length > 1)
     throw new Error(`Origin tmux session ${session} contains more than one Codex pane.`);
+  // npm's Codex launcher can appear as node while the native Codex process is
+  // its descendant. Apply the same repository-scoped proof used by wake delivery.
+  if (repositoryRoot && panes.length === 1 && currentIsWrapper(panes[0]?.currentCommand)) {
+    const resolved = resolveCodexPane(repositoryRoot, { run });
+    if (resolved.session === session) return "running";
+    throw new Error(`Origin found Codex in another tmux session: ${resolved.session}.`);
+  }
   const current = panes[0]?.currentCommand || "";
   if (panes.length === 1 && /^(ba|z|fi|da|k)?sh$|^fish$/i.test(current)) {
     assertSuccess(
@@ -129,6 +143,10 @@ export function ensureTmuxCodex(run, session, command, repositoryRoot) {
   throw new Error(
     `Origin tmux session ${session} does not contain exactly one Codex pane or one idle shell. It reported: ${panes.map((item) => item.currentCommand).join(", ") || "no panes"}. Attach and inspect it before retrying.`,
   );
+}
+
+function currentIsWrapper(command) {
+  return /^(node|nodejs)$/i.test(command || "");
 }
 
 export function sessionName(repositoryRoot) {

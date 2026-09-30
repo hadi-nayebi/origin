@@ -2,6 +2,7 @@
 import { spawnSync } from "node:child_process";
 
 import { assertNode } from "./node-runtime.mjs";
+import { offerTelegramSetup } from "./installation-onboarding.mjs";
 try {
   assertNode();
 } catch (error) {
@@ -10,6 +11,11 @@ try {
 run(process.platform === "win32" ? "npm.cmd" : "npm", ["ci"]);
 run(process.platform === "win32" ? "npm.cmd" : "npm", ["run", "check"]);
 run(process.execPath, ["scripts/doctor.mjs"]);
+try {
+  await offerTelegramSetup();
+} catch (error) {
+  fail(error.message);
+}
 console.log("Origin setup is complete. Run: npm run origin");
 
 function run(command, args) {

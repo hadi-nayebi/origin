@@ -4,6 +4,27 @@ Origin 1.0 requires one interactive Codex session connected to the dashboard thr
 required machine kit is Git, GitHub CLI, Node.js 22.22.2+, 24.15.0+, or 26+, npm, tmux, Codex CLI,
 and GitHub and Codex authentication.
 
+You do not need a programming background. This guide assumes you already created your own GitHub
+account during earlier onboarding. Your CLI agent can help run the setup commands and explain their
+results. You personally complete sign-in and decide whether to approve proposed changes.
+
+## Why GitHub sign-in is required
+
+Origin saves proposed changes in your own GitHub repository as pull requests: changes you can review
+before accepting them. This release requires GitHub sign-in and permission to change that repository
+for this workflow. Downloading the public source alone does not require sign-in; using its complete
+review workflow does. Use your account, never the Origin author's account.
+
+The installer checks whether GitHub CLI is already signed in and reuses a valid login. If not, it
+starts `gh auth login`; follow the terminal prompts and GitHub's browser instructions. Your agent
+does not need your password or private authentication credentials. Having a GitHub account and
+signing GitHub CLI into that account are separate steps.
+
+GitHub may separately ask you to confirm your identity when changing repository protections in its
+website. That is a settings confirmation, not another installer login. Explain the exact settings
+action before requesting it; if GitHub Mobile asks for numbers, use the fresh numbers displayed by
+that browser prompt. Rejected or expired requests are not completed setup.
+
 ## Create a repository you control
 
 The recommended route for an independent harness is **Use this template → Create a new repository**
@@ -62,8 +83,18 @@ This remote rule complements the trusted local hook. The rule blocks direct or u
 
 The installer asks before installing system software. On supported package managers it installs
 missing Git, GitHub CLI, tmux, Node/npm, and the official `@openai/codex` package, then installs
-repository dependencies and runs the complete test/build/doctor contract. It then offers the
-user-owned GitHub and Codex authentication steps; it never embeds credentials.
+repository dependencies and runs the complete test/build/doctor contract. Before installing the
+repository dependencies, it checks GitHub and Codex sign-in and offers their official login flows
+only when needed; it never embeds credentials.
+
+After the checks pass, the installer offers optional Telegram setup in the same terminal. Choose
+**no** or press Enter to continue without Telegram. Choose **yes** only when you have a dedicated
+bot created through **@BotFather** in Telegram. The token is entered without being shown, and setup
+displays a one-time command to send to that bot in a private chat. Success is confirmed only after
+that pairing finishes. Cancelled or failed pairing does not report installation complete; you can
+retry with `npm run telegram -- setup`. Noninteractive runs skip this choice and print that command.
+An existing configuration is preserved rather than overwritten. Text works without optional speech
+downloads or voice enrollment.
 
 If a Linux distribution's package manager provides Node older than 22, install the current Node.js
 LTS from [nodejs.org](https://nodejs.org/) and rerun the script.

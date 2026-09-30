@@ -68,7 +68,7 @@ export async function startHarness(options = {}) {
     const telegram = await startBackground(repositoryRoot);
     process.stdout.write(`Telegram listener: ${telegram.status} (PID ${telegram.pid})\n`);
   }
-  if (process.env.TMUX || options.insideTmux) {
+  if (options.insideTmux ?? Boolean(process.env.TMUX)) {
     process.stdout.write(
       `Origin dashboard: ${runtime.url}\nSwitching to interactive Codex session: ${session}\n`,
     );

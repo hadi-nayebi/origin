@@ -1,5 +1,6 @@
 import { CHANNELS, pluginPresent } from "../.codex/plugins/_engagement-core/lib/scope.mjs";
 import express from "express";
+import { createServer as createHttpServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { readFile, readdir } from "node:fs/promises";
@@ -349,7 +350,11 @@ export async function createOriginApp(options = {}) {
     const vite = await createServer({
       root,
       html: { cspNonce: devNonce },
-      server: { middlewareMode: true, ws: { host: "127.0.0.1" } },
+      server: {
+        middlewareMode: true,
+        ws: { host: "127.0.0.1", server: options.httpServer },
+        watch: { ignored: [path.join(root, ".origin", "**").replaceAll("\\", "/")] },
+      },
       appType: "spa",
     });
     app.locals.closeUi = () => vite.close();
@@ -393,10 +398,12 @@ export async function startOriginServer(options = {}) {
     reconcileAgentState(root);
     ensureRunnableWakeCoverage(root);
   }
-  const app = await createOriginApp({ ...options, root, dev: isDev });
-  const server = await new Promise((resolve, reject) => {
-    const listening = app.listen(port, host, () => resolve(listening));
-    listening.once("error", reject);
+  const server = createHttpServer();
+  const app = await createOriginApp({ ...options, root, dev: isDev, httpServer: server });
+  server.on("request", app);
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(port, host, resolve);
   });
   server.once("close", () => void app.locals.closeUi?.());
   if (pluginPresent(sourceRoot) && options.deliverWakes !== false)

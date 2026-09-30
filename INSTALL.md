@@ -1,8 +1,8 @@
 # Install Origin
 
 Origin 1.0 requires one interactive Codex session connected to the dashboard through tmux. The
-required machine kit is Git, GitHub CLI, Node.js 22 or newer, npm, tmux, Codex CLI, and GitHub and
-Codex authentication.
+required machine kit is Git, GitHub CLI, Node.js 22.22.2+, 24.15.0+, or 26+, npm, tmux, Codex CLI,
+and GitHub and Codex authentication.
 
 ## Create a repository you control
 

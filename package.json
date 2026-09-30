@@ -16,7 +16,7 @@
   ],
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
   },
   "scripts": {
     "dev": "node server/index.mjs --dev",
@@ -61,7 +61,7 @@
     "@types/node": "26.4.1",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
-    "ajv": "8.17.1",
+    "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
     "axe-core": "4.13.0",
     "eslint": "10.9.1",

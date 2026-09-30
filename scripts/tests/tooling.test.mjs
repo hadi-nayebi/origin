@@ -241,3 +241,37 @@ test("lockfile and package versions match", () => {
   assert.equal(lock.version, manifest.version);
   assert.equal(lock.packages[""].version, manifest.version);
 });
+
+test("launcher reuses an npm-wrapped Codex only with repository and session proof", () => {
+  const calls = [];
+  const run = (command, args) => {
+    calls.push({ command, args });
+    if (command === "ps")
+      return {
+        status: 0,
+        stdout: "101 1 zsh\n102 101 node /npm/bin/codex\n103 102 /vendor/codex\n",
+        stderr: "",
+      };
+    if (args.includes("-a"))
+      return { status: 0, stdout: `%1\t${root}\t101\tnode\torigin-test\n`, stderr: "" };
+    return { status: 0, stdout: `node\t${root}\n`, stderr: "" };
+  };
+  assert.equal(ensureTmuxCodex(run, "origin-test", ["codex"], root), "running");
+  assert.equal(
+    calls.some(({ args }) => args[0] === "send-keys"),
+    false,
+  );
+  const unrelated = (command, args) =>
+    command === "ps"
+      ? { status: 0, stdout: "101 1 node server/index.mjs\n", stderr: "" }
+      : run(command, args);
+  assert.throws(() => ensureTmuxCodex(unrelated, "origin-test", ["codex"], root), /could not find/);
+  const otherSession = (command, args) =>
+    args.includes("-a")
+      ? { status: 0, stdout: `%1\t${root}\t101\tnode\tother-session\n`, stderr: "" }
+      : run(command, args);
+  assert.throws(
+    () => ensureTmuxCodex(otherSession, "origin-test", ["codex"], root),
+    /another tmux session/,
+  );
+});

@@ -681,6 +681,7 @@ test("combined launcher validates, creates one repo session, starts Codex, and a
   const result = await startHarness({
     root,
     run,
+    insideTmux: false,
     platform: "linux",
     release: { name: "node" },
     openBrowser: false,

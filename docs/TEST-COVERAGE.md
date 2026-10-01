@@ -338,3 +338,12 @@ six-second visibility delay and timeout without any exact marker, retaining the 
 negative cases. Fresh released retesting after owner merge remains required. Extremely slow or
 narrow terminal views may still remain indeterminate. Protections, page/PR/owner merge, real voice,
 missing-kit and the complete newcomer journey remain unpassed.
+
+### Review correction: outer async deadline
+
+Review of the submission-wait candidate found its outer async worker still terminated at30seconds,
+which could interrupt a valid late paste plus late submission and overhead. The candidate now
+derives a45second deadline from both15second observation phases plus15seconds headroom. Regression
+covers both phases reaching their bounds and a worker receipt after30seconds with overhead.
+Engineering checks and review remain separate from a fresh released live retest; do not merge while
+review or updated-head checks are pending.

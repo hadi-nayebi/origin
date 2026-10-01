@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -1076,4 +1077,63 @@ test("submission observation stays bounded and cannot accept busy activity witho
   );
   assert.equal(waits.filter((milliseconds) => milliseconds === 250).length, 60);
   assert.equal(run.calls.filter((call) => call.args[0] === "send-keys").length, 1);
+});
+
+test("late paste and late submission can use both observation budgets", () => {
+  const root = fixture();
+  const marker = "[ORIGIN WAKE late-both-phases]";
+  const before = "› ";
+  const cropped = "Working (14s • esc to interrupt)\n› Ask Codex to do anything";
+  const accepted = `› ${marker} collapsed message\n› Ask Codex to do anything`;
+  const run = fakeRun(root, {
+    capture: [
+      before,
+      ...Array(149).fill(before),
+      "› [Pasted Content 1105 chars]",
+      ...Array(59).fill(cropped),
+      accepted,
+    ],
+  });
+  let observedMilliseconds = 0;
+  const result = deliverCodexWake(
+    root,
+    { marker, prompt: marker },
+    {
+      run,
+      wait: (milliseconds) => {
+        observedMilliseconds += milliseconds;
+      },
+    },
+  );
+  assert.equal(result.state, "submitted");
+  assert.equal(observedMilliseconds, 30000);
+  assert.equal(run.calls.filter((call) => call.args[0] === "send-keys").length, 1);
+});
+
+test("async worker keeps a valid late receipt alive through both waits and overhead", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const worker = new EventEmitter();
+  let terminated = false;
+  worker.terminate = () => {
+    terminated = true;
+  };
+  const result = deliverAsyncWake({ root: fixture() }, { workerFactory: () => worker });
+  setTimeout(() => worker.emit("message", { result: { state: "connected", pending: 0 } }), 30500);
+  t.mock.timers.tick(30500);
+  assert.deepEqual(await result, { state: "connected", pending: 0 });
+  assert.equal(terminated, false);
+});
+
+test("an async worker without a receipt still expires and requests durable inspection", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const worker = new EventEmitter();
+  let terminated = false;
+  worker.terminate = () => {
+    terminated = true;
+  };
+  const result = deliverAsyncWake({ root: fixture() }, { workerFactory: () => worker });
+  const rejection = assert.rejects(result, /timed out; inspect its durable outcome/);
+  t.mock.timers.tick(45000);
+  await rejection;
+  assert.equal(terminated, true);
 });

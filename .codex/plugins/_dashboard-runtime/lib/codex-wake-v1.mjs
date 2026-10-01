@@ -7,6 +7,7 @@ import { spawnSync } from "node:child_process";
 const waitArray = new Int32Array(new SharedArrayBuffer(4));
 const LEASE_MAX_AGE_MS = 60_000;
 const COMMAND_TIMEOUT_MS = 5_000;
+export const WAKE_OBSERVATION_BUDGET_MS = 15_000;
 
 export function resolveCodexPane(root, options = {}) {
   const run = options.run || runCommand;
@@ -43,7 +44,7 @@ export function deliverCodexWake(root, input, options = {}) {
   if (!prompt.includes(marker)) throw new Error("Wake prompt must contain its marker.");
   const run = options.run || runCommand;
   const wait = options.wait || ((milliseconds) => Atomics.wait(waitArray, 0, 0, milliseconds));
-  const waitMilliseconds = Number(options.waitMilliseconds ?? 15_000);
+  const waitMilliseconds = Number(options.waitMilliseconds ?? WAKE_OBSERVATION_BUDGET_MS);
   return withWakeLease(root, () => {
     const pane = resolveCodexPane(root, { run });
     const styledBefore = capture(run, pane.id, true);

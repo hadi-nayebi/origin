@@ -24,3 +24,7 @@ Submitted long prompts can initially crop the first-line marker above the visibl
 the bounded configured observation budget (15 seconds by default) for submission as well as paste,
 retaining exact marker and transition checks. Expiry remains indeterminate; do not resubmit inside
 the observation loop or infer acceptance from unrelated activity.
+
+The async worker's outer timeout covers both default observation phases plus 15 seconds of headroom
+for startup, terminal commands and durable receipt writes (45 seconds total). An outer timeout still
+requires inspection of the durable outcome; it does not authorize a blind retry.

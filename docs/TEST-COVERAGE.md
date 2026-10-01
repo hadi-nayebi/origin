@@ -1,7 +1,9 @@
 # Origin test coverage ledger
 
 This is a coverage record, not a release-wide acceptance certificate. Last reconciled: October 1,
-2026 UTC (September 30 local). Released source baseline: `ac47035fbd3741023838fb0b6d96a9c5b98cd628`.
+2026 UTC (September 30 local). Current merged repository baseline:
+`ce6b119a21a86beac345d2e596f7151ad4482a87`. Each acceptance result below retains the exact older
+revision it actually exercised.
 
 ## How to read and maintain this record
 
@@ -148,12 +150,13 @@ promised persistence contract. Initial rapid chapter snapshots caught the previo
 asynchronous loading completed; those observations were disqualified and rerun waiting for the
 selected heading.
 
-The acceptance table contains 27 grouped coverage rows: 8 PASS, 5 PARTIAL, 12 NOT TESTED and 2
+The acceptance table contains 27 grouped coverage rows: 8 PASS, 7 PARTIAL, 10 NOT TESTED and 2
 BLOCKED. These totals are summary scopes rather than an exhaustive individual-test count. Explicit
 new-chat behavior separately failed during the live launcher review;
 [repair #38](https://github.com/hadi-nayebi/origin/pull/38) refuses silent reuse of a running
-conversation. Its engineering checks passed, but merged native retesting remains pending. Owner
-merge/protection/voice decisions do not block independent read-only and form checks.
+conversation. Its merged native retest passed for the bounded idle-worker refusal/exit/retry path;
+preservation during a substantive busy turn remains untested. Protection and voice decisions do not
+block independent read-only and form checks.
 
 ## Fresh merged launcher retest
 
@@ -190,7 +193,7 @@ The explicit `origin:resume` alias also restored the newest saved session after 
 including its prior readiness prompt and response. This is bounded stopped-foreground resume
 coverage; it does not prove recovery of pending wakes or runnable work.
 
-## Admin tab keyboard failure and candidate repair
+## Admin tab keyboard failure and merged repair
 
 On Ubuntu, ordinary Chrome keyboard input against the fresh personal clone matching released source
 `5512b77d5877018085d0bb557eb0f3a26fa5b10a` left focus on the selected System tab after Left Arrow.
@@ -200,13 +203,14 @@ bounded keyboard observations do not pass this case. Later test/documentation me
 
 The [W3C tabs pattern](https://www.w3.org/WAI/ARIA/apg/patterns/tabs/) calls for Left/Right focus
 movement with wrapping and one tab stop in the tab list. Manual activation fits Origin because
-switching sections can fetch content: arrows move focus, and Enter/Space select the section. The
-candidate adds those controls, Home/End, and labelled associated tab panels. Its regression failed
-on the unchanged implementation, then passed with the repair. The full local engineering check
-covers 142 runtime tests, four internal voice tests, 14 interface tests, lint, formatting,
-TypeScript/Vite build and production startup smoke. These checks use Node24 and clone-local scratch
-paths; dependencies were reused in the engineering clone. They are not fresh native acceptance.
-Owner merge and a fresh released installation/browser keyboard retest remain required.
+switching sections can fetch content: arrows move focus, and Enter/Space select the section. Merged
+[repair #44](https://github.com/hadi-nayebi/origin/pull/44) adds those controls, Home/End, and
+labelled associated tab panels. Its regression failed on the unchanged implementation, then passed
+with the repair. The full local engineering check covers 142 runtime tests, four internal voice
+tests, 14 interface tests, lint, formatting, TypeScript/Vite build and production startup smoke.
+These checks use Node24 and clone-local scratch paths; dependencies were reused in the engineering
+clone. They are not fresh native acceptance. A fresh released installation/browser keyboard retest
+remains required.
 
 The same unchanged personal clone's System view was readable at a measured 390×844 viewport with no
 horizontal overflow; viewport override was reset afterward. This is one bounded responsive view, not

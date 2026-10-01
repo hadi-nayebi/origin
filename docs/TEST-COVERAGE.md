@@ -118,3 +118,31 @@ success into platform-wide certification. Maintain coverage for the
 [complete live contract](CODEX-ACCEPTANCE.md) and the [two-channel review](TWO-CHANNEL-REVIEW.md);
 these references supply detailed mechanisms beyond this newcomer summary. New features must add
 cases and explicit untested scope.
+
+## Additional independent Admin and Feedback form observations
+
+On the same fresh `ac47035` personal clone and inherited Ubuntu/browser environment, ordinary Chrome
+controls opened all ten Wiki chapters. Each selected chapter was verified only after its exact
+heading loaded, with nonempty article content. Both reference plugin detail pages rendered their
+correct headings and anatomy. System showed Ready, idle, Stop allowed, schema 4 verified, zero
+feedback records/events, zero pending wakes and two complete reference plugins. These are bounded
+rendering/navigation observations, not proof of the documented runtime mechanisms.
+
+An empty Feedback Save was refused by the required textarea's native validation; it focused the
+field and displayed the browser's missing-value message. The displayed context identified Admin /
+Plugins / Telegram Engagement. No nonempty request was submitted, so persisted route, worker
+delivery and page implementation remain untested. After this check System still showed zero
+records/events/pending wakes. Returning to Canvas rendered the empty start page.
+
+Closing and reopening an unsaved Feature request draft cleared its text. Record that behavior
+separately: it does not exercise draft survival during worker worktree creation or establish a
+promised persistence contract. Initial rapid chapter snapshots caught the previous article before
+asynchronous loading completed; those observations were disqualified and rerun waiting for the
+selected heading.
+
+The acceptance table contains 27 grouped coverage rows: 8 PASS, 5 PARTIAL, 12 NOT TESTED and 2
+BLOCKED. These totals are summary scopes rather than an exhaustive individual-test count. Explicit
+new-chat behavior separately failed during the live launcher review;
+[repair #38](https://github.com/hadi-nayebi/origin/pull/38) refuses silent reuse of a running
+conversation. Its engineering checks passed, but merged native retesting remains pending. Owner
+merge/protection/voice decisions do not block independent read-only and form checks.

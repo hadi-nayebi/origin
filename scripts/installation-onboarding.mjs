@@ -27,7 +27,7 @@ export async function offerTelegramSetup({
     "You need a dedicated bot created through @BotFather in Telegram. Do not reuse a bot already connected to another project.",
   );
   write(
-    "Setup hides the bot token, then gives you a command to send in the bot's private chat to connect your account. No speech downloads are required for text.",
+    "Setup hides the bot token, then gives you a command to send in the bot's private chat to connect your account. Text is the default: the agent replies in text, with no sample or speech downloads. After pairing, setup explains optional voice and provides a recommended reading sample.",
   );
   if (!interactive) {
     write(

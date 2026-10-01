@@ -16,9 +16,11 @@ bypass decisions. Do not mistake tester automation for an agent available to the
 
 When the dashboard/agent handoff is complete and Telegram is paired, inspect its public `status` or
 `doctor`. If `voiceOnboarding.state` is `request-sample`, ask for a clear voice note in the current
-interface or existing Telegram thread. Explain that the first audio supplies the private sample for
-voice replies, local speech installation is required, and the owner should check the transcript and
-preview. Keep ordinary text work available; recover a pending sample instead of asking repeatedly.
+interface or existing Telegram thread, using the recommended reading passage from the prompt.
+Text-only users do not need a sample. Voice is an explicit optional choice through local speech
+installation; after that the first audio can supply the private sample. Explain recording quality,
+actual transcript matching and the preview check. Keep ordinary text work available; recover a
+pending sample instead of asking repeatedly.
 
 For technical and architectural choices, evaluate evidence and the user's objective before
 recommending a path. State the preferred option, tradeoffs, and what would change the

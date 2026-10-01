@@ -24,14 +24,18 @@ to text. At handoff and safe conversation boundaries, inspect `status` or `docto
 `voiceOnboarding`. When it says `request-sample`, ask the owner using its plain-language prompt:
 reply in the current Telegram thread, or ask in the current interactive interface if no Telegram
 thread exists. Do not invent a thread or block independent text work. Explain that local speech must
-be installed before processing. The first paired-owner voice/audio input is automatically reserved
-as the sample when none exists. `/voice-sample` explicitly replaces a sample. Preserve the full
-first-message transcript as user instructions; only its first 30 seconds become the voice reference.
-A pending/failed sample must be recovered rather than replaced by every subsequent audio. Models and
-private samples must never be committed. Preserve every original media envelope and surface
-processing failures. An audio input received without transcription stays actionable as preserved
-material. Use command arguments as data; never build a shell command from Telegram input. Pair both
-sender and chat, retain bot identity, and reject other senders.
+be installed before processing. Text-only users need no sample and must not be silently enrolled. At
+pairing, explain the text/voice choice and recommend reading the provided short passage in a quiet
+place at a natural pace. After explicit speech activation, the first paired-owner voice/audio input
+is automatically reserved as the sample when none exists. Its reference transcript must match what
+was actually spoken, not a translation or an assumption that the passage was read verbatim.
+`/voice-sample` explicitly replaces a sample. Preserve the full first-message transcript as user
+instructions; only its first 30 seconds become the voice reference. A pending/failed sample must be
+recovered rather than replaced by every subsequent audio. Models and private samples must never be
+committed. Preserve every original media envelope and surface processing failures. An audio input
+received without transcription stays actionable as preserved material. Use command arguments as
+data; never build a shell command from Telegram input. Pair both sender and chat, retain bot
+identity, and reject other senders.
 
 Unknown delivery outcomes require observed operator evidence before retries. Transport success is
 not user acceptance. Hook coaching explains the boundary; deterministic journal, state and ownership

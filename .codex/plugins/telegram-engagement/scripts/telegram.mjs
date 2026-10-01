@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { pairingGuide, sampleGuide, deliverPairingGuide } from "../lib/voice-onboarding.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -130,7 +131,7 @@ try {
     const dir = directory(root);
     const report = {
       paired: true,
-      voiceOnboarding: voiceOnboarding(root),
+      voiceOnboarding: voiceOnboarding(root, config),
       enabled: fs.existsSync(path.join(dir, "enabled.json")),
       text: { ready: true },
       speech: {
@@ -261,12 +262,13 @@ async function setup() {
       throw new Error("Existing token path is not a regular file.");
     fs.writeFileSync(path.join(dir, "bot-token"), token + "\n", { mode: 0o600, flag: "w" });
     fs.chmodSync(path.join(dir, "bot-token"), 0o600);
-    saveConfig(root, {
+    const binding = {
       ...defaults(),
       botId: String(me.id),
       chatId: String(paired.chat.id),
       userId: String(paired.from.id),
-    });
+    };
+    saveConfig(root, binding);
     updateTransport(root, (s) => {
       s.botId = String(me.id);
       s.offset = offset;
@@ -274,7 +276,13 @@ async function setup() {
     reconcileAgentState(scope);
     atomicJSON(path.join(dir, "enabled.json"), { enabled: true });
     process.stdout.write(
-      "Paired for text. Run npm run telegram -- run and send a message to the bot. Optional: run npm run telegram -- install-voice to add local transcription and cloned-voice replies.\n",
+      pairingGuide() + "\nRun npm run telegram -- run to listen for messages.\n",
+    );
+    const guide = await deliverPairingGuide(root, api, binding);
+    process.stdout.write(
+      guide.status === "confirmed"
+        ? `Onboarding guide delivered in Telegram (message ${guide.messageId}).\n`
+        : "Telegram guide delivery is not confirmed. Pairing is saved; use the terminal guide and inspect the paired chat before retrying.\n",
     );
   } finally {
     release();
@@ -282,6 +290,10 @@ async function setup() {
 }
 function installVoice() {
   const config = loadConfig(root);
+  if (spawnSync("ffmpeg", ["-version"], { stdio: "ignore" }).status !== 0)
+    throw new Error(
+      "Voice needs FFmpeg. Text pairing is preserved. Ask the dashboard agent to help install FFmpeg, then retry npm run telegram -- install-voice.",
+    );
   const dir = directory(root);
   const venv = path.join(dir, "venv");
   const python = path.join(
@@ -306,6 +318,8 @@ function installVoice() {
   config.transcriptionEnabled = true;
   saveConfig(root, config);
   process.stdout.write(
-    "Optional local speech installed. Text remains available. Install FFmpeg if missing, restart the listener, then send a clear voice note. Your first audio supplies the private sample; inspect the transcript and voice preview. Use /voice-sample first only to replace an existing sample.\n",
+    "Optional local speech installed. Restart the listener.\n" +
+      sampleGuide() +
+      "\nUse /voice-sample first only to replace an existing sample.\n",
   );
 }

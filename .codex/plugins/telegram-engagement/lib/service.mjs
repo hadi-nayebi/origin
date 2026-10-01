@@ -1,3 +1,4 @@
+import { sampleGuide } from "./voice-onboarding.mjs";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -16,7 +17,7 @@ import {
 } from "../../_engagement-core/lib/service.mjs";
 import { pauseAgent, resumeAgent, readAgentState } from "../../_engagement-core/lib/state.mjs";
 import { requirePullRequestReference } from "../../_engagement-core/lib/work-reference.mjs";
-import { readTransport, updateTransport, scopeFor, directory } from "./storage.mjs";
+import { readTransport, updateTransport, scopeFor, directory, readJSON } from "./storage.mjs";
 
 export function authorized(message, config) {
   return (
@@ -122,6 +123,7 @@ export function receiveUpdate(root, config, update) {
           const explicitSample = state.enrollment?.expiresAt > Date.now() && audio;
           const firstSample =
             audio &&
+            config.transcriptionEnabled &&
             !voiceSamplePresent(root) &&
             !Object.values(state.inbox).some((item) => item.kind === "voice-sample");
           const sample = explicitSample || firstSample;
@@ -362,6 +364,7 @@ export function channelStatus(root) {
   const state = readTransport(root);
   return {
     voiceOnboarding: voiceOnboarding(root),
+    onboardingMessage: readJSON(path.join(directory(root), "onboarding-message.json"), null),
     threads: listFeedback(scopeFor(root)).map(({ id, status }) => ({ id, status })),
     inbox: Object.values(state.inbox).map(({ updateId, status, error }) => ({
       updateId,
@@ -440,15 +443,16 @@ export function voiceSamplePresent(root) {
   );
 }
 
-export function voiceOnboarding(root) {
-  if (voiceSamplePresent(root)) return { state: "sample-present", prompt: null };
+export function voiceOnboarding(
+  root,
+  config = readJSON(path.join(directory(root), "config.json"), {}),
+) {
   const pending = Object.values(readTransport(root).inbox).find(
     (item) => item.kind === "voice-sample",
   );
+  if (!config.transcriptionEnabled && !config.voiceRequired && !pending)
+    return { state: "text-only", prompt: null };
+  if (voiceSamplePresent(root)) return { state: "sample-present", prompt: null };
   if (pending) return { state: "sample-pending", updateId: pending.updateId, prompt: null };
-  return {
-    state: "request-sample",
-    prompt:
-      "Please send a clear voice note of your own voice so I can prepare replies in your voice. Your first audio will be used as the sample; I will show its transcript and send a preview for you to check. Text remains available.",
-  };
+  return { state: "request-sample", prompt: sampleGuide() };
 }

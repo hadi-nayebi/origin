@@ -209,7 +209,10 @@ headless worker or a dashboard-only mode.
 repository-scoped terminal session, and runs
 `codex resume --last --dangerously-bypass-approvals-and-sandbox`. Codex starts fresh when that
 repository has no saved interactive chat. Use `npm run origin:new` only when you intentionally want
-a separate chat.
+a separate chat. If Codex is already running, Origin stops with a clear recovery message instead of
+returning to the old chat or interrupting work. Finish the current turn in the Origin terminal,
+press **Ctrl-D** to exit Codex, then run `npm run origin:new` again. The earlier conversation
+remains saved.
 
 Origin launches fresh and resumed Codex with `--dangerously-bypass-approvals-and-sandbox`: commands
 run without CLI approval prompts or sandbox restrictions. Activity limits come from Origin's plugin
@@ -247,7 +250,9 @@ Finish or skip it after inspection; **Show the quick guide** on the canvas reope
 
 - `npm run origin` reuses the healthy dashboard and repository-scoped tmux session and resumes the
   repository's newest saved Codex chat by default.
-- `npm run origin:new` explicitly starts a separate Codex chat.
+- `npm run origin:new` explicitly starts a separate Codex chat. If Codex is still running, finish
+  its current turn and press **Ctrl-D** in its terminal, then retry. Origin preserves the old chat
+  and never silently substitutes it for the requested new one.
 - `npm run wake` retries durable pending dashboard wake events.
 - `.origin/dashboard.log` contains dashboard startup diagnostics.
 - `.origin/wake-outbox.json` records wake attempts and outcomes.

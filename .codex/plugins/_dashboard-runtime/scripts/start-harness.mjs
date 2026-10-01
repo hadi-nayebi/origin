@@ -49,7 +49,7 @@ export async function startHarness(options = {}) {
       "tmux session creation",
     );
   }
-  ensureTmuxCodex(run, session, command, repositoryRoot);
+  ensureTmuxCodex(run, session, command, repositoryRoot, { requireNew: !resume });
   if (feedbackEnabled) await requestSessionWake(runtime.url, options.fetch || fetch);
   if (
     pluginPresent({ root: repositoryRoot, channel: "telegram-engagement" }) &&
@@ -96,7 +96,7 @@ async function requestSessionWake(url, fetcher) {
     throw new Error("Origin could not reconcile the feedback queue for this session.");
 }
 
-export function ensureTmuxCodex(run, session, command, repositoryRoot) {
+export function ensureTmuxCodex(run, session, command, repositoryRoot, options = {}) {
   const pane = run("tmux", [
     "list-panes",
     "-t",
@@ -124,6 +124,7 @@ export function ensureTmuxCodex(run, session, command, repositoryRoot) {
   }
   const codexPanes = panes.filter((item) => /codex/i.test(item.currentCommand));
   if (codexPanes.length === 1) {
+    assertNewChatAllowed(options, session);
     assertFullAccessCodex(run, codexPanes[0].pid);
     return "running";
   }
@@ -134,6 +135,7 @@ export function ensureTmuxCodex(run, session, command, repositoryRoot) {
   if (repositoryRoot && panes.length === 1 && currentIsWrapper(panes[0]?.currentCommand)) {
     const resolved = resolveCodexPane(repositoryRoot, { run });
     if (resolved.session === session) {
+      assertNewChatAllowed(options, session);
       assertFullAccessCodex(run, resolved.pid);
       return "running";
     }
@@ -149,6 +151,13 @@ export function ensureTmuxCodex(run, session, command, repositoryRoot) {
   }
   throw new Error(
     `Origin tmux session ${session} does not contain exactly one Codex pane or one idle shell. It reported: ${panes.map((item) => item.currentCommand).join(", ") || "no panes"}. Attach and inspect it before retrying.`,
+  );
+}
+
+function assertNewChatAllowed(options, session) {
+  if (!options.requireNew) return;
+  throw new Error(
+    `Origin cannot start a new chat while Codex is still running in ${session}. In the existing Origin terminal, finish the current turn and exit Codex with Ctrl-D, then run npm run origin:new again. Your previous conversation is preserved. Use npm run origin to return to the running chat instead.`,
   );
 }
 

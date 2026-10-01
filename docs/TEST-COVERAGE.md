@@ -82,6 +82,15 @@ ownership and historical failures are tracked in
 Earlier hidden wrappers and API provisioning were withdrawn as newcomer acceptance evidence. Their
 failure observations remain useful engineering leads. Do not restore their PASS claims.
 
+## Observed new-chat launcher failure
+
+On the fresh Ubuntu personal clone matching released runtime `ac47035`, running the documented
+`npm run origin:new` while its Full Access Codex was already running returned to the same
+conversation and session. **FAIL** for that branch; selecting a new-chat command in a unit test did
+not cover reuse of a live pane. The repair rejects this conflicting request with an explicit
+finish/exit/retry instruction, preserves existing work, and starts fresh after Codex exits.
+Candidate engineering regression coverage is separate from the pending merged-release native retest.
+
 ## Isolated environment coverage
 
 A Python virtual environment isolates Python packages, not operating-system Git/tmux/Codex,

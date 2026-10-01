@@ -96,7 +96,10 @@ test("existing tmux sessions reuse Codex or launch it only from an idle shell", 
   assert.deepEqual(calls.at(-1), ["send-keys", "-t", "origin-test", "codex resume --last", "C-m"]);
   const codexRun = (_command, args) => ({
     status: 0,
-    stdout: args[0] === "list-panes" ? "codex\n" : "",
+    stdout:
+      args[0] === "list-panes"
+        ? "codex\t\t101\n"
+        : "101 1 codex --dangerously-bypass-approvals-and-sandbox\n",
     stderr: "",
   });
   assert.equal(ensureTmuxCodex(codexRun, "origin-test", ["codex"]), "running");
@@ -260,7 +263,8 @@ test("launcher reuses an npm-wrapped Codex only with repository and session proo
     if (command === "ps")
       return {
         status: 0,
-        stdout: "101 1 zsh\n102 101 node /npm/bin/codex\n103 102 /vendor/codex\n",
+        stdout:
+          "101 1 zsh\n102 101 node /npm/bin/codex\n103 102 /vendor/codex --dangerously-bypass-approvals-and-sandbox\n",
         stderr: "",
       };
     if (args.includes("-a"))

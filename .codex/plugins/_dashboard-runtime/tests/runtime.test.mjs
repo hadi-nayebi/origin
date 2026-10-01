@@ -747,6 +747,42 @@ test("combined launcher keeps an explicit fresh-session escape hatch", async () 
   );
 });
 
+test("explicit new chat refuses a live Codex without injecting or attaching", async () => {
+  const root = fixture();
+  const calls = [];
+  const run = (command, args) => {
+    calls.push({ command, args });
+    if (command === "tmux" && args[0] === "list-panes")
+      return { status: 0, stdout: `codex\t${root}\t101\n`, stderr: "" };
+    if (command === "gh")
+      return {
+        status: 0,
+        stdout: JSON.stringify({ nameWithOwner: "person/harness", viewerPermission: "WRITE" }),
+        stderr: "",
+      };
+    return { status: 0, stdout: "ready", stderr: "" };
+  };
+  await assert.rejects(
+    startHarness({
+      root,
+      run,
+      resumeLast: false,
+      platform: "linux",
+      release: { name: "node" },
+      openBrowser: false,
+    }),
+    /finish the current turn.*Ctrl-D.*origin:new/,
+  );
+  assert.equal(
+    calls.some(
+      ({ command, args }) =>
+        command === "tmux" &&
+        ["send-keys", "attach-session", "switch-client", "kill-session"].includes(args[0]),
+    ),
+    false,
+  );
+});
+
 test("combined launcher switches an existing tmux client into the repository session", async () => {
   const root = fixture();
   const calls = [];
@@ -926,4 +962,8 @@ test("launcher verifies full access on native Codex beneath its node wrapper", (
     };
   };
   assert.equal(ensureTmuxCodex(run, "origin-test", ["codex"], root), "running");
+  assert.throws(
+    () => ensureTmuxCodex(run, "origin-test", ["codex"], root, { requireNew: true }),
+    /cannot start a new chat/,
+  );
 });

@@ -121,12 +121,20 @@ cases and explicit untested scope.
 
 ## Additional independent Admin and Feedback form observations
 
-On the same fresh `ac47035` personal clone and inherited Ubuntu/browser environment, ordinary Chrome
-controls opened all ten Wiki chapters. Each selected chapter was verified only after its exact
-heading loaded, with nonempty article content. Both reference plugin detail pages rendered their
-correct headings and anatomy. System showed Ready, idle, Stop allowed, schema 4 verified, zero
-feedback records/events, zero pending wakes and two complete reference plugins. These are bounded
-rendering/navigation observations, not proof of the documented runtime mechanisms.
+This run used personal clone 10 matching released source `ac47035fbd3741023838fb0b6d96a9c5b98cd628`,
+an actual 390×844 CSS viewport, and inherited Node 24.19.0, Git 2.43.0, tmux 3.4, Codex 0.159.2,
+GitHub CLI 2.45.0, existing GitHub/Codex login and browser state. Detailed screenshots and steps
+remain in the private stabilization evidence packet `engineering/10-admin-feedback-independent.md`;
+it is a locator, not public evidence. The exact personal-clone commit/tree, Ubuntu release and
+Chrome version were not captured. Treat these as bounded observations, not reproducible live PASS
+evidence, and do not publish the private packet.
+
+On that personal clone, ordinary Chrome controls opened all ten Wiki chapters. Each selected chapter
+was verified only after its exact heading loaded, with nonempty article content. Both reference
+plugin detail pages rendered their correct headings and anatomy. System showed Ready, idle, Stop
+allowed, schema 4 verified, zero feedback records/events, zero pending wakes and two complete
+reference plugins. These are bounded rendering/navigation observations, not proof of the documented
+runtime mechanisms.
 
 An empty Feedback Save was refused by the required textarea's native validation; it focused the
 field and displayed the browser's missing-value message. The displayed context identified Admin /

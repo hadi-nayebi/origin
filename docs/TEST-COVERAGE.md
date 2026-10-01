@@ -133,3 +133,31 @@ new-chat behavior separately failed during the live launcher review;
 [repair #38](https://github.com/hadi-nayebi/origin/pull/38) refuses silent reuse of a running
 conversation. Its engineering checks passed, but merged native retesting remains pending. Owner
 merge/protection/voice decisions do not block independent read-only and form checks.
+
+## Fresh merged launcher retest
+
+After owner merge of #36 and #38, source main `5512b77d5877018085d0bb557eb0f3a26fa5b10a` was
+verified before a new personal template/native-terminal clone. Personal head
+`5daf87b19dd32bb0b9c342820cc390e231dd6fac`, tree `726c917f59f719ab376c2110baf4695064e8ad7e`, matched
+that release exactly. Ubuntu tools/login and supported Node24.19 remained inherited; dependencies
+and runtime were fresh, with temporary and cache paths restricted to the clone. Missing-kit coverage
+remains untested.
+
+The unchanged native installer passed 142 runtime,4 internal voice and13 interface checks,
+lint/format/build/smoke/doctor. Default Enter at optional Telegram setup skipped it and completed
+with exit0. No pairing was requested or inherited. The launcher correctly refused another clone's
+occupied5173 port; its displayed ORIGIN_PORT recovery started the correct dashboard/worker on5174.
+Native trust screens enabled PreToolUse1/1 and Stop2/2. Actual/status showed Full Access.
+
+Normal reuse retained the existing session. Explicit origin:new refused the live worker with
+finish/exit/retry instructions and left its session unchanged. CtrlD at idle then retry opened a
+distinct new Full Access session in the same clone. This supersedes the silent-reuse failure for the
+bounded fresh merged idle-worker case. Preservation during a substantive busy turn remains separate
+coverage. Browser rendering was observed through manual opening; automatic browser opening is still
+unverified.
+
+Empty dashboard Pause persisted after reload and loaded-state inspection; explicit Resume returned
+to idle. Immediate reload snapshots briefly show defaultstate before asynchronous retrieval, so wait
+for loadedstate before assessing persistence. Queued-input recovery and independent active Telegram
+behavior were not exercised. The new worker read context and identified missing branch protections
+before page work. The clone stayed clean, with no page request or settings changes.

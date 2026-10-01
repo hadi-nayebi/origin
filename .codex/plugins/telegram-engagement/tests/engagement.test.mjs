@@ -289,12 +289,11 @@ test("text-only pairing receives audio as preserved material without loading spe
       fs.writeFileSync(file, "preserved audio");
     },
   };
-  await assert.rejects(
-    prepareInput(root, textConfig, api, null, readTransport(root).inbox[11]),
-    /optional speech capability/,
-  );
+  await prepareInput(root, textConfig, api, null, readTransport(root).inbox[11]);
   const item = readTransport(root).inbox[11];
-  assert.equal(item.kind, "voice-sample");
+  assert.equal(item.kind, "engagement");
+  assert.equal(item.status, "ready");
+  assert.equal(item.materials[0].processing.status, "not-enabled");
   assert.equal(fs.existsSync(path.join(directory(root), "media/11-0.ogg")), true);
   assert.match(getThread(root, item.threadId).body, /Media input received/);
 });
@@ -912,8 +911,9 @@ test("pending lifecycle replies cannot queue contradictory question or review tr
 
 test("missing sample is requested, first owner audio is reserved once, and strangers cannot enroll", (t) => {
   const root = fixture(t);
-  assert.equal(voiceOnboarding(root).state, "request-sample");
-  assert.match(voiceOnboarding(root).prompt, /first audio/);
+  assert.equal(voiceOnboarding(root, config).state, "request-sample");
+  assert.match(voiceOnboarding(root, config).prompt, /Recommended/);
+  assert.deepEqual(voiceOnboarding(root, textConfig), { state: "text-only", prompt: null });
   receiveUpdate(
     root,
     config,
@@ -925,7 +925,7 @@ test("missing sample is requested, first owner audio is reserved once, and stran
   receiveUpdate(root, config, input(1202, "", { audio: { file_id: "later" } }));
   assert.equal(readTransport(root).inbox[1201].enrollmentMode, "first-audio");
   assert.equal(readTransport(root).inbox[1202].kind, "engagement");
-  assert.deepEqual(voiceOnboarding(root), {
+  assert.deepEqual(voiceOnboarding(root, config), {
     state: "sample-pending",
     updateId: 1201,
     prompt: null,
@@ -933,7 +933,7 @@ test("missing sample is requested, first owner audio is reserved once, and stran
   fs.mkdirSync(path.join(directory(root), "voice"), { recursive: true });
   for (const name of ["reference.wav", "reference.txt"])
     fs.writeFileSync(path.join(directory(root), "voice", name), "fixture");
-  assert.equal(voiceOnboarding(root).state, "sample-present");
+  assert.equal(voiceOnboarding(root, config).state, "sample-present");
   receiveUpdate(root, config, input(1203, "/voice-sample"));
   receiveUpdate(root, config, input(1204, "", { voice: { file_id: "replacement" } }));
   assert.equal(readTransport(root).inbox[1204].enrollmentMode, "explicit");

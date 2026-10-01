@@ -165,6 +165,17 @@ If the installer reports an unsupported Node version, install a supported curren
 [nodejs.org](https://nodejs.org/) and rerun the script. Having Node installed does not by itself
 mean its version meets this release's requirements.
 
+After pairing, the terminal and your bot explain the reply modes. Continue with text and the agent
+replies in text; no voice sample is required. To choose voice replies, run
+`npm run telegram -- install-voice`, or ask the dashboard agent to help once it is running. Local
+speech needs Python, FFmpeg, model downloads and processing time. Restart the listener afterward.
+
+Voice onboarding recommends a short passage to read in a quiet place with your natural voice. A
+clear first voice message can also become the sample after voice activation. Check the transcript
+against what you actually said, then listen to the generated preview. Correct or re-record a poor
+sample before relying on it. A translated transcript is not the reference for the original audio.
+Samples are private local files and are not added to your repository. Text remains available.
+
 ## Windows
 
 The full Origin harness does not run in native PowerShell because tmux is part of the Origin 1.0

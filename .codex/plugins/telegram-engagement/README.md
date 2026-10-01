@@ -22,7 +22,11 @@ added later without repairing or re-pairing the bot.
    Bot API, not a user-account client.
 3. Run `npm run telegram -- setup` in a terminal. Paste the token into the hidden prompt. Send the
    displayed one-time `/pair` challenge to your bot in a private chat. Setup records the bot ID,
-   chat ID and sender ID. Other senders are ignored.
+   chat ID and sender ID. Other senders are ignored. The terminal and paired bot then explain:
+   continue with text for text replies without any sample, or explicitly enable optional voice. They
+   recommend a short reading passage with recording, transcript and preview instructions. The
+   guide's Telegram delivery receipt appears in `status`; uncertain delivery is not retried blindly,
+   and the terminal guide remains available.
 4. Run `npm run telegram -- run`, then send a text message to the paired bot. Text replies, thread
    controls and returned files work without a voice sample.
 5. Run `npm run telegram -- doctor` and follow the text acceptance sequence in the review document.
@@ -34,14 +38,24 @@ added later without repairing or re-pairing the bot.
 Run `npm run telegram -- install-voice` to create a private Python venv and download Qwen3-TTS 0.6B
 Base and Faster Whisper base under `.origin/`. Install FFmpeg, restart the listener, then send a
 clear voice note of your own voice. When no sample exists, the first paired-owner voice/audio
-message is automatically reserved for enrollment. The agent asks for a missing sample through the
-current conversation; `status` and `doctor` expose the prompt. To replace an existing sample, send
-`/voice-sample` and then a voice note within ten minutes. The first 30 seconds are normalized and
-transcribed locally. The full first-message transcript stays in the conversation, so instructions
-after that segment are not lost. Successful enrollment enables cloned-voice replies; use
-`npm run telegram -- voice-replies off` to return to text or `voice-replies on` after the sample is
-ready. Restart the listener after changing voice-reply mode. Review the transcript and preview
+message is automatically reserved for enrollment after you explicitly install/enable local speech.
+Text-only users are not enrolled by an ordinary audio message. The agent asks for a missing sample
+through the current conversation; `status` and `doctor` expose the prompt. To replace an existing
+sample, send `/voice-sample` and then a voice note within ten minutes. The first 30 seconds are
+normalized and transcribed locally. The full first-message transcript stays in the conversation, so
+instructions after that segment are not lost. Successful enrollment enables cloned-voice replies;
+use `npm run telegram -- voice-replies off` to return to text or `voice-replies on` after the sample
+is ready. Restart the listener after changing voice-reply mode. Review the transcript and preview
 before relying on the voice. Use only your voice or an explicitly authorized sample.
+
+Recommended capture: read the supplied passage in a quiet place, alone, at your natural volume and
+pace, without music. It is about twenty seconds of ordinary speech, not a promise of universally
+optimal duration. A clear first ordinary message is an alternative once voice is chosen. Compare
+what you said with the transcript and listen to the preview; re-record or correct the transcript if
+needed. Do not substitute a translated transcript or blindly assume you read the passage exactly.
+Use a language supported by the local model; the agent can provide an equivalent passage.
+[Qwen's voice-clone documentation](https://github.com/QwenLM/Qwen3-TTS#voice-clone) specifies
+reference audio with matching spoken text; the guided passage is Origin's capture recommendation.
 
 Downloads require internet, disk space and local compute. Inference uses local models; there are no
 paid speech API calls. CPU generation can be slow. Models, tokens, conversations and voice samples
@@ -52,13 +66,13 @@ are never repository assets.
 New messages create responsibilities; reply to a bot message or your earlier message to continue
 that thread. Edits are preserved as new contributions. Voice and audio are transcribed when optional
 speech is enabled; otherwise the source stays preserved as actionable material without blocking
-later text. A first-audio sample received before speech installation remains pending with an
-explicit installation error; install local speech and use `retry-input UPDATE_ID` to recover that
-same sample. Later audio does not silently replace it. Captions and original files are retained.
-Photos, documents, videos, animations, stickers and video notes are downloaded with metadata.
-Unrecognized message forms retain their raw update for inspection. Telegram's Bot API limits apply
-(default cloud download cap: 20 MiB); a large or unprocessable attachment remains visible for
-recovery, never silently discarded.
+later text. An explicitly requested `/voice-sample` received before speech installation remains
+pending with an installation error; install local speech and use `retry-input UPDATE_ID` to recover
+that same sample. Later audio does not silently replace it. Captions and original files are
+retained. Photos, documents, videos, animations, stickers and video notes are downloaded with
+metadata. Unrecognized message forms retain their raw update for inspection. Telegram's Bot API
+limits apply (default cloud download cap: 20 MiB); a large or unprocessable attachment remains
+visible for recovery, never silently discarded.
 
 The agent uses `npm run telegram -- list`, `next`, `get ID`, `start ID`, `reply ID "text"`,
 `ask ID "question"`, `review ID "verification evidence"`, and

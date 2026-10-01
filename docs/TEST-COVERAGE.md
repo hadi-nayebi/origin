@@ -84,12 +84,16 @@ failure observations remain useful engineering leads. Do not restore their PASS 
 
 ## Observed new-chat launcher failure
 
-On the fresh Ubuntu personal clone matching released runtime `ac47035`, running the documented
-`npm run origin:new` while its Full Access Codex was already running returned to the same
-conversation and session. **FAIL** for that branch; selecting a new-chat command in a unit test did
-not cover reuse of a live pane. The repair rejects this conflicting request with an explicit
-finish/exit/retry instruction, preserves existing work, and starts fresh after Codex exits.
-Candidate engineering regression coverage is separate from the pending merged-release native retest.
+On a fresh Ubuntu personal clone matching released source
+`ac47035fbd3741023838fb0b6d96a9c5b98cd628`, running the documented `npm run origin:new`
+while its Full Access Codex was already running returned to the same conversation and session.
+**FAIL** for that branch. The run used inherited Node 24.19.0, tmux 3.4, Codex 0.159.2, Git 2.43.0,
+GitHub CLI 2.45.0, and existing GitHub/Codex login. The exact personal-clone commit/tree and Ubuntu
+release were not captured for this event, so this row is incomplete evidence and must not be
+promoted to a reproducible live PASS. Selecting a new-chat command in a unit test did not cover reuse
+of a live pane. The merged repair rejects the conflict with an explicit finish/exit/retry instruction
+and preserves existing work. Candidate engineering regression coverage and the pending merged-release
+native retest remain separate from this historical failure.
 
 ## Isolated environment coverage
 

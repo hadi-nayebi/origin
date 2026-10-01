@@ -28,7 +28,10 @@ whether Codex accepted it immediately or queued it behind active work.
 
 1. Run `npm run origin`; confirm the browser opens, the terminal attaches to interactive Codex, and
    an existing repository chat resumes. On a clean Codex home, confirm the same command starts a
-   fresh chat. Use `npm run origin:new` to verify the explicit separate-chat path.
+   fresh chat. While Codex is still running, invoke `npm run origin:new` from a second terminal and
+   confirm Origin refuses before attach or wake, preserves the live chat, and gives the exit/retry
+   instruction. Finish the current turn, exit Codex with **Ctrl-D**, retry `npm run origin:new`, and
+   confirm a separate fresh chat starts.
 2. In Codex, use `/hooks`, inspect `.codex/hooks.json`, and trust both channel Stop hooks plus the
    owner-authority PreToolUse hook.
 3. Leave one dashboard comment while Codex is idle. Confirm it appears in that same terminal session

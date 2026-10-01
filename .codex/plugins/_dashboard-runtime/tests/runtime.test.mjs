@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { renderVoice } from "../../_engagement-core/lib/voice.mjs";
 import { ensureAgentState } from "../../agent-stop-state/lib/state.mjs";
 import { pauseAgent } from "../../agent-stop-state/lib/state.mjs";
 import {
@@ -978,5 +979,52 @@ test("launcher verifies full access on native Codex beneath its node wrapper", (
   assert.throws(
     () => ensureTmuxCodex(run, "origin-test", ["codex"], root, { requireNew: true }),
     /cannot start a new chat/,
+  );
+});
+
+test("collapsed submitted channel wakes retain the exact marker and a submission transition", () => {
+  const marker = "[ORIGIN WAKE wake-a421ae0e-4784-492a-8b4f-cb199ebae62d]";
+  const kinds = [
+    "feedback.new",
+    "feedback.during-active",
+    "feedback.answer",
+    "feedback.reopened",
+    "feedback.accepted",
+    "feedback.dismissed",
+    "feedback.resume",
+  ];
+  for (const plugin of ["contextual-feedback", "telegram-engagement"]) {
+    for (const kind of kinds) {
+      const prompt = renderVoice(path.resolve(`.codex/plugins/${plugin}/voice.xml`), kind, {
+        reference: "feedback-001",
+        route: "/",
+        activeReference: "feedback-002",
+        wakeMarker: marker,
+      });
+      // Codex 0.159.2 collapses a submitted multiline prompt into a short heading.
+      const heading = `› ${prompt.replace(/\n/g, " ").slice(0, 70)}…`;
+      const accepted = `${heading}\n• Reading the validated thread.\nWorking (1s • esc to interrupt)\n› Ask Codex to do anything`;
+      assert.equal(
+        submissionAccepted({ value: accepted, marker, wasBusy: false, before: "› " }),
+        true,
+        `${plugin}/${kind}`,
+      );
+    }
+  }
+});
+
+test("a collapsed marker fragment or unsubmitted exact-marker draft is not a receipt", () => {
+  const marker = "[ORIGIN WAKE wake-a421ae0e-4784-492a-8b4f-cb199ebae62d]";
+  assert.equal(
+    submissionAccepted({
+      value: `› ${marker.slice(0, 38)}…\nWorking (1s • esc to interrupt)\n› Ask Codex to do anything`,
+      marker,
+      wasBusy: false,
+    }),
+    false,
+  );
+  assert.equal(
+    submissionAccepted({ value: `› ${marker}\nRead feedback-001`, marker, wasBusy: false }),
+    false,
   );
 });

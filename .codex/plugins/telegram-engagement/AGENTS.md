@@ -20,11 +20,18 @@ Only GitHub-confirmed merge resolves the responsibility.
 Text transport is the baseline and must work without speech dependencies or a voice sample. Local
 transcription and cloned-voice replies are independent optional capabilities. Once cloned-voice
 replies are enabled, include the canonical caption and never silently downgrade a failed synthesis
-to text. The owner explicitly enrolls a sample with `/voice-sample`; models and private samples must
-never be committed. Preserve every original media envelope and surface processing failures. An audio
-input received without transcription stays actionable as preserved material. Use command arguments
-as data; never build a shell command from Telegram input. Pair both sender and chat, retain bot
-identity, and reject other senders.
+to text. At handoff and safe conversation boundaries, inspect `status` or `doctor` for
+`voiceOnboarding`. When it says `request-sample`, ask the owner using its plain-language prompt:
+reply in the current Telegram thread, or ask in the current interactive interface if no Telegram
+thread exists. Do not invent a thread or block independent text work. Explain that local speech must
+be installed before processing. The first paired-owner voice/audio input is automatically reserved
+as the sample when none exists. `/voice-sample` explicitly replaces a sample. Preserve the full
+first-message transcript as user instructions; only its first 30 seconds become the voice reference.
+A pending/failed sample must be recovered rather than replaced by every subsequent audio. Models and
+private samples must never be committed. Preserve every original media envelope and surface
+processing failures. An audio input received without transcription stays actionable as preserved
+material. Use command arguments as data; never build a shell command from Telegram input. Pair both
+sender and chat, retain bot identity, and reject other senders.
 
 Unknown delivery outcomes require observed operator evidence before retries. Transport success is
 not user acceptance. Hook coaching explains the boundary; deterministic journal, state and ownership

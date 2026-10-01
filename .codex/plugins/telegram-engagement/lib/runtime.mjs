@@ -112,7 +112,7 @@ export async function prepareInput(root, config, api, voice, item, signal) {
         "-v",
         "error",
         "-i",
-        material[0].localPath,
+        material.find((file) => ["voice", "audio"].includes(file.kind)).localPath,
         "-t",
         "30",
         "-ar",
@@ -126,18 +126,36 @@ export async function prepareInput(root, config, api, voice, item, signal) {
 
     // Transcribe exactly the selected reference segment, not the full voice note.
     const reference = await voice.transcribe(path.join(voiceDir, "reference.wav"));
+    if (!reference.text.trim())
+      throw new Error(
+        "Voice reference has no recognizable speech; preserve the input and retry with a clear sample.",
+      );
     fs.writeFileSync(path.join(voiceDir, "reference.txt"), reference.text + "\n", { mode: 0o600 });
     fs.chmodSync(path.join(voiceDir, "reference.wav"), 0o600);
     voice.close();
     config.voiceRepliesEnabled = true;
     saveConfig(root, config);
-    const thread = createFeedbackMutation(scopeFor(root), {
-      externalId: `telegram-${config.botId}-${item.updateId}`,
-      kind: "update",
-      body: "Voice sample enrollment. Review the local transcript and cloned-voice preview before confirming that this voice is ready.",
-      pagePath: "/telegram",
-      pageLabel: "Voice enrollment",
-    }).record;
+    // The first voice note can contain real instructions beyond its first
+    // 30-second reference segment. Preserve the full transcript in its thread.
+    const firstAudioThread =
+      item.enrollmentMode === "first-audio"
+        ? materializeThread(
+            root,
+            config,
+            item.updateId,
+            [item.text, transcript].filter(Boolean).join("\n\n"),
+            material,
+          )
+        : null;
+    const thread =
+      firstAudioThread ||
+      createFeedbackMutation(scopeFor(root), {
+        externalId: `telegram-${config.botId}-${item.updateId}`,
+        kind: "update",
+        body: "Voice sample enrollment. Review the local transcript and cloned-voice preview before confirming that this voice is ready.",
+        pagePath: "/telegram",
+        pageLabel: "Voice enrollment",
+      }).record;
     queueReply(
       root,
       thread.id,

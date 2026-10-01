@@ -104,6 +104,13 @@ deliberately want a separate chat; `npm run origin:resume` remains an explicit c
 `npm run dashboard` starts only the development dashboard for diagnostics; it is not the complete
 Origin interaction model.
 
+Origin launches fresh and resumed Codex with `--dangerously-bypass-approvals-and-sandbox`: commands
+run without CLI approval prompts or sandbox restrictions. Activity limits come from Origin's plugin
+services and trusted hooks, including the owner-only merge guard. These are workflow controls, not
+an operating-system sandbox. Use `/status` to verify **Full Access**. If an older restricted Codex
+is still running, the launcher stops with instructions to exit it and rerun `npm run origin`; it
+preserves the chat and does not interrupt an active turn.
+
 The first time Codex opens the repository, use `/hooks`, inspect `.codex/hooks.json`, and trust the
 two channel Stop hooks plus the owner-authority PreToolUse hook. Origin does not bypass Codex's
 trust boundary.

@@ -40,7 +40,8 @@ export async function startHarness(options = {}) {
   // repository has no saved interactive session. Keep an explicit new-session
   // escape hatch for owners who do not want to continue the prior conversation.
   const resume = options.resumeLast ?? !process.argv.includes("--new-session");
-  const command = resume ? ["codex", "resume", "--last"] : ["codex"];
+  const bypass = "--dangerously-bypass-approvals-and-sandbox";
+  const command = resume ? ["codex", "resume", "--last", bypass] : ["codex", bypass];
   const hasSession = run("tmux", ["has-session", "-t", session]).status === 0;
   if (!hasSession) {
     assertSuccess(
@@ -101,7 +102,7 @@ export function ensureTmuxCodex(run, session, command, repositoryRoot) {
     "-t",
     session,
     "-F",
-    "#{pane_current_command}\t#{pane_current_path}",
+    "#{pane_current_command}\t#{pane_current_path}\t#{pane_pid}",
   ]);
   assertSuccess(pane, "tmux session inspection");
   const panes = String(pane.stdout || "")
@@ -109,8 +110,8 @@ export function ensureTmuxCodex(run, session, command, repositoryRoot) {
     .split("\n")
     .filter(Boolean)
     .map((line) => {
-      const [currentCommand, currentPath] = line.split("\t");
-      return { currentCommand, currentPath };
+      const [currentCommand, currentPath, pid] = line.split("\t");
+      return { currentCommand, currentPath, pid: Number(pid) };
     });
   if (repositoryRoot) {
     const wrongPath = panes.find(
@@ -122,14 +123,20 @@ export function ensureTmuxCodex(run, session, command, repositoryRoot) {
       );
   }
   const codexPanes = panes.filter((item) => /codex/i.test(item.currentCommand));
-  if (codexPanes.length === 1) return "running";
+  if (codexPanes.length === 1) {
+    assertFullAccessCodex(run, codexPanes[0].pid);
+    return "running";
+  }
   if (codexPanes.length > 1)
     throw new Error(`Origin tmux session ${session} contains more than one Codex pane.`);
   // npm's Codex launcher can appear as node while the native Codex process is
   // its descendant. Apply the same repository-scoped proof used by wake delivery.
   if (repositoryRoot && panes.length === 1 && currentIsWrapper(panes[0]?.currentCommand)) {
     const resolved = resolveCodexPane(repositoryRoot, { run });
-    if (resolved.session === session) return "running";
+    if (resolved.session === session) {
+      assertFullAccessCodex(run, resolved.pid);
+      return "running";
+    }
     throw new Error(`Origin found Codex in another tmux session: ${resolved.session}.`);
   }
   const current = panes[0]?.currentCommand || "";
@@ -142,6 +149,38 @@ export function ensureTmuxCodex(run, session, command, repositoryRoot) {
   }
   throw new Error(
     `Origin tmux session ${session} does not contain exactly one Codex pane or one idle shell. It reported: ${panes.map((item) => item.currentCommand).join(", ") || "no panes"}. Attach and inspect it before retrying.`,
+  );
+}
+
+function assertFullAccessCodex(run, panePid) {
+  const result = run("ps", ["-e", "-o", "pid=", "-o", "ppid=", "-o", "args="]);
+  assertSuccess(result, "Codex execution mode inspection");
+  const processes = String(result.stdout || "")
+    .split("\n")
+    .map((line) => line.trim().match(/^(\d+)\s+(\d+)\s+(.+)$/))
+    .filter(Boolean)
+    .map((match) => ({ pid: Number(match[1]), parent: Number(match[2]), args: match[3] }));
+  const descendants = new Set([panePid]);
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const process of processes) {
+      if (descendants.has(process.parent) && !descendants.has(process.pid)) {
+        descendants.add(process.pid);
+        changed = true;
+      }
+    }
+  }
+  const codex = processes.filter(
+    (process) =>
+      descendants.has(process.pid) && path.basename(process.args.split(/\s+/)[0]) === "codex",
+  );
+  if (
+    codex.length === 1 &&
+    codex[0].args.split(/\s+/).includes("--dangerously-bypass-approvals-and-sandbox")
+  )
+    return;
+  throw new Error(
+    "Origin cannot reuse Codex without verified Full Access. In the existing terminal, finish or interrupt the current turn and exit Codex, then run npm run origin again. Origin preserves the conversation and will resume it with --dangerously-bypass-approvals-and-sandbox. Plugin hooks still require owner trust.",
   );
 }
 

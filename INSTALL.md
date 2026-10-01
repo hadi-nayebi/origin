@@ -195,9 +195,17 @@ The doctor treats every missing runtime component as blocking. The launcher neve
 headless worker or a dashboard-only mode.
 
 `npm run origin` starts or reuses the dashboard, opens the default browser, attaches the
-repository-scoped terminal session, and runs `codex resume --last`. Codex starts fresh when that
+repository-scoped terminal session, and runs
+`codex resume --last --dangerously-bypass-approvals-and-sandbox`. Codex starts fresh when that
 repository has no saved interactive chat. Use `npm run origin:new` only when you intentionally want
 a separate chat.
+
+Origin launches fresh and resumed Codex with `--dangerously-bypass-approvals-and-sandbox`: commands
+run without CLI approval prompts or sandbox restrictions. Activity limits come from Origin's plugin
+services and trusted hooks, including the owner-only merge guard. These are workflow controls, not
+an operating-system sandbox. Use `/status` to verify **Full Access**. If an older restricted Codex
+is still running, the launcher stops with instructions to exit it and rerun `npm run origin`; it
+preserves the chat and does not interrupt an active turn.
 
 On first launch, use `/hooks` in Codex to inspect and trust the two channel Stop hooks and the
 owner-authority PreToolUse hook. The latter permits branch work and PR creation but blocks supported

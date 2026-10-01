@@ -30,7 +30,7 @@ import {
   scheduleWakeDelivery,
   wakeStatus,
 } from "../lib/wake-outbox.mjs";
-import { sessionName, startHarness } from "../scripts/start-harness.mjs";
+import { ensureTmuxCodex, sessionName, startHarness } from "../scripts/start-harness.mjs";
 
 const fixture = () => fs.mkdtempSync(path.join(os.tmpdir(), "origin-runtime-"));
 
@@ -699,7 +699,13 @@ test("combined launcher validates, creates one repo session, starts Codex, and a
   );
   assert.deepEqual(
     calls.find(({ command, args }) => command === "tmux" && args[0] === "send-keys")?.args,
-    ["send-keys", "-t", session, "codex resume --last", "C-m"],
+    [
+      "send-keys",
+      "-t",
+      session,
+      "codex resume --last --dangerously-bypass-approvals-and-sandbox",
+      "C-m",
+    ],
   );
   assert.deepEqual(calls.at(-1).args, ["attach-session", "-t", session]);
 });
@@ -731,7 +737,13 @@ test("combined launcher keeps an explicit fresh-session escape hatch", async () 
   });
   assert.deepEqual(
     calls.find(({ command, args }) => command === "tmux" && args[0] === "send-keys")?.args,
-    ["send-keys", "-t", sessionName(root), "codex", "C-m"],
+    [
+      "send-keys",
+      "-t",
+      sessionName(root),
+      "codex --dangerously-bypass-approvals-and-sandbox",
+      "C-m",
+    ],
   );
 });
 
@@ -743,7 +755,13 @@ test("combined launcher switches an existing tmux client into the repository ses
     if (command === "tmux" && args[0] === "has-session")
       return { status: 0, stdout: "", stderr: "" };
     if (command === "tmux" && args[0] === "list-panes")
-      return { status: 0, stdout: `codex\t${root}\n`, stderr: "" };
+      return { status: 0, stdout: `codex\t${root}\t101\n`, stderr: "" };
+    if (command === "ps")
+      return {
+        status: 0,
+        stdout: "101 1 codex resume --last --dangerously-bypass-approvals-and-sandbox\n",
+        stderr: "",
+      };
     if (command === "gh")
       return {
         status: 0,
@@ -875,4 +893,37 @@ test("launcher refuses a read-only GitHub remote before starting any runtime", a
     false,
   );
   assert.equal(fs.existsSync(path.join(root, ".origin", "runtime.json")), false);
+});
+
+test("launcher rejects restricted existing Codex without interrupting it", () => {
+  const root = fixture();
+  const calls = [];
+  const run = (command, args) => {
+    calls.push({ command, args });
+    if (command === "tmux") return { status: 0, stdout: `codex\t${root}\t101\n` };
+    return {
+      status: 0,
+      stdout: "101 1 codex resume --last\n202 1 codex --dangerously-bypass-approvals-and-sandbox\n",
+    };
+  };
+  assert.throws(() => ensureTmuxCodex(run, "origin-test", ["codex"], root), /cannot reuse Codex/);
+  assert.equal(
+    calls.some(({ args }) => args[0] === "send-keys"),
+    false,
+  );
+});
+
+test("launcher verifies full access on native Codex beneath its node wrapper", () => {
+  const root = fixture();
+  const run = (command, args) => {
+    if (command === "tmux" && args.includes("-a"))
+      return { status: 0, stdout: `%1\t${root}\t101\tnode\torigin-test\n` };
+    if (command === "tmux") return { status: 0, stdout: `node\t${root}\t101\n` };
+    return {
+      status: 0,
+      stdout:
+        "101 1 node /bin/codex.js\n102 101 /vendor/codex resume --last --dangerously-bypass-approvals-and-sandbox\n",
+    };
+  };
+  assert.equal(ensureTmuxCodex(run, "origin-test", ["codex"], root), "running");
 });

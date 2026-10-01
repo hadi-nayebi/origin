@@ -27,6 +27,12 @@ after `## Exact ask`. Explain the established practice, why it fits the current 
 any real constraint or unresolved tradeoff. Research ordinary technical choices yourself; do not
 invent a universal best practice or ask the user to supply one.
 
+The launcher starts fresh and resumed Codex with `--dangerously-bypass-approvals-and-sandbox`. CLI
+approval prompts and sandbox restrictions are disabled. Enforce activity limits through plugin
+services and trusted hooks; preserve owner-only merge and all other scoped decisions. Full Access
+does not authorize bypassing plugin rules or modifying unrelated files. This is a workflow boundary,
+not an adversarial operating-system sandbox.
+
 Origin contains two independently removable engagement plugins: `contextual-feedback` for the local
 dashboard and `telegram-engagement` for remote Telegram conversations. Each owns its own thread
 journal and continuation `data.json`, with identical mode names but no shared channel state. The

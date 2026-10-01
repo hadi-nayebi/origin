@@ -211,6 +211,26 @@ Owner merge and a fresh released native browser retest remain required. A respon
 override attempt in the live browser did not change its measured1498x823 viewport; it was reset and
 no new phone-layout PASS is claimed from that attempt.
 
+### Fresh released header retest
+
+PR #48 merged as `a355ad8b08b030ff1b45e24aa341bfc94a4c1912`. A new private personal repository,
+created through GitHub's ordinary template controls, was cloned through the native terminal. Its
+initial commit `3537d90e31d306fa40a4fa494118ecc6861d4203` has tree
+`2f3b3172dd18a29a81fdad6a4b3c7868ba921223`, exactly matching released main. Ubuntu 24.04.3 and host
+tools/login/browser were inherited; repository dependencies, runtime and pairing were fresh. The
+visible installer passed its checks, default Telegram skip and explicit exit 0. Documented startup
+on an available port produced the correct interactive Codex session with actual Full Access, one
+active PreToolUse hook and two active Stop hooks. Automatic browser opening remains unverified.
+
+Ordinary Chrome at its measured 1498×823 viewport showed the brand at top 24/bottom 52 and the
+Canvas return control at top 76/bottom 133.2: **PASS** for this bounded live layout repair, with
+24px clearance and a readable label. Clicking Canvas returned home. A bounded keyboard regression
+also passed: System Left Arrow focused Plugins without changing selection; Enter activated Plugins
+and its panel. These observations do not certify phone layouts, screen readers or all accessibility.
+No page was submitted; repository protections, real voice, missing-kit onboarding and the complete
+newcomer journey remain unpassed. The earlier pending native retest is satisfied only for this
+explicit desktop case.
+
 ## Admin tab keyboard failure and merged repair
 
 On Ubuntu, ordinary Chrome keyboard input against the fresh personal clone matching released source

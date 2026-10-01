@@ -209,9 +209,48 @@ labelled associated tab panels. Its regression failed on the unchanged implement
 with the repair. The full local engineering check covers 142 runtime tests, four internal voice
 tests, 14 interface tests, lint, formatting, TypeScript/Vite build and production startup smoke.
 These checks use Node24 and clone-local scratch paths; dependencies were reused in the engineering
-clone. They are not fresh native acceptance. A fresh released installation/browser keyboard retest
-remains required.
+clone. They are not fresh native acceptance. The subsequent bounded fresh released keyboard retest
+is recorded below.
 
 The same unchanged personal clone's System view was readable at a measured 390×844 viewport with no
 horizontal overflow; viewport override was reset afterward. This is one bounded responsive view, not
 complete accessibility or all-width coverage. Screen-reader behavior remains untested.
+
+## Fresh merged Admin keyboard and read-only route retest
+
+PR44 merged as `ce6b119a21a86beac345d2e596f7151ad4482a87`. A new private personal repository was
+created through GitHub's template controls, default branch only, then cloned in the ordinary native
+terminal into a new directory. Its commit `2f6c1d5edfa21fe8765fda0fcbc0b507147b3a9f` and tree
+`17fe6dbc9440e70604c6aa7d1ce25b241cff0030` exactly match that released source tree. The host is
+Ubuntu24.04.3 with inherited Node24.19.0, Git2.43.0, tmux3.4, Codex0.159.2, GitHub CLI2.45.0 and
+existing logins. Chrome was used; its exact version was not captured. Browser storage was inherited.
+Dependencies, runtime and pairing were not copied from another clone; scratch/cache paths stayed
+within this clone.
+
+The native installer passed142 runtime,4 internal voice,14UI and the complete lint/format/build/
+smoke/doctor checks. Enter at the default optional Telegram choice skipped it; the completion banner
+appeared and installer exit0 was observed. Startup used the documented alternative port 5175 because
+prior independent test dashboards occupied5173/5174. Actual native `/status` showed Full Access and
+the correct clone/session; `/hooks` showed PreToolUse1/1 and Stop2/2 active. The dashboard was
+opened manually at its displayed address; automatic browser opening remains unverified. This is
+current-host evidence, not missing-tool or fresh-machine acceptance.
+
+**PASS, bounded Admin keyboard repair:** selecting System, then pressing Left Arrow moved focus to
+Plugins without selecting it. Home/End and right-side wrapping moved focus while System remained
+selected. Enter selected Plugins; Space selected System. Only the selected tab had `tabIndex=0`; Tab
+moved into its labelled associated System panel. The original failure no longer reproduced.
+Screen-reader behavior and complete accessibility remain untested.
+
+**PASS, bounded read-only navigation:** reload preserved `/admin/system`, the Telegram-plugin detail
+and the Welcome Wiki chapter with their expected loaded headings. Browser Back returned from plugin
+detail to the Plugins landing view; Forward restored the detail. The documented `/wiki/01-welcome`
+compatibility URL rendered Welcome inside Admin. Early asynchronous snapshots of plugin navigation
+were not counted until the selected heading loaded. An initial test waited for the wrong heading,
+`System status`, and timed out; corrected to the actual `Origin system status` before the keyboard
+case. That tester selector mistake is not a product failure.
+
+No nonempty Feedback, page work, pairing, protection change or owner merge was performed in this
+clone. Protections remain absent; real speech, missing-tool/login branches, the generated-page
+workflow and the complete fresh repeat remain unpassed. Private case evidence is kept under
+`Origin Tests/2026-10-01/15-installation-merged-admin-keyboard` and dated engineering notes; no
+credentials, conversations or voice samples belong in this public ledger.

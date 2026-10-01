@@ -186,3 +186,25 @@ before page work. The clone stayed clean, with no page request or settings chang
 The explicit origin:resume alias also restored the newest saved session after idle CtrlD exit,
 including its prior readiness prompt and response. This is bounded stopped-foreground resume
 coverage; it does not prove recovery of pending wakes or runnable work.
+
+## Admin tab keyboard failure and candidate repair
+
+On Ubuntu, ordinary Chrome keyboard input against the fresh personal clone matching released source
+`5512b77d5877018085d0bb557eb0f3a26fa5b10a` left focus on the selected System tab after Left Arrow.
+Wiki, Plugins and System all had `tabIndex=0`. **FAIL** for the Admin tab keyboard case; the other
+bounded keyboard observations do not pass this case. Later test/documentation merges through
+`d749b5c` did not change this Admin implementation.
+
+The [W3C tabs pattern](https://www.w3.org/WAI/ARIA/apg/patterns/tabs/) calls for Left/Right focus
+movement with wrapping and one tab stop in the tab list. Manual activation fits Origin because
+switching sections can fetch content: arrows move focus, and Enter/Space select the section. The
+candidate adds those controls, Home/End, and labelled associated tab panels. Its regression failed
+on the unchanged implementation, then passed with the repair. The full local engineering check
+covers 142 runtime tests, four internal voice tests, 14 interface tests, lint, formatting,
+TypeScript/Vite build and production startup smoke. These checks use Node24 and clone-local scratch
+paths; dependencies were reused in the engineering clone. They are not fresh native acceptance.
+Owner merge and a fresh released installation/browser keyboard retest remain required.
+
+The same unchanged personal clone's System view was readable at measured390x844 with no horizontal
+overflow; viewport override was reset afterward. This is one bounded responsive view, not complete
+accessibility or all-width coverage. Screen-reader behavior remains untested.

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { api } from "./api";
@@ -279,6 +279,18 @@ function Admin({
   surface: Exclude<Surface, { kind: "canvas" }>;
   navigate: (surface: Surface) => void;
 }) {
+  const sections = ["wiki", "plugins", "system"] as const;
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const moveTabFocus = (event: ReactKeyboardEvent<HTMLButtonElement>, index: number) => {
+    let next: number;
+    if (event.key === "ArrowLeft") next = (index + sections.length - 1) % sections.length;
+    else if (event.key === "ArrowRight") next = (index + 1) % sections.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = sections.length - 1;
+    else return;
+    event.preventDefault();
+    tabRefs.current[next]?.focus();
+  };
   const [chapters, setChapters] = useState<WikiChapter[]>([]);
   const [chapter, setChapter] = useState<(WikiChapter & { content: string }) | null>(null);
   const [plugins, setPlugins] = useState<PluginSummary[]>([]);
@@ -358,30 +370,24 @@ function Admin({
           </p>
         </div>
         <div className="admin-tabs" role="tablist" aria-label="Admin sections">
-          <button
-            className={surface.section === "wiki" ? "active" : ""}
-            role="tab"
-            aria-selected={surface.section === "wiki"}
-            onClick={() => navigate({ kind: "admin", section: "wiki" })}
-          >
-            Wiki
-          </button>
-          <button
-            className={surface.section === "plugins" ? "active" : ""}
-            role="tab"
-            aria-selected={surface.section === "plugins"}
-            onClick={() => navigate({ kind: "admin", section: "plugins" })}
-          >
-            Plugins
-          </button>
-          <button
-            className={surface.section === "system" ? "active" : ""}
-            role="tab"
-            aria-selected={surface.section === "system"}
-            onClick={() => navigate({ kind: "admin", section: "system" })}
-          >
-            System
-          </button>
+          {sections.map((section, index) => (
+            <button
+              key={section}
+              ref={(element) => {
+                tabRefs.current[index] = element;
+              }}
+              id={`origin-admin-tab-${section}`}
+              className={surface.section === section ? "active" : ""}
+              role="tab"
+              aria-selected={surface.section === section}
+              aria-controls={`origin-admin-panel-${section}`}
+              tabIndex={surface.section === section ? 0 : -1}
+              onKeyDown={(event) => moveTabFocus(event, index)}
+              onClick={() => navigate({ kind: "admin", section })}
+            >
+              {section[0].toUpperCase() + section.slice(1)}
+            </button>
+          ))}
         </div>
         {surface.section === "wiki" ? (
           <nav aria-label="Wiki chapters">
@@ -419,27 +425,42 @@ function Admin({
         )}
       </aside>
       <article className="admin-article" aria-live="polite">
-        {error ? (
-          <p className="error" role="alert">
-            {error}
-          </p>
-        ) : loading ? (
-          <p role="status">Loading chapter…</p>
-        ) : surface.section === "system" ? (
-          health ? (
-            <SystemStatus health={health} plugins={plugins} />
-          ) : (
-            <p role="status">Loading system status…</p>
-          )
-        ) : surface.section === "wiki" && chapter ? (
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{chapter.content}</ReactMarkdown>
-        ) : surface.section === "wiki" ? (
-          <WikiLanding chapters={chapters} navigate={navigate} />
-        ) : plugin ? (
-          <PluginDetail plugin={plugin} />
-        ) : (
-          <PluginLanding plugins={plugins} navigate={navigate} />
-        )}
+        {sections.map((section) => (
+          <div
+            key={section}
+            id={`origin-admin-panel-${section}`}
+            role="tabpanel"
+            aria-labelledby={`origin-admin-tab-${section}`}
+            tabIndex={surface.section === section ? 0 : -1}
+            hidden={surface.section !== section}
+          >
+            {surface.section === section && (
+              <>
+                {error ? (
+                  <p className="error" role="alert">
+                    {error}
+                  </p>
+                ) : loading ? (
+                  <p role="status">Loading chapter…</p>
+                ) : surface.section === "system" ? (
+                  health ? (
+                    <SystemStatus health={health} plugins={plugins} />
+                  ) : (
+                    <p role="status">Loading system status…</p>
+                  )
+                ) : surface.section === "wiki" && chapter ? (
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{chapter.content}</ReactMarkdown>
+                ) : surface.section === "wiki" ? (
+                  <WikiLanding chapters={chapters} navigate={navigate} />
+                ) : plugin ? (
+                  <PluginDetail plugin={plugin} />
+                ) : (
+                  <PluginLanding plugins={plugins} navigate={navigate} />
+                )}
+              </>
+            )}
+          </div>
+        ))}
       </article>
     </section>
   );

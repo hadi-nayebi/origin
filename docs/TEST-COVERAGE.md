@@ -1,7 +1,9 @@
 # Origin test coverage ledger
 
 This is a coverage record, not a release-wide acceptance certificate. Last reconciled: October 1,
-2026 UTC (September 30 local). Released source baseline: `ac47035fbd3741023838fb0b6d96a9c5b98cd628`.
+2026 UTC (September 30 local). Current merged repository baseline:
+`ce6b119a21a86beac345d2e596f7151ad4482a87`. Each acceptance result below retains the exact older
+revision it actually exercised.
 
 ## How to read and maintain this record
 
@@ -49,35 +51,35 @@ evidence on that older baseline, not a clean-machine result for latest main. Det
 ownership and historical failures are tracked in
 [Origin issue #20](https://github.com/hadi-nayebi/origin/issues/20).
 
-| Case                                                                      | Verdict and observed result                                                                                          | Remaining coverage / next action                                                                                                                                                                                                                |
-| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Earlier GitHub account onboarding                                         | NOT TESTED here; outside Origin's entry boundary                                                                     | Validate the wider onboarding separately.                                                                                                                                                                                                       |
-| Missing Git/bootstrap before cloning                                      | NOT TESTED; host Git was inherited                                                                                   | Separate fresh OS/user environment following public instructions.                                                                                                                                                                               |
-| Own repository/template and normal terminal clone                         | PASS on cited older baseline: private template, default branch, correct writable remote and matching tree            | Latest merged release repeat is in progress; fork/manual alternatives are NOT TESTED.                                                                                                                                                           |
-| Installer with existing tools/login                                       | PASS on cited older baseline: ordinary native terminal, full checks, complete banner and exit 0                      | Does not cover missing tools, sign-in or a novice completing unaided.                                                                                                                                                                           |
-| Missing GitHub CLI, Node/npm, tmux or Codex                               | NOT TESTED as a newcomer                                                                                             | Isolated missing-kit tests; do not uninstall owner tools to simulate absence.                                                                                                                                                                   |
-| Unauthenticated GitHub/Codex login                                        | NOT TESTED; existing login reused                                                                                    | New isolated user state; owner must complete personal authentication.                                                                                                                                                                           |
-| Unsupported Node recovery                                                 | PARTIAL: rejection observed with Node 22.21 in engineering                                                           | Native newcomer recovery and supported installation remain NOT TESTED.                                                                                                                                                                          |
-| Optional Telegram choice and hidden token input                           | PASS on cited older baseline: offered in installer, explicit yes, hidden entry                                       | Latest pre-choice text/voice explanation observed; token cancellation and no-choice completion observed in fresh ac47035 run. Post-pairing guide remains untested.                                                                              |
-| Pairing expiry and retry                                                  | PASS on cited older baseline: expiry failed without completion; documented retry paired                              | Wrong command, other-owner input and interruption variants NOT TESTED live.                                                                                                                                                                     |
-| Installation repeat                                                       | PASS on cited older baseline: binding preserved, exit 0                                                              | Broader upgrade/reinstall variants NOT TESTED.                                                                                                                                                                                                  |
-| Dashboard and interactive agent/context                                   | PARTIAL: dashboard rendered; correct native Codex read context, hooks active                                         | Automatic default-browser opening remains NOT TESTED.                                                                                                                                                                                           |
-| Full Access launcher default                                              | PASS on fresh ac47035 personal clone: shipped npm run origin /status reports Full Access; three trusted hooks active | Healthy launcher reuse and context readiness observed on same fresh clone; stopped-runtime restart and new-chat remain untested.                                                                                                                |
-| Folder/hook trust                                                         | PASS on cited older baseline: owner approved and three documented hooks active                                       | Fresh clone follows its visible trust controls; does not certify adversarial isolation.                                                                                                                                                         |
-| Four-step guide                                                           | PARTIAL: fresh ac47035 replay, next/back, Feedback/Admin shortcuts, finish and skip followed by reload observed      | Stored completion inherited. Reload closes replay; no saved replay-progress promise. Separate-browser first-run remains NOT TESTED.                                                                                                             |
-| Origin Telegram text round trip                                           | PASS on cited older baseline: input woke same worker, reply sent, owner's Yes returned in same thread                | Closure, competing requests and recovery remain separate cases.                                                                                                                                                                                 |
-| Audio as ordinary text-mode material                                      | PARTIAL: three-second voice file preserved; speech disabled                                                          | Contents were not transcribed or understood. This is not voice activation acceptance.                                                                                                                                                           |
-| Guided text/voice explanation after pairing                               | NOT TESTED live on latest release                                                                                    | Verify terminal guide and actual paired Telegram receipt after fresh pairing.                                                                                                                                                                   |
-| Voice dependencies, sample, transcript, preview and replies               | NOT TESTED live                                                                                                      | Activate local speech, read recommended passage, inspect actual transcript and listen to preview; text stays available.                                                                                                                         |
-| Repository protections                                                    | BLOCKED: browser confirmation was rejected; rules remained unsaved                                                   | After agent handoff, explain and complete the owner's settings action; verify before page work.                                                                                                                                                 |
-| Feedback → one page → preview → PR → owner merge                          | BLOCKED by startup/protection gate; no page work in this restart                                                     | Execute one bounded About-page journey after prerequisites pass.                                                                                                                                                                                |
-| Clarification/correction, busy queue, draft/route context and attachments | NOT TESTED in this restart                                                                                           | Individual cases after the first page journey.                                                                                                                                                                                                  |
-| Review/reopen, mode/Stop indicators, channel pause/removal                | NOT TESTED live in this restart                                                                                      | Individual durable-history and channel-independence cases.                                                                                                                                                                                      |
-| Outbox/restart/session-resume/corruption recovery                         | NOT TESTED live in this restart                                                                                      | Deterministic coverage is separate; execute fault/recovery cases without deleting history.                                                                                                                                                      |
-| Keyboard, responsive and accessibility use                                | PARTIAL: actual Tab/Enter opened Feedback; Escape closed and returned focus; deterministic interface suite           | Bounded actual390x844 guide and Feedback visually readable/contained, no horizontal overflow; controls operated. Full keyboard/accessibility and other routes/widths untested.                                                                  |
-| Full fresh released repeat                                                | NOT TESTED complete                                                                                                  | Fresh personal template matches `ac47035`; all installer checks passed. Token prompt cancelled correctly; rerun with Telegram skipped completed. Dashboard, shipped Full Access and hooks observed; guided pairing/voice/full journey untested. |
-| macOS and WSL2 newcomer journeys                                          | NOT TESTED live                                                                                                      | Use separate supported machines/environments; portable CI cannot pass these rows.                                                                                                                                                               |
-| Independent novice usability                                              | NOT TESTED                                                                                                           | A professional following shipped instructions without tester-only knowledge should report steps and difficulties.                                                                                                                               |
+| Case                                                                      | Verdict and observed result                                                                                         | Remaining coverage / next action                                                                                                                                   |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Earlier GitHub account onboarding                                         | NOT TESTED here; outside Origin's entry boundary                                                                    | Validate the wider onboarding separately.                                                                                                                          |
+| Missing Git/bootstrap before cloning                                      | NOT TESTED; host Git was inherited                                                                                  | Separate fresh OS/user environment following public instructions.                                                                                                  |
+| Own repository/template and normal terminal clone                         | PASS on fresh merged retest: personal head/tree matched source `5512b77d` exactly                                   | Fork/manual alternatives remain NOT TESTED.                                                                                                                        |
+| Installer with existing tools/login                                       | PASS on fresh merged retest: ordinary native terminal, full checks, default Telegram skip, exit 0                   | Existing tools/login were inherited; missing-kit, sign-in and unaided novice use remain NOT TESTED.                                                                |
+| Missing GitHub CLI, Node/npm, tmux or Codex                               | NOT TESTED as a newcomer                                                                                            | Isolated missing-kit tests; do not uninstall owner tools to simulate absence.                                                                                      |
+| Unauthenticated GitHub/Codex login                                        | NOT TESTED; existing login reused                                                                                   | New isolated user state; owner must complete personal authentication.                                                                                              |
+| Unsupported Node recovery                                                 | PARTIAL: rejection observed with Node 22.21 in engineering                                                          | Native newcomer recovery and supported installation remain NOT TESTED.                                                                                             |
+| Optional Telegram choice and hidden token input                           | PASS on cited older baseline: offered in installer, explicit yes, hidden entry                                      | Latest pre-choice text/voice explanation observed; token cancellation and no-choice completion observed in fresh ac47035 run. Post-pairing guide remains untested. |
+| Pairing expiry and retry                                                  | PASS on cited older baseline: expiry failed without completion; documented retry paired                             | Wrong command, other-owner input and interruption variants NOT TESTED live.                                                                                        |
+| Installation repeat                                                       | PASS on cited older baseline: binding preserved, exit 0                                                             | Broader upgrade/reinstall variants NOT TESTED.                                                                                                                     |
+| Dashboard and interactive agent/context                                   | PARTIAL on fresh merged retest: dashboard rendered manually; correct context, hooks, reuse and saved-session resume | Automatic default-browser opening, pending-wake recovery and runnable-work restart remain NOT TESTED.                                                              |
+| Full Access launcher default                                              | PASS on fresh merged retest: shipped launcher/status reported Full Access; three trusted hooks active               | Healthy reuse and idle-worker new-chat refusal/exit/retry passed; preservation during a substantive busy turn remains NOT TESTED.                                  |
+| Folder/hook trust                                                         | PASS on cited older baseline: owner approved and three documented hooks active                                      | Fresh clone follows its visible trust controls; does not certify adversarial isolation.                                                                            |
+| Four-step guide                                                           | PARTIAL: fresh ac47035 replay, next/back, Feedback/Admin shortcuts, finish and skip followed by reload observed     | Stored completion inherited. Reload closes replay; no saved replay-progress promise. Separate-browser first-run remains NOT TESTED.                                |
+| Origin Telegram text round trip                                           | PASS on cited older baseline: input woke same worker, reply sent, owner's Yes returned in same thread               | Closure, competing requests and recovery remain separate cases.                                                                                                    |
+| Audio as ordinary text-mode material                                      | PARTIAL: three-second voice file preserved; speech disabled                                                         | Contents were not transcribed or understood. This is not voice activation acceptance.                                                                              |
+| Guided text/voice explanation after pairing                               | NOT TESTED live on latest release                                                                                   | Verify terminal guide and actual paired Telegram receipt after fresh pairing.                                                                                      |
+| Voice dependencies, sample, transcript, preview and replies               | NOT TESTED live                                                                                                     | Activate local speech, read recommended passage, inspect actual transcript and listen to preview; text stays available.                                            |
+| Repository protections                                                    | BLOCKED: browser confirmation was rejected; rules remained unsaved                                                  | After agent handoff, explain and complete the owner's settings action; verify before page work.                                                                    |
+| Feedback → one page → preview → PR → owner merge                          | BLOCKED by startup/protection gate; no page work in this restart                                                    | Execute one bounded About-page journey after prerequisites pass.                                                                                                   |
+| Clarification/correction, busy queue, draft/route context and attachments | NOT TESTED in this restart                                                                                          | Individual cases after the first page journey.                                                                                                                     |
+| Review/reopen, mode/Stop indicators, channel pause/removal                | NOT TESTED live in this restart                                                                                     | Individual durable-history and channel-independence cases.                                                                                                         |
+| Outbox/restart/session-resume/corruption recovery                         | PARTIAL: empty-channel pause persisted; explicit resume and saved-session resume passed                             | Pending-wake, queued-input, runnable-work and corruption recovery remain NOT TESTED live.                                                                          |
+| Keyboard, responsive and accessibility use                                | PARTIAL: Feedback keyboard controls and bounded 390×844 views passed; Admin tabs failed on source `5512b77d`        | PR #44 repair is engineering-green and merged; fresh native keyboard retest, screen-reader behavior and other widths remain NOT TESTED.                            |
+| Full fresh released repeat                                                | PARTIAL on exact source/tree `5512b77d`: install, dashboard, Full Access, reuse, new-chat and resume paths passed   | Missing-kit/login, automatic browser opening, busy-turn preservation, guided pairing/voice, protections and the complete page/PR/merge journey remain NOT TESTED.  |
+| macOS and WSL2 newcomer journeys                                          | NOT TESTED live                                                                                                     | Use separate supported machines/environments; portable CI cannot pass these rows.                                                                                  |
+| Independent novice usability                                              | NOT TESTED                                                                                                          | A professional following shipped instructions without tester-only knowledge should report steps and difficulties.                                                  |
 
 Earlier hidden wrappers and API provisioning were withdrawn as newcomer acceptance evidence. Their
 failure observations remain useful engineering leads. Do not restore their PASS claims.
@@ -148,46 +150,50 @@ promised persistence contract. Initial rapid chapter snapshots caught the previo
 asynchronous loading completed; those observations were disqualified and rerun waiting for the
 selected heading.
 
-The acceptance table contains 27 grouped coverage rows: 8 PASS, 5 PARTIAL, 12 NOT TESTED and 2
+The acceptance table contains 27 grouped coverage rows: 8 PASS, 7 PARTIAL, 10 NOT TESTED and 2
 BLOCKED. These totals are summary scopes rather than an exhaustive individual-test count. Explicit
 new-chat behavior separately failed during the live launcher review;
 [repair #38](https://github.com/hadi-nayebi/origin/pull/38) refuses silent reuse of a running
-conversation. Its engineering checks passed, but merged native retesting remains pending. Owner
-merge/protection/voice decisions do not block independent read-only and form checks.
+conversation. Its merged native retest passed for the bounded idle-worker refusal/exit/retry path;
+preservation during a substantive busy turn remains untested. Protection and voice decisions do not
+block independent read-only and form checks.
 
 ## Fresh merged launcher retest
 
 After owner merge of #36 and #38, source main `5512b77d5877018085d0bb557eb0f3a26fa5b10a` was
 verified before a new personal template/native-terminal clone. Personal head
 `5daf87b19dd32bb0b9c342820cc390e231dd6fac`, tree `726c917f59f719ab376c2110baf4695064e8ad7e`, matched
-that release exactly. Ubuntu tools/login and supported Node24.19 remained inherited; dependencies
-and runtime were fresh, with temporary and cache paths restricted to the clone. Missing-kit coverage
-remains untested.
+that release exactly. The existing-host run inherited Node 24.19.0, Git 2.43.0, tmux 3.4, Codex
+0.159.2, GitHub CLI 2.45.0, GitHub/Codex login and browser state. Dependencies and runtime were
+fresh, with temporary and cache paths restricted to the clone. The Ubuntu release and Chrome version
+were not captured, so this is bounded current-host evidence rather than reproducible
+clean-environment acceptance. Missing-kit coverage remains untested.
 
-The unchanged native installer passed 142 runtime,4 internal voice and13 interface checks,
-lint/format/build/smoke/doctor. Default Enter at optional Telegram setup skipped it and completed
-with exit0. No pairing was requested or inherited. The launcher correctly refused another clone's
-occupied5173 port; its displayed ORIGIN_PORT recovery started the correct dashboard/worker on5174.
-Native trust screens enabled PreToolUse1/1 and Stop2/2. Actual/status showed Full Access.
+The unchanged native installer passed 142 runtime, 4 internal voice and 13 interface checks, lint,
+formatting, build, smoke and doctor. Default Enter at optional Telegram setup skipped it and
+completed with exit 0. No pairing was requested or inherited. The launcher correctly refused another
+clone's occupied port 5173; its displayed `ORIGIN_PORT` recovery started the correct dashboard and
+worker on port 5174. Native trust screens enabled PreToolUse 1/1 and Stop 2/2. Actual/status showed
+Full Access.
 
-Normal reuse retained the existing session. Explicit origin:new refused the live worker with
-finish/exit/retry instructions and left its session unchanged. CtrlD at idle then retry opened a
+Normal reuse retained the existing session. Explicit `origin:new` refused the live worker with
+finish/exit/retry instructions and left its session unchanged. Ctrl-D at idle then retry opened a
 distinct new Full Access session in the same clone. This supersedes the silent-reuse failure for the
 bounded fresh merged idle-worker case. Preservation during a substantive busy turn remains separate
 coverage. Browser rendering was observed through manual opening; automatic browser opening is still
 unverified.
 
 Empty dashboard Pause persisted after reload and loaded-state inspection; explicit Resume returned
-to idle. Immediate reload snapshots briefly show defaultstate before asynchronous retrieval, so wait
-for loadedstate before assessing persistence. Queued-input recovery and independent active Telegram
-behavior were not exercised. The new worker read context and identified missing branch protections
-before page work. The clone stayed clean, with no page request or settings changes.
+to idle. Immediate reload snapshots briefly show default state before asynchronous retrieval, so
+wait for loaded state before assessing persistence. Queued-input recovery and independent active
+Telegram behavior were not exercised. The new worker read context and identified missing branch
+protections before page work. The clone stayed clean, with no page request or settings changes.
 
-The explicit origin:resume alias also restored the newest saved session after idle CtrlD exit,
+The explicit `origin:resume` alias also restored the newest saved session after idle Ctrl-D exit,
 including its prior readiness prompt and response. This is bounded stopped-foreground resume
 coverage; it does not prove recovery of pending wakes or runnable work.
 
-## Admin tab keyboard failure and candidate repair
+## Admin tab keyboard failure and merged repair
 
 On Ubuntu, ordinary Chrome keyboard input against the fresh personal clone matching released source
 `5512b77d5877018085d0bb557eb0f3a26fa5b10a` left focus on the selected System tab after Left Arrow.
@@ -197,14 +203,15 @@ bounded keyboard observations do not pass this case. Later test/documentation me
 
 The [W3C tabs pattern](https://www.w3.org/WAI/ARIA/apg/patterns/tabs/) calls for Left/Right focus
 movement with wrapping and one tab stop in the tab list. Manual activation fits Origin because
-switching sections can fetch content: arrows move focus, and Enter/Space select the section. The
-candidate adds those controls, Home/End, and labelled associated tab panels. Its regression failed
-on the unchanged implementation, then passed with the repair. The full local engineering check
-covers 142 runtime tests, four internal voice tests, 14 interface tests, lint, formatting,
-TypeScript/Vite build and production startup smoke. These checks use Node24 and clone-local scratch
-paths; dependencies were reused in the engineering clone. They are not fresh native acceptance.
-Owner merge and a fresh released installation/browser keyboard retest remain required.
+switching sections can fetch content: arrows move focus, and Enter/Space select the section. Merged
+[repair #44](https://github.com/hadi-nayebi/origin/pull/44) adds those controls, Home/End, and
+labelled associated tab panels. Its regression failed on the unchanged implementation, then passed
+with the repair. The full local engineering check covers 142 runtime tests, four internal voice
+tests, 14 interface tests, lint, formatting, TypeScript/Vite build and production startup smoke.
+These checks use Node24 and clone-local scratch paths; dependencies were reused in the engineering
+clone. They are not fresh native acceptance. A fresh released installation/browser keyboard retest
+remains required.
 
-The same unchanged personal clone's System view was readable at measured390x844 with no horizontal
-overflow; viewport override was reset afterward. This is one bounded responsive view, not complete
-accessibility or all-width coverage. Screen-reader behavior remains untested.
+The same unchanged personal clone's System view was readable at a measured 390×844 viewport with no
+horizontal overflow; viewport override was reset afterward. This is one bounded responsive view, not
+complete accessibility or all-width coverage. Screen-reader behavior remains untested.

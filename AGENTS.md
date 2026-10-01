@@ -98,3 +98,10 @@ Keep instruction layers consistent without copying one generic paragraph everywh
 explains the organism; each plugin instruction states its one objective and boundaries; each voice
 orients the event-specific moment; deterministic code enforces the hard edge. When behavior changes,
 update all four surfaces and their tests together. See `docs/VOICE-DESIGN.md`.
+
+## Coverage continuity
+
+Maintain `docs/TEST-COVERAGE.md` when tests or acceptance findings change. Separate deterministic
+engineering checks from actual user evidence, cite exact revision/environment, and label untested or
+blocked cases and inherited tools/login. A repair merge does not pass its live retest. Preserve
+historical failures without publishing private credentials, conversations or voice samples.

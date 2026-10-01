@@ -18,6 +18,10 @@ Unavailable live evidence is recorded as unavailable, never inferred from CI.
 | Installation        | macOS/Linux/WSL2 prerequisites are strict; Codex/tmux block launch and GitHub CLI/auth plus repository write access block the reviewed PR workflow               | Machine inspection, doctor, installer tests                     |
 | Recovery            | Durable ledger, backups, owning channel state, runtime record, and wake outbox are inspectable                                                                   | Corruption, backup/restore, stale work, retry tests             |
 
+The [test coverage ledger](TEST-COVERAGE.md) separates engineering results, actual newcomer
+acceptance and untested or blocked cases. Update it with exact revision/environment evidence;
+passing CI must not upgrade missing live evidence.
+
 `npm run check` is the reproducible deterministic evidence suite. GitHub Actions runs it on Linux,
 macOS, and Windows; Windows CI tests portable code but does not claim the full tmux runtime, which
 runs inside WSL2.

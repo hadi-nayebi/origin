@@ -80,6 +80,17 @@ try {
       false,
     );
     await page.getByRole("button", { name: "Open Origin admin" }).click();
+    for (const width of [390, 1440]) {
+      await page.setViewportSize({ width, height: 844 });
+      const brand = await page.getByRole("banner", { name: "Origin" }).boundingBox();
+      const back = await page.getByRole("button", { name: "← Canvas" }).boundingBox();
+      assert.ok(brand && back, "Brand and Canvas return control must be visible");
+      assert.ok(
+        back.y >= brand.y + brand.height,
+        `Admin Canvas return control must clear the fixed brand at ${width}px`,
+      );
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole("tab", { name: "Plugins" }).click();
     await page.getByRole("heading", { name: "Two plugins show how Origin grows." }).waitFor();
     await page.getByRole("tab", { name: "Wiki" }).click();

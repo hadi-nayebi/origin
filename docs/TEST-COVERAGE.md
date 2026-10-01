@@ -193,6 +193,24 @@ The explicit `origin:resume` alias also restored the newest saved session after 
 including its prior readiness prompt and response. This is bounded stopped-foreground resume
 coverage; it does not prove recovery of pending wakes or runnable work.
 
+## Admin brand and Canvas-label overlap
+
+In ordinary Chrome on the fresh personal clone matching released source
+`ce6b119a21a86beac345d2e596f7151ad4482a87`, a desktop screenshot showed the fixed Origin brand and
+Admin's Canvas return label overlapping. DOM geometry confirmed the brand at top24/bottom52 and the
+Canvas control at top30/bottom87.2. **FAIL** for this bounded reading/layout case. The control's
+successful activation does not pass label readability. This is separate from the now retested
+keyboard repair.
+
+The candidate reserves vertical space above the Admin navigation at both desktop and narrow
+breakpoints. A real-browser regression checks the brand and return-control bounds at390px and 1440px
+in development and production. Local browser launch attempts using installed Chrome and Chromium
+crashed before any page/test ran; their failures do not establish a red regression or a passing
+repair. Full local deterministic checks and exact-head CI results are recorded with the repair PR.
+Owner merge and a fresh released native browser retest remain required. A responsive viewport
+override attempt in the live browser did not change its measured1498x823 viewport; it was reset and
+no new phone-layout PASS is claimed from that attempt.
+
 ## Admin tab keyboard failure and merged repair
 
 On Ubuntu, ordinary Chrome keyboard input against the fresh personal clone matching released source

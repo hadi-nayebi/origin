@@ -747,9 +747,11 @@ test("combined launcher keeps an explicit fresh-session escape hatch", async () 
   );
 });
 
-test("explicit new chat refuses a live Codex without injecting or attaching", async () => {
+test("explicit new chat refuses a live Codex before injection, attachment, or wake", async () => {
   const root = fixture();
+  enableFeedbackPlugin(root);
   const calls = [];
+  const fetchUrls = [];
   const run = (command, args) => {
     calls.push({ command, args });
     if (command === "tmux" && args[0] === "list-panes")
@@ -770,6 +772,13 @@ test("explicit new chat refuses a live Codex without injecting or attaching", as
       platform: "linux",
       release: { name: "node" },
       openBrowser: false,
+      fetch: async (url) => {
+        fetchUrls.push(String(url));
+        return {
+          ok: true,
+          json: async () => ({ name: "origin", instanceId: runtimeInstanceId(root) }),
+        };
+      },
     }),
     /finish the current turn.*Ctrl-D.*origin:new/,
   );
@@ -779,6 +788,10 @@ test("explicit new chat refuses a live Codex without injecting or attaching", as
         command === "tmux" &&
         ["send-keys", "attach-session", "switch-client", "kill-session"].includes(args[0]),
     ),
+    false,
+  );
+  assert.equal(
+    fetchUrls.some((url) => url.endsWith("/api/session/wake")),
     false,
   );
 });

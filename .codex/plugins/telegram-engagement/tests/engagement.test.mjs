@@ -30,6 +30,7 @@ import {
   mediaOf,
   queueReply,
   getThread,
+  voiceOnboarding,
 } from "../lib/service.mjs";
 import { prepareInput, deliverReply, processOwnerMerge, textChunks } from "../lib/runtime.mjs";
 import { captionChunks } from "../lib/voice.mjs";
@@ -288,10 +289,13 @@ test("text-only pairing receives audio as preserved material without loading spe
       fs.writeFileSync(file, "preserved audio");
     },
   };
-  await prepareInput(root, textConfig, api, null, readTransport(root).inbox[11]);
+  await assert.rejects(
+    prepareInput(root, textConfig, api, null, readTransport(root).inbox[11]),
+    /optional speech capability/,
+  );
   const item = readTransport(root).inbox[11];
-  assert.equal(item.status, "ready");
-  assert.equal(item.materials[0].processing.status, "not-enabled");
+  assert.equal(item.kind, "voice-sample");
+  assert.equal(fs.existsSync(path.join(directory(root), "media/11-0.ogg")), true);
   assert.match(getThread(root, item.threadId).body, /Media input received/);
 });
 test("text-only replies retain threading, review controls and exact content", async (t) => {
@@ -626,11 +630,10 @@ test("indeterminate delivery requires evidence and recovers without sending a co
   assert.equal(readTransport(root).outbox[item.id].status, "sent");
 });
 
-test("owner sample enrollment preserves the sample and queues exactly one voice preview", async (t) => {
+test("first audio enrollment preserves full instructions and queues exactly one voice preview", async (t) => {
   if (spawnSync("ffmpeg", ["-version"], { stdio: "ignore" }).status !== 0)
     return t.skip("FFmpeg is required for the sample conversion integration check.");
   const root = fixture(t);
-  receiveUpdate(root, config, input(920, "/voice-sample"));
   receiveUpdate(
     root,
     config,
@@ -656,13 +659,22 @@ test("owner sample enrollment preserves the sample and queues exactly one voice 
     },
   };
   const voice = {
-    transcribe: async () => ({ text: "A synthetic fixture transcript." }),
+    transcribe: async (file) => ({
+      text: file.endsWith("reference.wav")
+        ? "Short sample."
+        : "Complete request including instructions beyond thirty seconds.",
+    }),
     close() {},
   };
   await prepareInput(root, config, api, voice, item);
   await prepareInput(root, config, api, voice, item);
   const state = readTransport(root);
   assert.equal(state.inbox[921].status, "sample-ready");
+  assert.match(
+    JSON.stringify(getThread(root, state.inbox[921].threadId)),
+    /instructions beyond thirty seconds/,
+  );
+  assert.equal(state.inbox[921].referenceTranscript, "Short sample.");
   assert.equal(Object.values(state.outbox).length, 1);
   assert.match(Object.values(state.outbox)[0].text, /voice preview/);
   assert.equal(fs.existsSync(path.join(directory(root), "voice/reference.wav")), true);
@@ -896,4 +908,33 @@ test("pending lifecycle replies cannot queue contradictory question or review tr
     /already pending/,
   );
   assert.equal(Object.values(readTransport(root).outbox).length, 1);
+});
+
+test("missing sample is requested, first owner audio is reserved once, and strangers cannot enroll", (t) => {
+  const root = fixture(t);
+  assert.equal(voiceOnboarding(root).state, "request-sample");
+  assert.match(voiceOnboarding(root).prompt, /first audio/);
+  receiveUpdate(
+    root,
+    config,
+    input(1200, "", { from: { id: 999 }, voice: { file_id: "stranger" } }),
+  );
+  assert.equal(Object.values(readTransport(root).inbox).length, 0);
+  receiveUpdate(root, config, input(1201, "", { voice: { file_id: "owner" } }));
+  receiveUpdate(root, config, input(1201, "", { voice: { file_id: "owner" } }));
+  receiveUpdate(root, config, input(1202, "", { audio: { file_id: "later" } }));
+  assert.equal(readTransport(root).inbox[1201].enrollmentMode, "first-audio");
+  assert.equal(readTransport(root).inbox[1202].kind, "engagement");
+  assert.deepEqual(voiceOnboarding(root), {
+    state: "sample-pending",
+    updateId: 1201,
+    prompt: null,
+  });
+  fs.mkdirSync(path.join(directory(root), "voice"), { recursive: true });
+  for (const name of ["reference.wav", "reference.txt"])
+    fs.writeFileSync(path.join(directory(root), "voice", name), "fixture");
+  assert.equal(voiceOnboarding(root).state, "sample-present");
+  receiveUpdate(root, config, input(1203, "/voice-sample"));
+  receiveUpdate(root, config, input(1204, "", { voice: { file_id: "replacement" } }));
+  assert.equal(readTransport(root).inbox[1204].enrollmentMode, "explicit");
 });

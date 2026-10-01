@@ -14,6 +14,12 @@ login before requesting action. Explain purpose, account, visible action, outcom
 Personal authentication, consent and review remain the owner's actions; never request passwords or
 bypass decisions. Do not mistake tester automation for an agent available to the newcomer.
 
+When the dashboard/agent handoff is complete and Telegram is paired, inspect its public `status` or
+`doctor`. If `voiceOnboarding.state` is `request-sample`, ask for a clear voice note in the current
+interface or existing Telegram thread. Explain that the first audio supplies the private sample for
+voice replies, local speech installation is required, and the owner should check the transcript and
+preview. Keep ordinary text work available; recover a pending sample instead of asking repeatedly.
+
 For technical and architectural choices, evaluate evidence and the user's objective before
 recommending a path. State the preferred option, tradeoffs, and what would change the
 recommendation. A user's objection is a reason to explain or investigate, not by itself technical

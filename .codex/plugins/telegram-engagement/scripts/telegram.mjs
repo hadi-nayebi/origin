@@ -17,6 +17,7 @@ import { BotAPI } from "../lib/api.mjs";
 import { runTelegram } from "../lib/runtime.mjs";
 import {
   channelStatus,
+  voiceOnboarding,
   getThread,
   associateInput,
   queueReply,
@@ -129,6 +130,7 @@ try {
     const dir = directory(root);
     const report = {
       paired: true,
+      voiceOnboarding: voiceOnboarding(root),
       enabled: fs.existsSync(path.join(dir, "enabled.json")),
       text: { ready: true },
       speech: {
@@ -304,6 +306,6 @@ function installVoice() {
   config.transcriptionEnabled = true;
   saveConfig(root, config);
   process.stdout.write(
-    "Optional local speech installed. Text remains available. Install FFmpeg if missing, restart the listener, then send /voice-sample followed by a clear voice note to enable cloned-voice replies.\n",
+    "Optional local speech installed. Text remains available. Install FFmpeg if missing, restart the listener, then send a clear voice note. Your first audio supplies the private sample; inspect the transcript and voice preview. Use /voice-sample first only to replace an existing sample.\n",
   );
 }

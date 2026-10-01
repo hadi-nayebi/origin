@@ -32,10 +32,13 @@ added later without repairing or re-pairing the bot.
 ## Optional local speech
 
 Run `npm run telegram -- install-voice` to create a private Python venv and download Qwen3-TTS 0.6B
-Base and Faster Whisper base under `.origin/`. Install FFmpeg, restart the listener, then send
-`/voice-sample` followed by a clear voice note of your own voice. Only the next voice/audio input
-within ten minutes is used for enrollment. The first 30 seconds are normalized and transcribed
-locally. Successful enrollment enables cloned-voice replies; use
+Base and Faster Whisper base under `.origin/`. Install FFmpeg, restart the listener, then send a
+clear voice note of your own voice. When no sample exists, the first paired-owner voice/audio
+message is automatically reserved for enrollment. The agent asks for a missing sample through the
+current conversation; `status` and `doctor` expose the prompt. To replace an existing sample, send
+`/voice-sample` and then a voice note within ten minutes. The first 30 seconds are normalized and
+transcribed locally. The full first-message transcript stays in the conversation, so instructions
+after that segment are not lost. Successful enrollment enables cloned-voice replies; use
 `npm run telegram -- voice-replies off` to return to text or `voice-replies on` after the sample is
 ready. Restart the listener after changing voice-reply mode. Review the transcript and preview
 before relying on the voice. Use only your voice or an explicitly authorized sample.
@@ -49,10 +52,13 @@ are never repository assets.
 New messages create responsibilities; reply to a bot message or your earlier message to continue
 that thread. Edits are preserved as new contributions. Voice and audio are transcribed when optional
 speech is enabled; otherwise the source stays preserved as actionable material without blocking
-later text. Captions and original files are retained. Photos, documents, videos, animations,
-stickers and video notes are downloaded with metadata. Unrecognized message forms retain their raw
-update for inspection. Telegram's Bot API limits apply (default cloud download cap: 20 MiB); a large
-or unprocessable attachment remains visible for recovery, never silently discarded.
+later text. A first-audio sample received before speech installation remains pending with an
+explicit installation error; install local speech and use `retry-input UPDATE_ID` to recover that
+same sample. Later audio does not silently replace it. Captions and original files are retained.
+Photos, documents, videos, animations, stickers and video notes are downloaded with metadata.
+Unrecognized message forms retain their raw update for inspection. Telegram's Bot API limits apply
+(default cloud download cap: 20 MiB); a large or unprocessable attachment remains visible for
+recovery, never silently discarded.
 
 The agent uses `npm run telegram -- list`, `next`, `get ID`, `start ID`, `reply ID "text"`,
 `ask ID "question"`, `review ID "verification evidence"`, and

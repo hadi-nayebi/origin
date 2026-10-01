@@ -31,6 +31,12 @@ test("listener handles the media matrix, survives wake errors, and shuts down wi
     transcriptionEnabled: true,
     voiceRepliesEnabled: true,
   };
+  // This media-matrix case starts with an already-enrolled voice. First-audio
+  // enrollment and preview are covered separately with actual FFmpeg conversion.
+  const reference = path.join(directory(root), "voice");
+  fs.mkdirSync(reference, { recursive: true });
+  fs.writeFileSync(path.join(reference, "reference.wav"), "fixture reference audio");
+  fs.writeFileSync(path.join(reference, "reference.txt"), "Fixture reference transcript.");
   const forms = [
     "voice",
     "audio",

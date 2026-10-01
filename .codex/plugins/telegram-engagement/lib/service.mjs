@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import { bounded } from "../../_engagement-core/lib/contracts.mjs";
 import {
   createFeedbackMutation,
@@ -14,7 +16,7 @@ import {
 } from "../../_engagement-core/lib/service.mjs";
 import { pauseAgent, resumeAgent, readAgentState } from "../../_engagement-core/lib/state.mjs";
 import { requirePullRequestReference } from "../../_engagement-core/lib/work-reference.mjs";
-import { readTransport, updateTransport, scopeFor } from "./storage.mjs";
+import { readTransport, updateTransport, scopeFor, directory } from "./storage.mjs";
 
 export function authorized(message, config) {
   return (
@@ -116,9 +118,13 @@ export function receiveUpdate(root, config, update) {
             createdAt: new Date().toISOString(),
           };
         else {
-          const sample =
-            state.enrollment?.expiresAt > Date.now() &&
-            files.some((f) => ["voice", "audio"].includes(f.kind));
+          const audio = files.some((f) => ["voice", "audio"].includes(f.kind));
+          const explicitSample = state.enrollment?.expiresAt > Date.now() && audio;
+          const firstSample =
+            audio &&
+            !voiceSamplePresent(root) &&
+            !Object.values(state.inbox).some((item) => item.kind === "voice-sample");
+          const sample = explicitSample || firstSample;
           if (sample) state.enrollment = null;
           const reply = message.reply_to_message?.message_id;
           const album =
@@ -136,6 +142,7 @@ export function receiveUpdate(root, config, update) {
             source: update,
             threadId: original?.threadId || state.replies[String(reply)] || album?.threadId || null,
             kind: sample ? "voice-sample" : "engagement",
+            enrollmentMode: sample ? (explicitSample ? "explicit" : "first-audio") : null,
             text,
             files,
             status: "received",
@@ -354,6 +361,7 @@ export function recoverChannel(root) {
 export function channelStatus(root) {
   const state = readTransport(root);
   return {
+    voiceOnboarding: voiceOnboarding(root),
     threads: listFeedback(scopeFor(root)).map(({ id, status }) => ({ id, status })),
     inbox: Object.values(state.inbox).map(({ updateId, status, error }) => ({
       updateId,
@@ -424,4 +432,23 @@ export function retryOutput(root, id) {
     item.error = null;
     return item;
   });
+}
+
+export function voiceSamplePresent(root) {
+  return ["reference.wav", "reference.txt"].every((name) =>
+    fs.existsSync(path.join(directory(root), "voice", name)),
+  );
+}
+
+export function voiceOnboarding(root) {
+  if (voiceSamplePresent(root)) return { state: "sample-present", prompt: null };
+  const pending = Object.values(readTransport(root).inbox).find(
+    (item) => item.kind === "voice-sample",
+  );
+  if (pending) return { state: "sample-pending", updateId: pending.updateId, prompt: null };
+  return {
+    state: "request-sample",
+    prompt:
+      "Please send a clear voice note of your own voice so I can prepare replies in your voice. Your first audio will be used as the sample; I will show its transcript and send a preview for you to check. Text remains available.",
+  };
 }

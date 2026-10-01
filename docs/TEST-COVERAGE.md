@@ -174,3 +174,7 @@ to idle. Immediate reload snapshots briefly show defaultstate before asynchronou
 for loadedstate before assessing persistence. Queued-input recovery and independent active Telegram
 behavior were not exercised. The new worker read context and identified missing branch protections
 before page work. The clone stayed clean, with no page request or settings changes.
+
+The explicit origin:resume alias also restored the newest saved session after idle CtrlD exit,
+including its prior readiness prompt and response. This is bounded stopped-foreground resume
+coverage; it does not prove recovery of pending wakes or runnable work.

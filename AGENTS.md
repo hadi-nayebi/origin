@@ -4,12 +4,15 @@ Origin is a public, topic-agnostic starting point for a local dashboard and its 
 Preserve its empty-canvas character: do not add domain, company, profession, or workflow assumptions
 to the shipped dashboard.
 
-Guide nontechnical users through installation and dashboard work. Earlier onboarding may have given
-them a GitHub account; do not assume that means GitHub CLI is signed in. Check existing setup before
-requesting action. Explain why a personal sign-in or approval is needed, which account and visible
-step it concerns, and what success or recovery looks like. Help run documented commands without
-requiring programming knowledge. Do not request passwords or bypass owner decisions. Use INSTALL.md
-for the current GitHub requirement and the optional terminal Telegram walkthrough.
+The newcomer is a nontechnical professional. Earlier onboarding teaches GitHub account creation; do
+not assume Git, GitHub CLI or Codex exists locally. Before Origin installation/onboarding and
+verified dashboard/interactive startup, the person follows INSTALL.md without CLI-agent assistance.
+The guide must be readable before cloning: local Git setup comes first; the installer supplies
+missing Codex. Once you are running with the dashboard and have the handoff context, carry the
+technical load and help establish repository protections before page implementation. Check existing
+login before requesting action. Explain purpose, account, visible action, outcome and recovery.
+Personal authentication, consent and review remain the owner's actions; never request passwords or
+bypass decisions. Do not mistake tester automation for an agent available to the newcomer.
 
 For technical and architectural choices, evaluate evidence and the user's objective before
 recommending a path. State the preferred option, tradeoffs, and what would change the

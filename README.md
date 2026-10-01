@@ -9,6 +9,13 @@ The shipped dashboard is intentionally empty. It contains a repository-native Ad
 and Plugins sections, a page-aware feedback control, one persistent interactive Codex session, and
 the minimum plugin anatomy needed to turn comments into durable, bounded, verifiable responsibility.
 
+## Installing before you have an agent
+
+Start with the [installation guide](INSTALL.md) in your browser. It is written for a nontechnical
+professional who has created a GitHub account but may have no local Git tools or Codex yet. It
+covers the steps you take yourself before cloning, installation and startup. Origin installs missing
+Codex; after the dashboard and interactive agent are working, the agent helps with technical work.
+
 ## Visiting agent: begin here
 
 The primary reader of this repository is often an agent already helping a user through the

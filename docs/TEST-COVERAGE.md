@@ -347,3 +347,15 @@ derives a45second deadline from both15second observation phases plus15seconds he
 covers both phases reaching their bounds and a worker receipt after30seconds with overhead.
 Engineering checks and review remain separate from a fresh released live retest; do not merge while
 review or updated-head checks are pending.
+
+Engineering result for candidate `63defa7c4846973086bf993476b4d14ceec3b41f`: **PASS**. The local
+environment was Ubuntu 24.04.3 with Node 24.19.0, inherited host tools and engineering dependencies
+reused from the preceding installation clone. Temporary and cache paths stayed inside the candidate
+clone. The delayed-marker regression failed on the original three-second implementation and passed
+after the submission-window correction. The late async receipt regression failed with the previous
+30-second outer deadline and passed with 45 seconds; both observation phases reaching their bounds
+and missing-receipt expiration also passed. The complete local check passed 149 runtime, 4 internal
+voice and 14 UI tests plus lint, formatting, build and production smoke. CI run `36820588394` passed
+on this exact candidate revision on Linux, macOS and Windows (workflow Node 22). These are
+engineering results; no fresh released installation or live dashboard delivery pass is claimed for
+this candidate.

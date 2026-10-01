@@ -1028,3 +1028,52 @@ test("a collapsed marker fragment or unsubmitted exact-marker draft is not a rec
     false,
   );
 });
+
+test("submitted long prompt waits for its exact marker to return after collapsing", () => {
+  const root = fixture();
+  const marker = "[ORIGIN WAKE delayed-heading]";
+  const cropped =
+    "Next boundary: read the thread.\nWorking (2s • esc to interrupt)\n› Ask Codex to do anything";
+  const accepted = `› ${marker} [ORIGIN DASHBOARD — …]\nWorking (6s • esc to interrupt)\n› Ask Codex to do anything`;
+  // Native Codex initially crops the marker above the viewport, then restores it
+  // in a collapsed heading after six seconds. Busy text alone is not a receipt.
+  const run = fakeRun(root, {
+    capture: ["› ", "› [Pasted Content 1105 chars]", ...Array(23).fill(cropped), accepted],
+  });
+  const waits = [];
+  const result = deliverCodexWake(
+    root,
+    { marker, prompt: `${marker}\nRead the thread.` },
+    {
+      run,
+      wait: (milliseconds) => waits.push(milliseconds),
+    },
+  );
+  assert.equal(result.state, "submitted");
+  assert.equal(waits.filter((milliseconds) => milliseconds === 250).length, 24);
+  assert.equal(run.calls.filter((call) => call.args[0] === "send-keys").length, 1);
+});
+
+test("submission observation stays bounded and cannot accept busy activity without its marker", () => {
+  const root = fixture();
+  const marker = "[ORIGIN WAKE absent-heading]";
+  const run = fakeRun(root, {
+    capture: ["› ", "› [Pasted Content 1105 chars]"],
+    captureFallback: "Working (8s • esc to interrupt)\n› Ask Codex to do anything",
+  });
+  const waits = [];
+  assert.throws(
+    () =>
+      deliverCodexWake(
+        root,
+        { marker, prompt: marker },
+        {
+          run,
+          wait: (milliseconds) => waits.push(milliseconds),
+        },
+      ),
+    /could not verify its submission/,
+  );
+  assert.equal(waits.filter((milliseconds) => milliseconds === 250).length, 60);
+  assert.equal(run.calls.filter((call) => call.args[0] === "send-keys").length, 1);
+});

@@ -19,3 +19,8 @@ Wake voices place the complete unique delivery marker first, before the event he
 collapse submitted multiline prompts into a short heading; keep exact marker evidence visible. A
 marker fragment or unrelated busy activity is not a receipt. Preserve indeterminate outcomes when
 exact marker and submission-transition evidence are unavailable; never retry blindly.
+
+Submitted long prompts can initially crop the first-line marker above the visible terminal area. Use
+the bounded configured observation budget (15 seconds by default) for submission as well as paste,
+retaining exact marker and transition checks. Expiry remains indeterminate; do not resubmit inside
+the observation loop or infer acceptance from unrelated activity.

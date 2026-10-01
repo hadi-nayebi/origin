@@ -70,7 +70,11 @@ export function deliverCodexWake(root, input, options = {}) {
     if (!editorPending(current, marker, { before, promptLength: prompt.length }))
       throw new Error("Origin could not verify that the wake prompt reached the Codex editor.");
     assertSuccess(run("tmux", ["send-keys", "-t", pane.id, "Enter"]), "tmux prompt submit");
-    for (let attempt = 0; attempt < 12; attempt += 1) {
+    // A submitted long prompt can crop its first line until Codex collapses it.
+    // Observe for the configured budget; never replace exact receipt evidence
+    // with unrelated busy activity or submit the same prompt a second time.
+    const submissionAttempts = Math.max(12, Math.min(60, Math.ceil(waitMilliseconds / 250)));
+    for (let attempt = 0; attempt < submissionAttempts; attempt += 1) {
       wait(250);
       current = capture(run, pane.id);
       if (

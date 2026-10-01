@@ -309,3 +309,32 @@ clone. Protections remain absent; real speech, missing-tool/login branches, the 
 workflow and the complete fresh repeat remain unpassed. Private case evidence is kept under
 `Origin Tests/2026-10-01/15-installation-merged-admin-keyboard` and dated engineering notes; no
 credentials, conversations or voice samples belong in this public ledger.
+
+## Fresh marker-first wake retest and delayed terminal visibility
+
+PR51 merged as `59e3b5e37f415f4906cc18e6be8710e5687318b5`. A fresh private personal template clone
+had exactly the released tree `0687d2f3f7959ee7909374a88e76e4d7129431f6`. Ubuntu24.04.3,
+Node24.19.0, Git2.43.0, tmux3.4, Codex0.159.2, GitHub CLI2.45.0, login and browser state were
+inherited; dependencies, runtime and channel state were fresh. Native installer/full checks, default
+Telegram skip and exit0 passed. Actual Full Access and all three trusted active hooks were observed.
+Automatic browser opening remains unverified.
+
+Normal dashboard Feedback woke that same worker and displayed its own read-only setup answer.
+Transport still reported indeterminate/pending: FAIL, with no Retry or state injection. The exact
+request was persisted by Codex before the error. The answered diagnostic was withdrawn using the
+normal owner control with a reason; history remained, without claiming PR acceptance. Issue50 was
+reopened; marker-first placement alone is insufficient.
+
+A separate read-only diagnostic, observed through 100ms terminal captures, reproduced the gap: Codex
+accepted the paste and displayed an empty editor plus working status while the marker at the start
+of the long submitted prompt was above the visible area. The full marker returned in a collapsed
+heading about six seconds later, after Origin's three-second submission cutoff. The same
+exact-marker verifier accepted the later capture. This is causal engineering evidence, not a
+repaired live acceptance result.
+
+The candidate keeps the exact-marker/transition guards and sends Enter only once, but observes
+submission using the bounded configured budget, 15 seconds by default. Regression cases cover the
+six-second visibility delay and timeout without any exact marker, retaining the draft/fragment
+negative cases. Fresh released retesting after owner merge remains required. Extremely slow or
+narrow terminal views may still remain indeterminate. Protections, page/PR/owner merge, real voice,
+missing-kit and the complete newcomer journey remain unpassed.

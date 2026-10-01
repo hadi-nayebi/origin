@@ -63,3 +63,9 @@ Submission still requires the exact marker and a submission transition. A trunca
 unrelated busy activity remains insufficient, and indeterminate delivery must not be blindly
 retried. Exceptionally narrow terminal views may still hide the marker; this repair does not certify
 those views or permit weaker receipt matching.
+
+A marker-first prompt may still initially be taller than the terminal viewport. Codex can expose its
+exact marker only after collapsing the submitted message. Submission observation therefore uses the
+configured bounded wait budget, 15 seconds by default, rather than a separate three-second cutoff.
+Exact marker and transition evidence remain required; expiry is still indeterminate, and no second
+Enter or paste is sent while waiting. This does not certify every latency or terminal size.

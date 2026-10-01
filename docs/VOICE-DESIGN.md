@@ -52,3 +52,14 @@ When real work reveals that a voice is vague, misleading, or repeatedly ignored,
 plugin's voice and tests. If a stable failure persists, move the invariant into deterministic code
 and leave the voice responsible for orientation. Do not copy an entire reference voice into every
 plugin; preserve a shared structure while letting each objective supply its own vocabulary.
+
+## Transport marker placement
+
+Channel wake voices begin with the complete unique delivery marker, then their event heading and
+orientation. Codex can collapse a submitted multiline prompt into a shortened heading; putting a
+long title first hid the exact marker after an otherwise successful wake. Marker-first placement
+keeps the current terminal receipt visible without changing the voice's objective or authority.
+Submission still requires the exact marker and a submission transition. A truncated marker or
+unrelated busy activity remains insufficient, and indeterminate delivery must not be blindly
+retried. Exceptionally narrow terminal views may still hide the marker; this repair does not certify
+those views or permit weaker receipt matching.

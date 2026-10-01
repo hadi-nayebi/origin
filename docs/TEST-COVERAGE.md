@@ -193,6 +193,23 @@ The explicit `origin:resume` alias also restored the newest saved session after 
 including its prior readiness prompt and response. This is bounded stopped-foreground resume
 coverage; it does not prove recovery of pending wakes or runnable work.
 
+## Dashboard worker reply with unconfirmed wake
+
+In a fresh personal clone matching released `a355ad8b08b030ff1b45e24aa341bfc94a4c1912`, an ordinary
+Feedback setup question automatically woke the same native Codex 0.159.2 session. The worker read
+the validated thread and posted a read-only reply visible in the dashboard. The tester did not write
+that reply. **FAIL** for clean transport confirmation: the outbox remained indeterminate and the UI
+showed a pending wake and attention after the worker had received and answered it. The submitted
+prompt's collapsed terminal heading shortened the marker; the persisted session contained the exact
+user-message marker before the confirmation timeout. No retry or raw-state injection was performed.
+The test channel was paused after the answer, preserving history. No page was implemented.
+
+The proposed repair puts the full unique marker first in both channel wake voices. A regression uses
+their actual rendered prompts with collapsed submitted headings and preserves negative draft and
+truncated-marker cases. This is engineering evidence until merged and retested through a fresh
+normal installation and Feedback save/reply. Narrow terminals may still be indeterminate.
+Protections, real voice, missing-kit installation and the complete newcomer journey remain unpassed.
+
 ## Admin brand and Canvas-label overlap
 
 In ordinary Chrome on the fresh personal clone matching released source

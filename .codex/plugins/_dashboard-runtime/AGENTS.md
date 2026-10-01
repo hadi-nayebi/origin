@@ -14,3 +14,8 @@ The runtime renders voices selected by the owning cognitive plugin. It may add a
 marker, but it must not reduce the voice to a transport notice or author policy about what Codex
 should think. Preserve every nonterminal wake regardless of history size; only bounded terminal
 delivery history may be compacted.
+
+Wake voices place the complete unique delivery marker first, before the event heading. Codex may
+collapse submitted multiline prompts into a short heading; keep exact marker evidence visible. A
+marker fragment or unrelated busy activity is not a receipt. Preserve indeterminate outcomes when
+exact marker and submission-transition evidence are unavailable; never retry blindly.

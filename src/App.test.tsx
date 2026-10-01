@@ -170,6 +170,44 @@ describe("Origin dashboard", () => {
     expect(window.location.pathname).toBe("/admin/plugins/contextual-feedback");
   });
 
+  test("navigates Admin tabs by keyboard without activating unloaded panels on focus", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Open Origin admin" }));
+    const wiki = screen.getByRole("tab", { name: "Wiki" });
+    const plugins = screen.getByRole("tab", { name: "Plugins" });
+    const system = screen.getByRole("tab", { name: "System" });
+    expect(wiki.tabIndex).toBe(0);
+    expect(plugins.tabIndex).toBe(-1);
+    expect(system.tabIndex).toBe(-1);
+    wiki.focus();
+    await user.keyboard("{ArrowLeft}");
+    expect(document.activeElement).toBe(system);
+    expect(wiki.getAttribute("aria-selected")).toBe("true");
+    expect(window.location.pathname).toBe("/admin/wiki/");
+    await user.keyboard("{ArrowRight}{ArrowRight}");
+    expect(document.activeElement).toBe(plugins);
+    await user.keyboard("{Enter}");
+    expect(
+      await screen.findByRole("heading", { name: "Two plugins show how Origin grows." }),
+    ).toBeTruthy();
+    expect(plugins.getAttribute("aria-selected")).toBe("true");
+    const panel = screen.getByRole("tabpanel", { name: "Plugins" });
+    expect(panel.id).toBe(plugins.getAttribute("aria-controls"));
+    await user.keyboard("{Tab}");
+    expect(document.activeElement).not.toBe(system);
+    await user.click(system);
+    await user.keyboard("{Home}");
+    expect(document.activeElement).toBe(wiki);
+    await user.keyboard("{End}");
+    expect(document.activeElement).toBe(system);
+    await user.keyboard(" ");
+    expect(await screen.findByRole("tabpanel", { name: "System" })).toBeTruthy();
+    expect(system.getAttribute("aria-selected")).toBe("true");
+    expect(system.tabIndex).toBe(0);
+    expect(plugins.tabIndex).toBe(-1);
+  });
+
   test("shows live read-only system evidence inside Admin", async () => {
     const user = userEvent.setup();
     render(<App />);

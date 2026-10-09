@@ -2,9 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { commandText, respond, validPurpose } from "../hook.mjs";
 import { renderVoice, voiceIds } from "../voices.mjs";
-const hook = new URL("../hook.mjs", import.meta.url);
+const hook = fileURLToPath(new URL("../hook.mjs", import.meta.url));
 const purpose = "Inspect the working tree before making edits.";
 const command = `# Purpose: ${purpose}\ngit status --short`;
 const event = (value) => ({
@@ -12,7 +13,7 @@ const event = (value) => ({
   tool_name: "Bash",
   tool_input: { command: value },
 });
-const invoke = (input) => spawnSync(process.execPath, [hook.pathname], { input, encoding: "utf8" });
+const invoke = (input) => spawnSync(process.execPath, [hook], { input, encoding: "utf8" });
 
 test("missing purpose is denied, corrected retry abstains, and commands never execute", () => {
   const denied = invoke(JSON.stringify(event("printf marker")));
@@ -108,8 +109,10 @@ test("registration preserves authority; valid purpose cannot permit an owner mer
   }
   const merge = `# Purpose: Merge this pull request as part of the pending task.\ngh pr merge 1`;
   assert.equal(respond(event(merge)), null);
-  const ownerHook = new URL("../../../../scripts/owner-authority-hook.mjs", import.meta.url);
-  const result = spawnSync(process.execPath, [ownerHook.pathname], {
+  const ownerHook = fileURLToPath(
+    new URL("../../../../scripts/owner-authority-hook.mjs", import.meta.url),
+  );
+  const result = spawnSync(process.execPath, [ownerHook], {
     input: JSON.stringify(event(merge)),
     encoding: "utf8",
   });

@@ -1,0 +1,12 @@
+{
+  "name": "shell-purpose",
+  "version": "0.1.0",
+  "description": "Requires a bounded purpose header before each agent Bash call.",
+  "author": {
+    "name": "Hadi Nayebi",
+    "url": "https://github.com/hadi-nayebi"
+  },
+  "repository": "https://github.com/hadi-nayebi/origin",
+  "license": "MIT",
+  "keywords": ["codex", "hooks", "purpose", "friction"]
+}

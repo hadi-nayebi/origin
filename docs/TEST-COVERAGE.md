@@ -359,3 +359,16 @@ voice and 14 UI tests plus lint, formatting, build and production smoke. CI run 
 on this exact candidate revision on Linux, macOS and Windows (workflow Node 22). These are
 engineering results; no fresh released installation or live dashboard delivery pass is claimed for
 this candidate.
+
+## Shell-purpose example — October 9, 2026
+
+Six deterministic Node tests exercise the plugin's actual hook subprocess: missing-purpose denial,
+corrected-call abstention, 20/240 Unicode-character boundaries, unsupported argv rejection,
+lifecycle context at startup/resume/clear/compact and subagent/user entry points, malformed-input
+denial, bounded owned voices and preservation of the existing owner-merge denial. These passed on
+Linux with Node 24.19.0. See the shell-purpose implementation PR for its exact source revision and
+full repository check result. Valid shape does not verify substantive purpose or authorization.
+
+**NOT TESTED:** authenticated CLI hook trust, actual model correction after denial, native lifecycle
+delivery and alternative execution paths. No Codex executable is installed in this build
+environment. This record does not supersede existing newcomer or owner-laptop acceptance pauses.

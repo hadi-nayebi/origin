@@ -6,12 +6,14 @@ import {
   closeSync,
   fsyncSync,
   lstatSync,
+  realpathSync,
   readFileSync,
   renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { dirname, resolve, sep } from "node:path";
 
 export const STATE_VERSION = 1;
 export const MAX_TRANSACTIONS = 256;
@@ -90,7 +92,21 @@ export function loadState(path, policy) {
 }
 
 function privateDirectory(directory) {
-  for (let current = resolve(directory); current !== dirname(current); current = dirname(current)) {
+  const resolvedDirectory = resolve(directory);
+  const temporaryRoot = resolve(tmpdir());
+  const canonicalTemporaryRoot = realpathSync.native(temporaryRoot);
+  // macOS exposes its trusted temporary root through /var -> /private/var.
+  // Canonicalize only that OS-owned prefix; preserve the remaining path so a
+  // caller-controlled symbolic ancestor below the temporary root is rejected.
+  const inspectionDirectory =
+    resolvedDirectory === temporaryRoot || resolvedDirectory.startsWith(`${temporaryRoot}${sep}`)
+      ? `${canonicalTemporaryRoot}${resolvedDirectory.slice(temporaryRoot.length)}`
+      : resolvedDirectory;
+  for (
+    let current = inspectionDirectory;
+    current !== dirname(current);
+    current = dirname(current)
+  ) {
     try {
       if (lstatSync(current).isSymbolicLink())
         throw new Error("Shell-purpose state path cannot traverse a symbolic link");
@@ -98,8 +114,8 @@ function privateDirectory(directory) {
       if (error?.code !== "ENOENT") throw error;
     }
   }
-  mkdirSync(directory, { recursive: true, mode: 0o700 });
-  chmodSync(directory, 0o700);
+  mkdirSync(resolvedDirectory, { recursive: true, mode: 0o700 });
+  chmodSync(resolvedDirectory, 0o700);
 }
 
 function boundedCandidates(values) {

@@ -1,11 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { commandText, respond, validPurpose } from "../hook.mjs";
+import { after } from "node:test";
+import { classifyCommand, commandText, evaluate, respond, validPurpose } from "../hook.mjs";
 import { renderVoice, voiceIds } from "../voices.mjs";
 const hook = fileURLToPath(new URL("../hook.mjs", import.meta.url));
+const temporary = mkdtempSync(join(tmpdir(), "origin-shell-purpose-"));
+const state = join(temporary, "data.json");
+after(() => rmSync(temporary, { recursive: true, force: true }));
 const purpose = "Inspect the working tree before making edits.";
 const command = `# Purpose: ${purpose}\ngit status --short`;
 const event = (value) => ({
@@ -13,7 +19,12 @@ const event = (value) => ({
   tool_name: "Bash",
   tool_input: { command: value },
 });
-const invoke = (input) => spawnSync(process.execPath, [hook], { input, encoding: "utf8" });
+const invoke = (input, stateFile = state) =>
+  spawnSync(process.execPath, [hook], {
+    input,
+    encoding: "utf8",
+    env: { ...process.env, ORIGIN_SHELL_PURPOSE_STATE: stateFile },
+  });
 
 test("missing purpose is denied, corrected retry abstains, and commands never execute", () => {
   const denied = invoke(JSON.stringify(event("printf marker")));
@@ -63,6 +74,47 @@ test("native command and recognized shell argv shapes are validated", () => {
   }
 });
 
+test("command families distinguish cd, plugin locations, chains and pipelines", () => {
+  assert.deepEqual(classifyCommand(`# Purpose: ${purpose}\ncd -- 'path with spaces'`), {
+    overall: "cd",
+    shape: "cd:cd",
+    operators: [],
+    segments: [{ family: "cd", executable: "cd", target: "path with spaces" }],
+    valid: true,
+  });
+  const mixed = classifyCommand(
+    `# Purpose: ${purpose}\ncd repo && node .codex/plugins/shell-purpose/hook.mjs | sed 's/a|b/c/'`,
+  );
+  assert.equal(mixed.overall, "pipeline");
+  assert.deepEqual(mixed.operators, ["&&", "|"]);
+  assert.deepEqual(
+    mixed.segments.map(({ family }) => family),
+    ["cd", "plugin-location", "command"],
+  );
+  assert.equal(classifyCommand(`# Purpose: ${purpose}\nprintf 'unterminated`).valid, false);
+  assert.equal(classifyCommand(`# Purpose: ${purpose}\ncd`).valid, false);
+  assert.equal(
+    classifyCommand(`# Purpose: ${purpose}\ncd "C:\\Users\\Hadi Nayebi\\Origin"`).segments[0]
+      .target,
+    "C:\\Users\\Hadi Nayebi\\Origin",
+  );
+});
+
+test("governed policy changes classification evidence but never grants permission", () => {
+  const observed = evaluate(event(command), {
+    promotedShapes: [],
+    promotedExecutables: [],
+  });
+  assert.equal(observed.output, null);
+  assert.equal(observed.transaction.reason, "valid-observed-shape");
+  const promoted = evaluate(event(command), {
+    promotedShapes: ["command:command"],
+    promotedExecutables: [],
+  });
+  assert.equal(promoted.output, null);
+  assert.equal(promoted.transaction.reason, "valid-promoted-shape");
+});
+
 test("lifecycle events restore bounded owned voices, including compact and resume", () => {
   for (const source of ["startup", "resume", "clear", "compact"]) {
     const result = JSON.parse(
@@ -90,6 +142,91 @@ test("malformed input fails closed; unrelated tools/events abstain", () => {
   }
   assert.equal(respond({ hook_event_name: "PreToolUse", tool_name: "apply_patch" }), null);
   assert.equal(respond({ hook_event_name: "Stop" }), null);
+});
+
+test("every Bash validation records bounded evidence without storing the command text", () => {
+  const stateFile = join(temporary, "evidence.json");
+  assert.equal(invoke(JSON.stringify(event(command)), stateFile).stdout, "");
+  const data = JSON.parse(readFileSync(stateFile, "utf8"));
+  assert.equal(data.version, 1);
+  assert.equal(data.sequence, 1);
+  assert.equal(data.transactions[0].purpose, purpose);
+  assert.equal(data.transactions[0].purposeTruncated, false);
+  assert.equal(data.transactions[0].classification.shape, "command:command");
+  assert.match(data.transactions[0].commandDigest, /^[a-f0-9]{64}$/);
+  assert.doesNotMatch(JSON.stringify(data), /git status --short/);
+  assert.equal(data.candidates.executables.git.observations, 1);
+});
+
+test("invalid oversized comments and command graphs remain bounded", () => {
+  const stateFile = join(temporary, "bounded.json");
+  const oversized = `# Purpose: ${"x".repeat(20_000)}\n${Array.from({ length: 40 }, () => "true").join(" && ")}`;
+  const output = JSON.parse(invoke(JSON.stringify(event(oversized)), stateFile).stdout);
+  assert.equal(output.hookSpecificOutput.permissionDecision, "deny");
+  const data = JSON.parse(readFileSync(stateFile, "utf8"));
+  assert.equal([...data.transactions[0].purpose].length, 240);
+  assert.equal(data.transactions[0].purposeTruncated, true);
+  assert.equal(data.transactions[0].classification.segments.length, 32);
+  assert.equal(data.transactions[0].classification.valid, false);
+  assert.ok(readFileSync(stateFile).byteLength < 20_000);
+});
+
+test("corrupt or legacy state fails closed instead of discarding history", () => {
+  for (const content of ["{", '{"version":0,"transactions":[]}']) {
+    const stateFile = join(temporary, `corrupt-${Buffer.from(content).toString("hex")}.json`);
+    writeFileSync(stateFile, content);
+    const output = JSON.parse(invoke(JSON.stringify(event(command)), stateFile).stdout);
+    assert.equal(output.hookSpecificOutput.permissionDecision, "deny");
+    assert.match(output.hookSpecificOutput.permissionDecisionReason, /could not be safely read/);
+    assert.equal(readFileSync(stateFile, "utf8"), content);
+  }
+});
+
+test("symbolic state files and ancestors fail closed without touching their targets", () => {
+  const outside = join(temporary, "outside.json");
+  const valid = JSON.stringify({ version: 1, sequence: 0, transactions: [], candidates: {} });
+  writeFileSync(outside, valid);
+  const linkedFile = join(temporary, "linked-state.json");
+  symlinkSync(outside, linkedFile);
+  const linkedOutput = JSON.parse(invoke(JSON.stringify(event(command)), linkedFile).stdout);
+  assert.equal(linkedOutput.hookSpecificOutput.permissionDecision, "deny");
+  assert.equal(readFileSync(outside, "utf8"), valid);
+
+  const linkedDirectory = join(temporary, "linked-directory");
+  writeFileSync(outside, valid);
+  symlinkSync(temporary, linkedDirectory, "dir");
+  const ancestorOutput = JSON.parse(
+    invoke(JSON.stringify(event(command)), join(linkedDirectory, "outside.json")).stdout,
+  );
+  assert.equal(ancestorOutput.hookSpecificOutput.permissionDecision, "deny");
+  assert.equal(readFileSync(outside, "utf8"), valid);
+});
+
+test("concurrent hook processes serialize all transaction records", async () => {
+  const stateFile = join(temporary, "concurrent.json");
+  const run = (index) =>
+    new Promise((resolve, reject) => {
+      const child = spawn(process.execPath, [hook], {
+        env: { ...process.env, ORIGIN_SHELL_PURPOSE_STATE: stateFile },
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      let output = "";
+      let error = "";
+      child.stdout.on("data", (chunk) => (output += chunk));
+      child.stderr.on("data", (chunk) => (error += chunk));
+      child.on("error", reject);
+      child.on("close", (code) =>
+        code === 0 && output === "" && error === ""
+          ? resolve()
+          : reject(new Error(`child ${index}: ${code} ${output} ${error}`)),
+      );
+      child.stdin.end(JSON.stringify(event(`# Purpose: ${purpose} ${index}\nprintf '${index}'`)));
+    });
+  await Promise.all(Array.from({ length: 16 }, (_, index) => run(index)));
+  const data = JSON.parse(readFileSync(stateFile, "utf8"));
+  assert.equal(data.sequence, 16);
+  assert.equal(data.transactions.length, 16);
+  assert.equal(new Set(data.transactions.map(({ id }) => id)).size, 16);
 });
 
 test("registration preserves authority; valid purpose cannot permit an owner merge", () => {

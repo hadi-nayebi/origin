@@ -110,5 +110,7 @@ historical failures without publishing private credentials, conversations or voi
 
 The independently removable `shell-purpose` plugin adds friction before each native Bash call. Begin
 its command field with `# Purpose: ` and a concrete 20–240-character purpose, then the command on
-following lines. Lifecycle hooks restore guidance; PreToolUse enforces the shape. This does not
-certify intent or override owner authority. See the plugin's AGENTS.md and README.
+following lines. Lifecycle hooks restore guidance; PreToolUse enforces and records the shape in a
+bounded ignored local journal. Command-family candidates never promote themselves: only reviewed
+tracked policy may change their status, and no status overrides purpose validation or owner
+authority. See the plugin's AGENTS.md and README.

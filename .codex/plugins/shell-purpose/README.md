@@ -1,7 +1,8 @@
 # Shell purpose
 
 A small friction example: make the agent state what a Bash call should accomplish before it runs.
-This plugin is independent of the communication plugins and owns no durable runtime state.
+This plugin is independent of the communication plugins. Its only durable runtime state is an
+ignored, bounded transaction journal under `.origin/shell-purpose/data.json`.
 
 ## Command contract
 
@@ -19,6 +20,25 @@ fields is not this plugin's capability. A future host adapter can expose a genui
 The parser accepts a command string or a recognized Bash/sh/zsh argv form with a `-c` option.
 Unsupported forms, absent headings, out-of-range purposes and empty commands are denied.
 
+Before policy evaluation, the hook classifies a single command, `cd`, a `.codex/plugins/` location,
+a chain, or a pipeline. It preserves quoted operators, requires balanced quoting and rejects empty
+segments or a `cd` without a target. Classification is evidence about shape, not semantic intent.
+
+## State and governed learning
+
+Every native Bash validation records the exact bounded purpose, input shape, decision, timestamp,
+SHA-256 command digest and command-family summary. Raw command text is deliberately not retained.
+The version 1 schema keeps the newest 256 transactions and at most 128 candidate families,
+executables and shapes. A directory lock plus atomic replacement serializes concurrent hook
+processes. Missing state creates version 1; unreadable, corrupt, legacy or unwritable state blocks
+the call and preserves the existing file.
+
+Observed families, executables and shapes accumulate as candidates. They do not become permission.
+Only a reviewed change to tracked `policy.json` promotes an exact shape or executable, and promotion
+currently changes the journal reason rather than bypassing purpose validation or another authority
+hook. `state.schema.json` documents the persisted envelope. Delete `.origin/shell-purpose/` when
+removing this plugin if its local evidence is no longer needed.
+
 ## Instruction and enforcement
 
 Host registration in `.codex/hooks.json` calls `hook.mjs`. SessionStart covers startup, resume,
@@ -33,10 +53,11 @@ Valid calls emit nothing, so other hooks retain their authority. Hooks never exe
 Origin ships these registrations as an example. In a personal clone, inspect and trust the hooks
 through the host's ordinary `/hooks` interface; this PR does not install or trust them for you.
 Remove entries whose command references `/shell-purpose/hook.mjs` from `.codex/hooks.json`, then
-remove this directory if desired. Preserve the owner-authority PreToolUse and communication Stop
-entries. No database or channel state needs migration. Missing Node, untrusted hooks or host
-failures are host acceptance conditions, not certified enforcement by our tests. Malformed hook JSON
-yields a denial response; valid unrelated events abstain.
+remove this plugin directory if desired. Preserve the owner-authority PreToolUse and communication
+Stop entries. Its ignored `.origin/shell-purpose/` journal can be retained for review or removed
+separately; it is not shared channel state. Missing Node, untrusted hooks or host failures are host
+acceptance conditions, not certified enforcement by our tests. Malformed hook JSON yields a denial
+response; valid unrelated events abstain.
 
 ## Limits and evidence
 
@@ -47,8 +68,9 @@ is workflow friction, not a security sandbox. Assess whether an actual model res
 the correction separately from parser correctness. No model training or selection is implemented.
 
 Run `node --test .codex/plugins/shell-purpose/tests/*.test.mjs`. Tests exercise native hook
-subprocess input/output, lifecycle voices, boundaries, argv and independence from existing authority
-hooks. Authenticated startup/resume/compact/model correction is not established by these
-deterministic tests.
+subprocess input/output, lifecycle voices, boundaries, argv, command families, Unicode and
+cross-platform paths, corrupt/legacy state, concurrent writes, governed promotion evidence and
+independence from existing authority hooks. Authenticated startup/resume/compact/model correction is
+not established by these deterministic tests.
 
 Contract reference: https://learn.chatgpt.com/docs/hooks (reviewed October 9, 2026).

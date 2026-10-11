@@ -1,7 +1,7 @@
 {
   "name": "shell-purpose",
-  "version": "0.1.0",
-  "description": "Requires a bounded purpose header before each agent Bash call.",
+  "version": "0.2.0",
+  "description": "Requires and records a bounded purpose before each agent Bash call.",
   "author": {
     "name": "Hadi Nayebi",
     "url": "https://github.com/hadi-nayebi"

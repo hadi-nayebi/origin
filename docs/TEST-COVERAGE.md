@@ -372,3 +372,10 @@ full repository check result. Valid shape does not verify substantive purpose or
 **NOT TESTED:** authenticated CLI hook trust, actual model correction after denial, native lifecycle
 delivery and alternative execution paths. No Codex executable is installed in this build
 environment. This record does not supersede existing newcomer or owner-laptop acceptance pauses.
+
+The October 11 stateful extension adds five deterministic cases: `cd`, plugin-location, chained and
+piped classification; explicit policy promotion evidence; versioned bounded journaling without raw
+command retention; corrupt/legacy fail-closed behavior; and sixteen concurrent subprocess writes to
+one journal. The same suite also covers Unicode purposes, quoted operators and Windows-style paths.
+These checks establish parser and local-state behavior only. They do not establish that an observed
+shape is safe, that a purpose is truthful, or that a model changes behavior usefully.

@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hadi-nayebi/origin/blob/main/.codex/plugins/shell-purpose/state.schema.json",
+  "title": "Shell-purpose transaction state",
+  "type": "object",
+  "required": ["version", "sequence", "policy", "transactions", "candidates"],
+  "properties": {
+    "version": { "const": 1 },
+    "sequence": { "type": "integer", "minimum": 0 },
+    "policy": {
+      "type": "object",
+      "required": ["version", "revision"],
+      "properties": {
+        "version": { "type": "integer", "minimum": 1 },
+        "revision": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "transactions": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "at",
+          "inputShape",
+          "purpose",
+          "purposeTruncated",
+          "commandDigest",
+          "classification",
+          "decision",
+          "reason"
+        ]
+      }
+    },
+    "candidates": {
+      "type": "object",
+      "required": ["families", "executables", "shapes"],
+      "properties": {
+        "families": { "$ref": "#/$defs/candidateMap" },
+        "executables": { "$ref": "#/$defs/candidateMap" },
+        "shapes": { "$ref": "#/$defs/candidateMap" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "candidateMap": {
+      "type": "object",
+      "maxProperties": 128,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["observations", "firstSequence", "lastSequence"],
+        "properties": {
+          "observations": { "type": "integer", "minimum": 1 },
+          "firstSequence": { "type": "integer", "minimum": 1 },
+          "lastSequence": { "type": "integer", "minimum": 1 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

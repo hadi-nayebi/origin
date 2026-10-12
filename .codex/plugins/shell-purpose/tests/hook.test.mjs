@@ -100,19 +100,45 @@ test("command families distinguish cd, plugin locations, chains and pipelines", 
   );
 });
 
-test("governed policy changes classification evidence but never grants permission", () => {
-  const observed = evaluate(event(command), {
-    promotedShapes: [],
-    promotedExecutables: [],
-  });
-  assert.equal(observed.output, null);
-  assert.equal(observed.transaction.reason, "valid-observed-shape");
-  const promoted = evaluate(event(command), {
-    promotedShapes: ["command:command"],
-    promotedExecutables: [],
-  });
-  assert.equal(promoted.output, null);
-  assert.equal(promoted.transaction.reason, "valid-promoted-shape");
+test("reviewed policy can remove purpose friction without weakening shape checks", () => {
+  const emptyPolicy = {
+    purposeOptionalShapes: [],
+    purposeOptionalExecutables: [],
+  };
+  const missing = evaluate(event("cd repo"), emptyPolicy);
+  assert.equal(missing.output.hookSpecificOutput.permissionDecision, "deny");
+  assert.equal(missing.transaction.reason, "missing-purpose");
+
+  const cdOptional = {
+    purposeOptionalShapes: ["cd:cd"],
+    purposeOptionalExecutables: [],
+  };
+  const allowedCd = evaluate(event("cd repo"), cdOptional);
+  assert.equal(allowedCd.output, null);
+  assert.equal(allowedCd.transaction.purpose, null);
+  assert.equal(allowedCd.transaction.reason, "valid-purpose-optional");
+
+  const malformed = evaluate(event("# Purpose: short\ncd repo"), cdOptional);
+  assert.equal(malformed.output.hookSpecificOutput.permissionDecision, "deny");
+  assert.equal(malformed.transaction.reason, "invalid-purpose");
+
+  const gitOptional = {
+    purposeOptionalShapes: [],
+    purposeOptionalExecutables: ["git"],
+  };
+  assert.equal(evaluate(event("git status --short"), gitOptional).output, null);
+  assert.equal(
+    evaluate(event("git status --short && printf done"), gitOptional).output.hookSpecificOutput
+      .permissionDecision,
+    "deny",
+  );
+  assert.equal(
+    evaluate(event("printf 'unterminated"), {
+      purposeOptionalShapes: ["command:command"],
+      purposeOptionalExecutables: [],
+    }).output.hookSpecificOutput.permissionDecision,
+    "deny",
+  );
 });
 
 test("lifecycle events restore bounded owned voices, including compact and resume", () => {
@@ -244,8 +270,14 @@ test("registration preserves authority; valid purpose cannot permit an owner mer
   for (const name of ["SessionStart", "UserPromptSubmit", "SubagentStart"]) {
     assert.ok(config.hooks[name][0].hooks[0].command.includes("shell-purpose/hook.mjs"));
   }
-  const merge = `# Purpose: Merge this pull request as part of the pending task.\ngh pr merge 1`;
-  assert.equal(respond(event(merge)), null);
+  const merge = "gh pr merge 1";
+  assert.equal(
+    evaluate(event(merge), {
+      purposeOptionalShapes: [],
+      purposeOptionalExecutables: ["gh"],
+    }).output,
+    null,
+  );
   const ownerHook = fileURLToPath(
     new URL("../../../../scripts/owner-authority-hook.mjs", import.meta.url),
   );

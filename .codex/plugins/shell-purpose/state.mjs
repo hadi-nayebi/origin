@@ -43,10 +43,10 @@ export function loadPolicy(path = new URL("./policy.json", import.meta.url)) {
   if (
     policy?.version !== 1 ||
     typeof policy.revision !== "string" ||
-    !Array.isArray(policy.promotedShapes) ||
-    !Array.isArray(policy.promotedExecutables) ||
-    !policy.promotedShapes.every((value) => typeof value === "string") ||
-    !policy.promotedExecutables.every((value) => typeof value === "string")
+    !Array.isArray(policy.purposeOptionalShapes) ||
+    !Array.isArray(policy.purposeOptionalExecutables) ||
+    !policy.purposeOptionalShapes.every((value) => typeof value === "string") ||
+    !policy.purposeOptionalExecutables.every((value) => typeof value === "string")
   )
     throw new Error("Invalid shell-purpose policy");
   return policy;

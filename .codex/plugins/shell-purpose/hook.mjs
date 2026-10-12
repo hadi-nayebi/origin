@@ -37,7 +37,7 @@ function commandBody(command) {
   if (typeof command !== "string") return "";
   const lines = command.split(/\r?\n/);
   return lines
-    .slice(lines[0].startsWith(PURPOSE_PREFIX) ? 1 : 0)
+    .slice(lines[0].startsWith("# Purpose:") ? 1 : 0)
     .join("\n")
     .trim();
 }
@@ -154,18 +154,28 @@ export function evaluate(input, policy = loadPolicy()) {
   const rawPurpose = purposeText(command);
   const purposeCharacters = rawPurpose === null ? [] : [...rawPurpose];
   const purpose = rawPurpose === null ? null : purposeCharacters.slice(0, MAX_PURPOSE).join("");
-  const valid = validPurpose(command) && classification.valid;
-  const promoted =
-    policy.promotedShapes.includes(classification.shape) ||
-    (classification.segments.length > 0 &&
-      classification.segments.every((part) =>
-        policy.promotedExecutables.includes(part.executable),
-      ));
-  const reason = !valid
+  const firstLine = typeof command === "string" ? command.split(/\r?\n/, 1)[0] : "";
+  const purposeProvided = firstLine.startsWith("# Purpose:");
+  const purposeValid = validPurpose(command);
+  const purposeOptional =
+    classification.valid &&
+    (policy.purposeOptionalShapes.includes(classification.shape) ||
+      (classification.segments.length > 0 &&
+        classification.segments.every((part) =>
+          policy.purposeOptionalExecutables.includes(part.executable),
+        )));
+  const valid = classification.valid && (purposeValid || (!purposeProvided && purposeOptional));
+  const reason = !classification.valid
     ? "invalid-shape"
-    : promoted
-      ? "valid-promoted-shape"
-      : "valid-observed-shape";
+    : purposeValid
+      ? purposeOptional
+        ? "valid-purpose-optional-with-purpose"
+        : "valid-observed-shape"
+      : purposeProvided
+        ? "invalid-purpose"
+        : purposeOptional
+          ? "valid-purpose-optional"
+          : "missing-purpose";
   return {
     output: valid ? null : deny("blocked"),
     transaction: {

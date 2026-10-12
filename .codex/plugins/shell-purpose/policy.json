@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": "2026-10-11-initial",
-  "promotedShapes": [],
-  "promotedExecutables": []
+  "revision": "2026-10-12-purpose-optional-contract",
+  "purposeOptionalShapes": [],
+  "purposeOptionalExecutables": []
 }

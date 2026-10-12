@@ -6,8 +6,8 @@ ignored, bounded transaction journal under `.origin/shell-purpose/data.json`.
 
 ## Command contract
 
-Every native Bash command must begin with this exact heading and a purpose of 20–240 Unicode code
-points after trimming, then contain a command on subsequent lines:
+By default, every native Bash command must begin with this exact heading and a purpose of 20–240
+Unicode code points after trimming, then contain a command on subsequent lines:
 
 ```bash
 # Purpose: Inspect the working tree before choosing the files for this change.
@@ -18,7 +18,9 @@ This is an additional required piece of the **existing command field**, not a ne
 argument. Codex's documented Bash hook supplies `tool_input.command`; adding arbitrary tool-schema
 fields is not this plugin's capability. A future host adapter can expose a genuine purpose argument.
 The parser accepts a command string or a recognized Bash/sh/zsh argv form with a `-c` option.
-Unsupported forms, absent headings, out-of-range purposes and empty commands are denied.
+Unsupported forms, out-of-range purposes, malformed headings and empty commands are denied. A
+command without a heading is also denied unless reviewed tracked policy makes its exact shape or
+every executable purpose-optional.
 
 Before policy evaluation, the hook classifies a single command, `cd`, a `.codex/plugins/` location,
 a chain, or a pipeline. It preserves quoted operators, requires balanced quoting and rejects empty
@@ -33,11 +35,13 @@ executables and shapes. A directory lock plus atomic replacement serializes conc
 processes. Missing state creates version 1; unreadable, corrupt, legacy or unwritable state blocks
 the call and preserves the existing file.
 
-Observed families, executables and shapes accumulate as candidates. They do not become permission.
-Only a reviewed change to tracked `policy.json` promotes an exact shape or executable, and promotion
-currently changes the journal reason rather than bypassing purpose validation or another authority
-hook. `state.schema.json` documents the persisted envelope. Delete `.origin/shell-purpose/` when
-removing this plugin if its local evidence is no longer needed.
+Observed families, executables and shapes accumulate as candidates. They do not become policy.
+Only a reviewed change to tracked `policy.json` may make an exact shape or every executable in a
+command purpose-optional. The initial policy contains no exceptions. A match removes only the
+purpose-comment requirement; structural validation and every other authority hook still apply.
+Supplying a malformed `# Purpose:` header never falls through to an exception.
+`state.schema.json` documents the persisted envelope. Delete `.origin/shell-purpose/` when removing
+this plugin if its local evidence is no longer needed.
 
 ## Instruction and enforcement
 
@@ -69,8 +73,8 @@ the correction separately from parser correctness. No model training or selectio
 
 Run `node --test .codex/plugins/shell-purpose/tests/*.test.mjs`. Tests exercise native hook
 subprocess input/output, lifecycle voices, boundaries, argv, command families, Unicode and
-cross-platform paths, corrupt/legacy state, concurrent writes, governed promotion evidence and
-independence from existing authority hooks. Authenticated startup/resume/compact/model correction is
+cross-platform paths, corrupt/legacy state, concurrent writes, governed purpose-optional behavior
+and independence from existing authority hooks. Authenticated startup/resume/compact/model correction is
 not established by these deterministic tests.
 
 Contract reference: https://learn.chatgpt.com/docs/hooks (reviewed October 9, 2026).

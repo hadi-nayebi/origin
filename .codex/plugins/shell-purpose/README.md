@@ -74,7 +74,7 @@ the correction separately from parser correctness. No model training or selectio
 Run `node --test .codex/plugins/shell-purpose/tests/*.test.mjs`. Tests exercise native hook
 subprocess input/output, lifecycle voices, boundaries, argv, command families, Unicode and
 cross-platform paths, corrupt/legacy state, concurrent writes, governed purpose-optional behavior
-and independence from existing authority hooks. Authenticated startup/resume/compact/model correction is
-not established by these deterministic tests.
+and independence from existing authority hooks. Authenticated startup/resume/compact/model
+correction is not established by these deterministic tests.
 
 Contract reference: https://learn.chatgpt.com/docs/hooks (reviewed October 9, 2026).

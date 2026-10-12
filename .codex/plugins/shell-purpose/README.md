@@ -35,13 +35,13 @@ executables and shapes. A directory lock plus atomic replacement serializes conc
 processes. Missing state creates version 1; unreadable, corrupt, legacy or unwritable state blocks
 the call and preserves the existing file.
 
-Observed families, executables and shapes accumulate as candidates. They do not become policy.
-Only a reviewed change to tracked `policy.json` may make an exact shape or every executable in a
-command purpose-optional. The initial policy contains no exceptions. A match removes only the
+Observed families, executables and shapes accumulate as candidates. They do not become policy. Only
+a reviewed change to tracked `policy.json` may make an exact shape or every executable in a command
+purpose-optional. The initial policy contains no exceptions. A match removes only the
 purpose-comment requirement; structural validation and every other authority hook still apply.
-Supplying a malformed `# Purpose:` header never falls through to an exception.
-`state.schema.json` documents the persisted envelope. Delete `.origin/shell-purpose/` when removing
-this plugin if its local evidence is no longer needed.
+Supplying a malformed `# Purpose:` header never falls through to an exception. `state.schema.json`
+documents the persisted envelope. Delete `.origin/shell-purpose/` when removing this plugin if its
+local evidence is no longer needed.
 
 ## Instruction and enforcement
 

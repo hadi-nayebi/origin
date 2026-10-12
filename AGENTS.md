@@ -105,3 +105,13 @@ Maintain `docs/TEST-COVERAGE.md` when tests or acceptance findings change. Separ
 engineering checks from actual user evidence, cite exact revision/environment, and label untested or
 blocked cases and inherited tools/login. A repair merge does not pass its live retest. Preserve
 historical failures without publishing private credentials, conversations or voice samples.
+
+## Shell-purpose example
+
+The independently removable `shell-purpose` plugin adds friction before native Bash calls. By
+default, begin the command field with `# Purpose: ` and a concrete 20–240-character purpose, then
+the command on following lines. Lifecycle hooks restore guidance; PreToolUse enforces and records
+the shape in a bounded ignored local journal. Command-family candidates never promote themselves:
+only reviewed tracked policy may make an exact shape or every executable purpose-optional. That
+exception removes only the comment requirement; it never overrides shape validation or owner
+authority. See the plugin's AGENTS.md and README.

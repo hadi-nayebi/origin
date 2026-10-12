@@ -12,6 +12,17 @@
             "statusMessage": "Protecting owner merge authority"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/plugins/shell-purpose/hook.mjs\"",
+            "timeout": 5,
+            "statusMessage": "Checking shell purpose"
+          }
+        ]
       }
     ],
     "Stop": [
@@ -28,6 +39,42 @@
             "command": "node \"$(git rev-parse --show-toplevel)/scripts/channel-hook.mjs\" telegram-engagement",
             "timeout": 5,
             "statusMessage": "Checking telegram-engagement"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/plugins/shell-purpose/hook.mjs\"",
+            "timeout": 5,
+            "statusMessage": "Restoring shell-purpose context"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/plugins/shell-purpose/hook.mjs\"",
+            "timeout": 5,
+            "statusMessage": "Restoring shell-purpose context"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/plugins/shell-purpose/hook.mjs\"",
+            "timeout": 5,
+            "statusMessage": "Restoring shell-purpose context"
           }
         ]
       }
